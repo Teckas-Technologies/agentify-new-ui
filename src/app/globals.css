@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@tailwind components;
+@tailwind utilities;
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+@font-face {
+  font-family: "manrope";
+  src: url("/Fonts/Manrope-VariableFont_wght.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@font-face {
+  font-family: "orbitron";
+  src: url("/Fonts/Orbitron-VariableFont_wght.ttf") format("truetype");
+}
+
+.truncate-3-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Number of lines to show */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.truncate-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Number of lines to show */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.truncate-1-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 1; /* Number of lines to show */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* For WebKit Browsers (e.g., Chrome, Safari) */
+.scroll-d::-webkit-scrollbar {
+  width: 6px; 
+}
+
+.scroll-d::-webkit-scrollbar-track {
+  background: transparent; 
+  border-radius: 4px; 
+}
+
+.scroll-d::-webkit-scrollbar-thumb {
+  background-color: #1F2937; 
+  border-radius: 1rem; 
+}
+
