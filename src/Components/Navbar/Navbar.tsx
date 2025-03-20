@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { FaRobot, FaLaptopCode } from "react-icons/fa6";
 import { MdLink } from "react-icons/md";
 import { HiMiniArrowUpRight } from "react-icons/hi2";
-import { usePrivy, useSolanaWallets } from "@privy-io/react-auth";
-import { useBridgeToken } from "@/hooks/useBridge";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
 
 export default function Navbar({
@@ -21,53 +21,22 @@ export default function Navbar({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { connectWallet, user, ready } = usePrivy();
-  const [isConnected, setIsConnected] = useState(false);
   const [isSoon, setIsSoon] = useState(false);
+  const { isConnected } = useAppKitAccount();
+  const { address } = useAccount();
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
 
-  const { wallets } = useSolanaWallets();
-
-  const checkConnection = async () => {
-    setIsConnected(await wallets[0].isConnected())
+  const handleConnectWallet = () => {
+    open({ view: 'Connect' });
   }
 
-  const checkLinked = async () => {
-    if (wallets.length === 0) {
-      return;
-    }
-    const linked = await wallets[0].linked;
-    console.log("Linked: ", linked);
-    if (!linked) {
-      const res = await wallets[0].loginOrLink();
-      console.log("RES:", res)
-    }
+  const handleDisconnect = () => {
+    disconnect();
   }
 
-  useEffect(() => {
-    if (wallets.length > 0) {
-      checkConnection();
-    }
-  }, [wallets.length])
-
-  useEffect(() => {
-    if (wallets.length > 0) {
-      checkLinked()
-    }
-  }, [wallets.length])
-
-  const handleConnect = () => {
-    connectWallet({
-      suggestedAddress: '1111WS4xG97qPg6xehU4MadJZifPyQPgYPHfsS3X1111',
-      walletList: ['phantom', 'solflare'],
-    });
-  }
-
-  const handleDisconnect = async () => {
-    if (wallets.length === 0) {
-      return;
-    }
-    setIsConnected(false);
-    await wallets[0].disconnect();
+  const handleViewAccount = () => {
+    open({ view: 'Account' });
   }
 
   // Determine active tab based on current route
@@ -108,13 +77,13 @@ export default function Navbar({
           <div>
             {/* Logo */}
             <div className="flex items-center space-x-2 font-semibold">
-              <img src="images/sonic-logo.png" className="h-9" />
+              <img src="images/logo.png" className="h-10 w-10 object-cover rounded-full" />
               {(!isCollapsed || isMobileNavVisible) && (
                 <span
                   className="text-white text-2xl"
                   style={{ fontFamily: "orbitron" }}
                 >
-                  SONIC
+                  AGENTIFY
                 </span>
               )}
             </div>
@@ -185,16 +154,28 @@ export default function Navbar({
 
           {/* Connect Wallet Button */}
           <div className="mt-auto">
-            <button
+            <div className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer" onClick={() => !isConnected ? handleConnectWallet() : handleViewAccount()}>
+              <MdLink className="w-8 h-8" />
+              {(!isCollapsed || isMobileNavVisible) && <h2 className="text-white font-medium" style={{ fontFamily: "manrope" }}>{!isConnected ? "Connect Wallet" : "View Account"}</h2>}
+              <div className="absolute top-0 left-0 right-0 bottom-0">
+                <img src="/images/button-border.png" alt="agy" className={` w-full h-full ${(!isCollapsed || isMobileNavVisible) ? "object-contain" : "object-cover"}`} />
+              </div>
+            </div>
+            {/* <button
               className="w-full py-2 rounded-lg cursor-pointer flex justify-center items-center gap-2 text-sm bg-white text-black font-bold hover:bg-gray-200 transition"
               style={{ fontFamily: "manrope" }}
               onClick={() => !isConnected ? connectWallet() : handleDisconnect()}
             >
-              <MdLink className="w-8 h-8" />
+              <MdLink className="w-6 h-6" />
               {(!isCollapsed || isMobileNavVisible) && (
                 !isConnected ? <span>Connect Wallet</span> : <span>Disconnect</span>
               )}
-            </button>
+            </button> */}
+          </div>
+        </div>
+        <div className="absolute top-0 left-0 right-0 h-[20rem] z-[-1]">
+          <div className="img-holder w-full h-full">
+            <img src="images/left-top-circle.png" alt="agy" className="w-full h-full" />
           </div>
         </div>
       </nav>
@@ -212,15 +193,15 @@ export default function Navbar({
           <div onClick={(e) => e.stopPropagation()} className="inside-box w-full pb-5 md:pb-[1.5rem] md:min-h-[15rem] min-[13rem] flex flex-col items-center justify-center gap-1">
             <div className="flex justify-center items-center">
               <img
-                src="images/sonic-logo.png"
-                className="md:h-[100px] h-[50px]"
+                src="images/logo.png"
+                className="h-20 w-20"
               />
             </div>
             <h2
               className="xxl:text-xl text-white xl:text-lg font-semibold text-md"
               style={{ fontFamily: "orbitron" }}
             >
-              SONIC SVM AGENTS
+              AGENTIFY AGENTS
             </h2>
             <p className="text-md text-white">Build your own agents!</p>
             <div className="soon max-w-[10rem] mt-2 text-center px-3 py-1 bg-[#fbb042] rounded text-black md:text-sm text-[8px] font-semibold"

@@ -6,6 +6,7 @@ import { FaSearch } from "react-icons/fa";
 import { MdKeyboardArrowRight, MdKeyboardArrowDown } from "react-icons/md";
 import { useChat } from "@/hooks/useChatHook";
 import { useRouter } from "next/navigation";
+import "./Agents.css"
 
 const agents = [
   {
@@ -206,7 +207,7 @@ const Agents = ({
                     <div className="flex items-center gap-2">
                       {agent && (
                         <img
-                          src="images/sonic-logo.png"
+                          src="images/logo.png"
                           alt={`${agent} logo`}
                           className="h-8 w-8"
                         />
@@ -215,9 +216,9 @@ const Agents = ({
                         className="text-base font-semibold truncate-1-lines"
                         style={{ fontFamily: "orbitron" }}
                       >
-                        {agent === "bridgeAgent" ?
+                        {agent === "Bridge Agent" ?
                           "Bridge Assistant" :
-                          agent === "swapAgent" ?
+                          agent === "Swap Agent" ?
                             "Swap Assistant" :
                             agent === "coinMarketCapAgent" ?
                               "CoinMarketCap Assistant" :
@@ -241,13 +242,13 @@ const Agents = ({
                       maxWidth: "calc(100% - 1rem)",
                     }}
                   >
-                    {agent === "bridgeAgent" ?
-                      "Assistant for helping users to bridge tokens between Solana & Sonic SVM chains." :
-                      agent === "swapAgent" ?
-                        "Assistant for helping users to swap tokens between Solana & Sonic SVM chains." :
+                    {agent === "Bridge Agent" ?
+                      "Assistant for helping users to bridge tokens between the EVM chains." :
+                      agent === "Swap Agent" ?
+                        "Assistant for helping users to swap tokens in the EVM chains." :
                         agent === "coinMarketCapAgent" ?
                           "Assistant for helping users to know the current market price of the tokens & all over the crypto activities in the world." :
-                          "Assistant for helping users to add liquidity to pool in Solana & Sonic SVM chains."}
+                          "Assistant for helping users to add liquidity to pool in the EVM chains."}
                   </p>
 
                   {/* Author and Verification */}
@@ -264,7 +265,7 @@ const Agents = ({
                         className="w-5 h-5 rounded-full"
                       />
                       <span className="text-gray-500 text-sm">
-                        {"Teckas"} {/** agent.author */}
+                        {"Teckas" } {/** agent.author */}
                       </span>
                     </div>
 
@@ -288,7 +289,7 @@ const Agents = ({
           </div>
           {!selectedCategories.includes("DeFi") && selectedCategories.length !== 0 && <div className="w-full flex flex-col items-center justify-center gap-3">
             <p className="" style={{ fontFamily: "orbitron" }}>Agents will come soon!</p>
-            <div className="soon px-2 py-1 bg-[#fbb042] rounded text-black md:text-sm text-[8px] font-semibold"
+            <div className="soon px-3 py-1 rounded text-white md:text-sm text-[8px] font-semibold"
               style={{ fontFamily: "orbitron" }}>
               SOON
             </div>

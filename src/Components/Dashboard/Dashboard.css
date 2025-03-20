@@ -1,0 +1,30 @@
+.agent-name {
+    /* background: linear-gradient(264.23deg, #293B93 4.52%, #91D695 102.75%); */
+    background: linear-gradient(264.23deg, #91D695 4.52%, #293B93 102.75%);
+}
+
+.button-holder-abs {
+    transition: transform 0.3s ease-in-out;
+}
+
+.button-holder-abs:hover {
+    transform: scale(1.03);
+}
+
+.button-holder h2 {
+    transition: transform 0.3s ease-in-out;
+}
+
+.button-holder:hover .button-holder h2 {
+    transform: scale(1.1);
+}
+
+.user-msg {
+    /* background-color: #00252A; */
+    /* background: linear-gradient(264.23deg, #293B93 4.52%, #91D695 102.75%); */
+    background: #2EA3EA;
+}
+
+.user-msg:hover {
+    box-shadow: 0px 0px 21px 0px #8DF4FF66;
+}

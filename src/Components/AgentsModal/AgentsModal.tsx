@@ -91,12 +91,12 @@ export default function AgentsModal({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img src="images/sonic-logo.png" className="h-[30px] w-[30px] rounded-full" />
+                    <img src="images/logo.png" className="h-[30px] w-[30px] rounded-full" />
                     <h3 className="font-semibold text-sm truncate-1-lines">
                       {/* {agent.name.length > 25 ? agent.name.slice(0, 25) + "..." : agent.name} */}
-                      {agent === "bridgeAgent" ?
+                      {agent === "Bridge Agent" ?
                         "Bridge Assistant" :
-                        agent === "swapAgent" ?
+                        agent === "Swap Agent" ?
                           "Swap Assistant" :
                           agent === "coinMarketCapAgent" ?
                             "CoinMarketCap Assistant" :
@@ -108,13 +108,13 @@ export default function AgentsModal({
 
                 {/* Description */}
                 <p className="text-xs text-gray-400 mt-1">
-                  {agent === "bridgeAgent" ?
-                    "Assistant for helping users to bridge tokens between Solana & Sonic SVM chains." :
-                    agent === "swapAgent" ?
-                      "Assistant for helping users to swap tokens between Solana & Sonic SVM chains." :
+                  {agent === "Bridge Agent" ?
+                    "Assistant for helping users to bridge tokens between the EVM chains." :
+                    agent === "Swap Agent" ?
+                      "Assistant for helping users to swap tokens in the EVM chains." :
                       agent === "coinMarketCapAgent" ?
                         "Assistant for helping users to know the current market price of the tokens & all over the crypto activities in the world." :
-                        "Assistant for helping users to add liquidity to pool in Solana & Sonic SVM chains."}
+                        "Assistant for helping users to add liquidity to pool in EVM chains."}
                 </p>
               </div>
             ))}

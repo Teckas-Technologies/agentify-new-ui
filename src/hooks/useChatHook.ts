@@ -1,21 +1,20 @@
-import { useSolanaWallets } from '@privy-io/react-auth';
+import { PYTHON_SERVER_URL } from '@/config/constants';
 import { useState } from 'react';
+import { useAccount } from 'wagmi';
 
 interface RequestFields {
     inputMessage: string;
     agentName: string;
+    userId: string;
 }
 
 export const useChat = () => {
-    const { wallets } = useSolanaWallets();
+    const { address } = useAccount();
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    const solanaWallet = wallets[0];
-    const solanaAddress = solanaWallet?.address;
-
     const chat = async (data: RequestFields) => {
-        if (!solanaAddress) {
+        if (!address) {
             console.log("Please connect your wallet.")
             return;
         }
@@ -23,17 +22,18 @@ export const useChat = () => {
         setError(null);
 
         try {
-            const response = await fetch('https://sonic-agents-c3gwbpgtdzcffte5.canadacentral-01.azurewebsites.net/api/chat', {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    agentName: data.agentName, // "bridgeAgent"
+                    agentName: data.agentName, // "Swap Agent"
                     message: data.inputMessage,
-                    threadId: data.agentName,  // agent id
-                    userId: solanaAddress,
-                }),
+                    threadId: data.agentName,  // "Swap Agent"
+                    walletAddress: address,
+                    userId: data.userId,
+                })
             });
 
             if (!response.ok) {
@@ -55,7 +55,7 @@ export const useChat = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`https://sonic-agents-c3gwbpgtdzcffte5.canadacentral-01.azurewebsites.net/api/list-agents`, {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/list-agents`, {
                 method: "GET",
                 // headers: {
                 //     "Content-Type": "application/json",
@@ -78,15 +78,15 @@ export const useChat = () => {
         }
     }
 
-    const fetchChatHistory = async (agentName: string) => {
-        if (!solanaAddress) {
+    const fetchChatHistory = async (userId: string, agentId: string) => {
+        if (!address) {
             console.log("Please connect your wallet.")
             return;
         }
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch(`https://sonic-agents-c3gwbpgtdzcffte5.canadacentral-01.azurewebsites.net/api/history/${solanaAddress}/${agentName}`, {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`, {
                 method: "GET"
             })
             if (!response.ok) {
@@ -104,15 +104,15 @@ export const useChat = () => {
         }
     }
 
-    const clearHistory = async (agentName: string) => {
-        if (!solanaAddress) {
+    const clearHistory = async (userId: string, agentId: string) => {
+        if (!address) {
             console.log("Please connect your wallet.")
             return;
         }
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch(`https://sonic-agents-c3gwbpgtdzcffte5.canadacentral-01.azurewebsites.net/api/history/${solanaAddress}/${agentName}`, {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`, {
                 method: "DELETE"
             })
             if (!response.ok) {
