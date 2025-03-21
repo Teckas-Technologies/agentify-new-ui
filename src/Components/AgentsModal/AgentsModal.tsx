@@ -94,12 +94,12 @@ export default function AgentsModal({
                     <img src="images/logo.png" className="h-[30px] w-[30px] rounded-full" />
                     <h3 className="font-semibold text-sm truncate-1-lines">
                       {/* {agent.name.length > 25 ? agent.name.slice(0, 25) + "..." : agent.name} */}
-                      {agent === "Bridge Agent" ?
+                      {agent === "bridgeAgent" ?
                         "Bridge Assistant" :
-                        agent === "Swap Agent" ?
+                        agent === "swapAgent" ?
                           "Swap Assistant" :
-                          agent === "coinMarketCapAgent" ?
-                            "CoinMarketCap Assistant" :
+                          agent === "lendingBorrowingAgent" ?
+                            "Lending & Borrowing Assistant" :
                             "Liquidity Assistant"}
                     </h3>
                   </div>
@@ -108,12 +108,12 @@ export default function AgentsModal({
 
                 {/* Description */}
                 <p className="text-xs text-gray-400 mt-1">
-                  {agent === "Bridge Agent" ?
+                  {agent === "bridgeAgent" ?
                     "Assistant for helping users to bridge tokens between the EVM chains." :
-                    agent === "Swap Agent" ?
+                    agent === "swapAgent" ?
                       "Assistant for helping users to swap tokens in the EVM chains." :
-                      agent === "coinMarketCapAgent" ?
-                        "Assistant for helping users to know the current market price of the tokens & all over the crypto activities in the world." :
+                      agent === "lendingBorrowingAgent" ?
+                        "Assistant for helping users to lend & borrow the tokens in EVM chains." :
                         "Assistant for helping users to add liquidity to pool in EVM chains."}
                 </p>
               </div>

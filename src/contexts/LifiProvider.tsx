@@ -1,12 +1,12 @@
 'use client'
 
 import { ChainType, EVM, config, createConfig, getChains } from '@lifi/sdk';
-import { useSyncWagmiConfig } from '@lifi/wallet-management';
+// import { useSyncWagmiConfig } from '@lifi/wallet-management';
 import { useQuery } from '@tanstack/react-query';
 import { getWalletClient, switchChain } from '@wagmi/core';
 import { ReactNode } from 'react';
 import { createClient, http } from 'viem';
-import { mainnet, polygon, polygonMumbai, sepolia } from 'viem/chains';
+import { arbitrum, mainnet, polygon, polygonMumbai, sepolia } from 'viem/chains';
 import { WagmiProvider, createConfig as createWagmiConfig } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 
@@ -15,7 +15,7 @@ const connectors = [injected()];
 
 // Create Wagmi config with default chain and without connectors
 const wagmiConfig = createWagmiConfig({
-    chains: [mainnet, polygon],
+    chains: [mainnet, arbitrum, polygon, sepolia],
     client({ chain }) {
         return createClient({ chain, transport: http() });
     },
@@ -53,7 +53,7 @@ export const CustomWagmiProvider = ({ children }: {children: ReactNode}) => {
     });
 
     // Synchronize fetched chains with Wagmi config and update connectors
-      useSyncWagmiConfig(wagmiConfig, connectors, chains);
+    //   useSyncWagmiConfig(wagmiConfig, connectors, chains);
 
     return (
         <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
