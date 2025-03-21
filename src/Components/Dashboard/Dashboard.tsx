@@ -13,6 +13,8 @@ import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import useLifiHook from "@/hooks/useLifiHook";
+import useAaveHook from "@/hooks/useAaveHook";
+import { MarketType } from "@/types/types";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -31,9 +33,10 @@ export default function Dashboard({
 }) {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
-  const [activeAgent, setActiveAgent] = useState<string>("Swap Agent");
+  const [activeAgent, setActiveAgent] = useState<string>("swapAgent");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { executeLifi, validateTokenBalance } = useLifiHook();
+  const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave, status, error } = useAaveHook();
   const { chat, fetchChatHistory, clearHistory, fetchAgents } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +44,7 @@ export default function Dashboard({
   const [agents, setAgents] = useState([]);
   const [isBridging, setIsBridging] = useState(false);
   const [isExecutingLifi, setExecutingLifi] = useState(false);
+  const [isExecutingAave, setExecutingAave] = useState(false);
   const [isSwaping, setIsSwaping] = useState(false);
   const { user } = useUser();
   const { isConnected } = useAppKitAccount();
@@ -63,7 +67,7 @@ export default function Dashboard({
       if (queryAgent) {
         setActiveAgent(queryAgent);
       } else {
-        setActiveAgent("Swap Agent")
+        setActiveAgent("swapAgent")
       }
     }
   }, [agents]);
@@ -72,7 +76,7 @@ export default function Dashboard({
     if (address) {
       fetchHistory();
     }
-  }, [address, activeAgent])
+  }, [address, activeAgent, user])
 
   useEffect(() => {
     fetchAllAgents();
@@ -92,6 +96,7 @@ export default function Dashboard({
     );
 
     setMessages(filteredMessages);
+    console.log(filteredMessages)
   }
 
   const fetchAllAgents = async () => {
@@ -143,6 +148,73 @@ export default function Dashboard({
       if (response?.success) {
         {/**  */ }
         if (response?.data?.tool_response !== "None") {
+          const toolMessage = JSON.parse(response?.data?.tool_response);
+
+          if (toolMessage?.type === "lend") {
+            const { market, tokenSymbol, amount } = toolMessage;
+            if (!market || !tokenSymbol || !amount) {
+              console.log("Err missing fields")
+            }
+            setMessages((prev) => [...prev, { role: "ai", message: `Executing lend for ${amount} ${tokenSymbol}, don't close the page until get confirmations...` }]);
+            setExecutingAave(true);
+
+            console.log("Market Type", MarketType[market as keyof typeof MarketType])
+            const res = await supplyToAave({ market: MarketType[market as keyof typeof MarketType], tokenSymbol: tokenSymbol, amount: amount.toString() });
+            console.log("Lend RES:", res);
+
+            if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
+              setMessages((prev) => [...prev, { role: "ai", message: `Lending ${amount} ${tokenSymbol} executed successfully!`, txHash: res?.txHashes[0] }]);
+              setExecutingAave(false);
+              return;
+            } else {
+              setMessages((prev) => [...prev, { role: "ai", message: `Lending ${tokenSymbol} execution was failed!` }]);
+              setExecutingAave(false);
+              return;
+            }
+          } else if (toolMessage?.type === "borrow") {
+            const { market, tokenSymbol, amount } = toolMessage;
+            if (!market || !tokenSymbol || !amount) {
+              console.log("Err missing fields")
+            }
+            setMessages((prev) => [...prev, { role: "ai", message: `Executing borrow for ${amount} ${tokenSymbol}, don't close the page until get confirmations...` }]);
+            setExecutingAave(true);
+
+            console.log("Market Type", MarketType[market as keyof typeof MarketType])
+            const res = await borrowToAave({ market: MarketType[market as keyof typeof MarketType], tokenSymbol: tokenSymbol, amount: amount.toString() });
+            console.log("Borrow RES:", res);
+
+            if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
+              setMessages((prev) => [...prev, { role: "ai", message: `Borrow ${amount} ${tokenSymbol} executed successfully!`, txHash: res?.txHashes[0] }]);
+              setExecutingAave(false);
+              return;
+            } else {
+              setMessages((prev) => [...prev, { role: "ai", message: `Borrow ${tokenSymbol} execution was failed!` }]);
+              setExecutingAave(false);
+              return;
+            }
+          } else if (toolMessage?.type === "withdraw") {
+            const { market, tokenSymbol, amount } = toolMessage;
+            if (!market || !tokenSymbol || !amount) {
+              console.log("Err missing fields")
+            }
+            setMessages((prev) => [...prev, { role: "ai", message: `Executing withdraw for ${amount} ${tokenSymbol}, don't close the page until get confirmations...` }]);
+            setExecutingAave(true);
+
+            console.log("Market Type", MarketType[market as keyof typeof MarketType])
+            const res = await withdrawFromAave({ market: MarketType[market as keyof typeof MarketType], tokenSymbol: tokenSymbol, amount: amount.toString() });
+            console.log("Withdraw RES:", res);
+
+            if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
+              setMessages((prev) => [...prev, { role: "ai", message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`, txHash: res?.txHashes[0] }]);
+              setExecutingAave(false);
+              return;
+            } else {
+              setMessages((prev) => [...prev, { role: "ai", message: `Withdraw ${tokenSymbol} execution was failed!` }]);
+              setExecutingAave(false);
+              return;
+            }
+          }
+
           const quote = JSON.parse(response?.data?.tool_response);
           console.log("Quote:", quote)
 
@@ -236,6 +308,7 @@ export default function Dashboard({
     } finally {
       setIsLoading(false);
       setExecutingLifi(false);
+      setExecutingAave(false);
     }
   }
 
@@ -318,25 +391,25 @@ export default function Dashboard({
                       className="h-8 w-8 object-cover rounded-full"
                     />
                     <h3 className="font-semibold text-md truncate-1-lines w-[90%]">
-                      {agent === "Bridge Agent" ?
+                      {agent === "bridgeAgent" ?
                         "Bridge Assistant" :
-                        agent === "Swap Agent" ?
+                        agent === "swapAgent" ?
                           "Swap Assistant" :
-                          agent === "coinMarketCapAgent" ?
-                            "CoinMarketCap Assistant" :
+                          agent === "lendingBorrowingAgent" ?
+                            "Lending & Borrowing Assistant" :
                             "Liquidity Assistant"}
                     </h3>
                   </div>
                   <IoMdInformationCircleOutline className="w-5 h-5 text-gray-400 cursor-pointer" />
                 </div>
                 <p className="text-sm text-gray-400 mt-1 w-[90%] truncate-3-lines">
-                  {agent === "Bridge Agent" ?
+                  {agent === "bridgeAgent" ?
                     "Assistant for helping users to bridge tokens between the EVM chains." :
-                    agent === "Swap Agent" ?
+                    agent === "swapAgent" ?
                       "Assistant for helping users to swap tokens in the EVM chains." :
-                      agent === "coinMarketCapAgent" ?
-                        "Assistant for helping users to know the current market price of the tokens & all over the crypto activities in the world." :
-                        "Assistant for helping users to add liquidity to pool in the EVM chains."}
+                      agent === "lendingBorrowingAgent" ?
+                        "Assistant for helping users to lend & borrow the tokens in EVM chains." :
+                        "Assistant for helping users to add liquidity to pool in EVM chains."}
                 </p>
               </div>
             ))}
@@ -347,7 +420,7 @@ export default function Dashboard({
         <div className="flex-1 flex flex-col justify-center w-full md:w-[70%] lg:w-[71%] xl:w-[72%]">
           {/* Execute Transactions with AI Box bg-gray-950 */}
           <div className="relative z-0 flex-1 flex flex-col items-center justify-center  border border-gray-700 rounded-lg md:mt-4 md:mx-4 p-[0.1rem] md:p-[0.4rem] lg:p-[0.7rem] xl:p-[1rem]">
-            {messages && messages.length > 0 && <div className="top w-full flex justify-between items-center px-5 md:px-0 border-b border-gray-700 pb-3">
+            {isConnected && address && messages && messages.length > 0 && <div className="top w-full flex justify-between items-center px-5 md:px-0 border-b border-gray-700 pb-3">
               <h2
                 className="font-semibold text-md"
                 style={{ fontFamily: "orbitron" }}
@@ -465,7 +538,7 @@ export default function Dashboard({
                 className="agent-name px-3 py-1 hidden md:block rounded text-white md:text-sm text-[8px] font-bold"
                 style={{ fontFamily: "orbitron" }}
               >
-                {activeAgent === "Bridge Agent" ? "BRIDGE ASSISTANT" : activeAgent === "Swap Agent" ? "SWAP ASSISTANT" : "AGENTIFY ASSISTANT"}
+                {activeAgent === "bridgeAgent" ? "BRIDGE ASSISTANT" : activeAgent === "swapAgent" ? "SWAP ASSISTANT" : activeAgent === "lendingBorrowingAgent" ? "Lending & Borrow" : "AGENTIFY ASSISTANT"}
               </span>
               <input
                 type="text"
@@ -500,7 +573,7 @@ export default function Dashboard({
                 className="agent-name px-3 py-1 rounded text-white text-xs md:text-sm font-bold"
                 style={{ fontFamily: "orbitron" }}
               >
-                {activeAgent === "Bridge Agent" ? "BRIDGE ASSISTANT" : activeAgent === "Swap Agent" ? "SWAP ASSISTANT" : "AGENTIFY ASSISTANT"}
+                {activeAgent === "bridgeAgent" ? "BRIDGE ASSISTANT" : activeAgent === "swapAgent" ? "SWAP ASSISTANT" : activeAgent === "lendingBorrowingAgent" ? "LENDING & BORROW" : "AGENTIFY ASSISTANT"}
               </span>
 
               {/* Agents Button */}

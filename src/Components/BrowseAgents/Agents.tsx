@@ -216,12 +216,12 @@ const Agents = ({
                         className="text-base font-semibold truncate-1-lines"
                         style={{ fontFamily: "orbitron" }}
                       >
-                        {agent === "Bridge Agent" ?
+                        {agent === "bridgeAgent" ?
                           "Bridge Assistant" :
-                          agent === "Swap Agent" ?
+                          agent === "swapAgent" ?
                             "Swap Assistant" :
-                            agent === "coinMarketCapAgent" ?
-                              "CoinMarketCap Assistant" :
+                            agent === "lendingBorrowingAgent" ?
+                              "Lending & Borrowing Assistant" :
                               "Liquidity Assistant"}
                       </h5>
                     </div>
@@ -242,13 +242,13 @@ const Agents = ({
                       maxWidth: "calc(100% - 1rem)",
                     }}
                   >
-                    {agent === "Bridge Agent" ?
+                    {agent === "bridgeAgent" ?
                       "Assistant for helping users to bridge tokens between the EVM chains." :
-                      agent === "Swap Agent" ?
+                      agent === "swapAgent" ?
                         "Assistant for helping users to swap tokens in the EVM chains." :
-                        agent === "coinMarketCapAgent" ?
-                          "Assistant for helping users to know the current market price of the tokens & all over the crypto activities in the world." :
-                          "Assistant for helping users to add liquidity to pool in the EVM chains."}
+                        agent === "lendingBorrowingAgent" ?
+                          "Assistant for helping users to lend & borrow the tokens in EVM chains." :
+                          "Assistant for helping users to add liquidity to pool in EVM chains."}
                   </p>
 
                   {/* Author and Verification */}
@@ -265,7 +265,7 @@ const Agents = ({
                         className="w-5 h-5 rounded-full"
                       />
                       <span className="text-gray-500 text-sm">
-                        {"Teckas" } {/** agent.author */}
+                        {"Teckas"} {/** agent.author */}
                       </span>
                     </div>
 

@@ -152,6 +152,8 @@ export default function Navbar({
             )}
           </div>
 
+          {/* <p>{address}</p> */}
+
           {/* Connect Wallet Button */}
           <div className="mt-auto">
             <div className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer" onClick={() => !isConnected ? handleConnectWallet() : handleViewAccount()}>
@@ -204,7 +206,7 @@ export default function Navbar({
               AGENTIFY AGENTS
             </h2>
             <p className="text-md text-white">Build your own agents!</p>
-            <div className="soon max-w-[10rem] mt-2 text-center px-3 py-1 bg-[#fbb042] rounded text-black md:text-sm text-[8px] font-semibold"
+            <div className="soon max-w-[10rem] mt-2 text-center px-3 py-1 rounded text-black md:text-sm text-[8px] font-semibold"
               style={{ fontFamily: "orbitron" }}>
               COMING SOON
             </div>
