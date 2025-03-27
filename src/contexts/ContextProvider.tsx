@@ -3,7 +3,7 @@
 import { wagmiAdapter, projectId } from '@/config/wagmiAdapter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
-import { mainnet, arbitrum, sepolia, polygon } from '@reown/appkit/networks'
+import { mainnet, arbitrum, sepolia, polygon, bsc, optimism, avalanche, fantom, gnosis, base, linea, zksync, scroll, mantle, celo, moonriver, moonbeam, harmonyOne, kava, fuse, metis, boba, aurora, cronos, zora, bitTorrent, telos, blast, mode, lisk, unichain, sei, immutableZkEvm, sonic, gravity, taiko, soneium, fraxtal, abstract, rootstock, worldchain, ink, berachain, kaia } from '@reown/appkit/networks'
 import React, { type ReactNode } from 'react'
 import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi'
 
@@ -22,13 +22,13 @@ const metadata = {
     icons: ['images/logo.png']
 }
 
-const networks = [mainnet, arbitrum, sepolia, polygon];
+const networks = [mainnet, bsc, arbitrum, base, blast, avalanche, polygon, scroll, optimism, linea, zksync, gnosis, fantom, moonriver, moonbeam, fuse, boba, mode, metis, lisk, unichain, aurora, sei, immutableZkEvm, sonic, gravity, taiko, soneium, cronos, fraxtal, abstract, rootstock, celo, worldchain, mantle, ink, berachain, kaia, sepolia ];
 
 // Create the modal
 const modal = createAppKit({
     adapters: [wagmiAdapter],
     projectId,
-    networks: [mainnet, arbitrum, polygon, sepolia],
+    networks: [mainnet, bsc, arbitrum, base, blast, avalanche, polygon, scroll,  optimism, linea, zksync, gnosis, fantom, moonriver, moonbeam, fuse, boba, mode, metis, lisk, unichain, aurora, sei, immutableZkEvm, sonic, gravity, taiko, soneium, cronos, fraxtal, abstract, rootstock, celo, worldchain, mantle, ink, berachain, kaia, sepolia ],
     defaultNetwork: mainnet,
     metadata: metadata,
     allWallets: "SHOW",
