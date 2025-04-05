@@ -8,7 +8,8 @@ const useLifiHook = () => {
     const { address, isConnected } = useAccount();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
+    console.log("Address ----------",address);
+    
     const getTransactionLinks = (route: any) => {
         route.steps.forEach((step: any, index: any) => {
             step.execution?.process.forEach((process: any) => {
@@ -25,30 +26,44 @@ const useLifiHook = () => {
     // ✅ Validate Token Balance
     const validateTokenBalance = async (chainId: any, tokenAddress: any, amount: any) => {
         if (!address) {
+            console.warn("[validateTokenBalance] No wallet address found.");
             return;
         }
+    
         try {
-            console.log(chainId, tokenAddress, amount)
+            console.log("========== VALIDATING TOKEN BALANCE ==========");
+            console.log("[Input] Chain ID:", chainId);
+            console.log("[Input] Token Address Object:", tokenAddress);
+            console.log("[Input] Required Amount:", amount);
+    
             const token = await getToken(chainId, tokenAddress.address);
-            console.log("Token:", token)
+            console.log("[Token Info] Retrieved Token:", token);
+    
             const tokenBalance = await getTokenBalance(address, token);
-            console.log("bal", tokenBalance);
+            console.log("[Token Balance] Raw Token Balance:", tokenBalance);
+    
             const userBalance = BigInt(tokenBalance?.amount || "0");
             const requiredAmount = BigInt(amount);
-            console.log("Step1", tokenBalance, userBalance, requiredAmount)
+    
+            console.log("[Parsed Balances] User Balance:", userBalance.toString());
+            console.log("[Parsed Balances] Required Amount:", requiredAmount.toString());
+    
             if (userBalance < requiredAmount) {
-                console.log("Step2")
-                setError("Insufficient token balance. Please check your wallet balance");
+                console.warn("[Validation Result] ❌ Insufficient balance.");
+                setError("Insufficient token balance. Please check your wallet balance.");
                 return false;
             }
-            console.log("Step3")
+    
+            console.log("[Validation Result] ✅ Sufficient balance.");
             return true;
+    
         } catch (err) {
-            console.log("Step4", err)
+            console.error("[Error] Failed during token balance validation:", err);
             setError("Failed to fetch token balance. Please try again.");
             return false;
         }
     };
+    
 
     // ✅ Validate Available Chains
     const validateChains = async (fromChain: any, toChain: any) => {
@@ -164,52 +179,87 @@ const useLifiHook = () => {
 
     // Execute swap & bridge
     const executeLifi = async ({ quote }: { quote: any }) => {
+        console.log("========== Executing LiFi ==========");
+        console.log("[Input] Quote:", quote);
+    
         if (!quote || !quote.action) {
+            console.warn("[Validation] Invalid quote. Missing quote or quote.action.");
             setError("Invalid quote. Please fetch a new quote before proceeding.");
             return;
         }
-
+    
         const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote.action;
-
-        if (!(await validateChains(fromChainId, toChainId))) return;
-        if (!(await validateTools(fromChainId))) return;
-
+    
+        console.log("[Quote Details]");
+        console.log(" - From Chain ID:", fromChainId);
+        console.log(" - From Token:", fromToken);
+        console.log(" - To Chain ID:", toChainId);
+        console.log(" - To Token:", toToken);
+        console.log(" - From Amount (raw):", fromAmount);
+    
+        if (!(await validateChains(fromChainId, toChainId))) {
+            console.warn("[Validation] Chain validation failed.");
+            return;
+        }
+    
+        if (!(await validateTools(fromChainId))) {
+            console.warn("[Validation] Tool validation failed.");
+            return;
+        }
+    
         if (!address) {
+            console.warn("[Validation] No wallet address connected.");
             setError("Wallet not connected. Please connect your wallet first.");
             return;
         }
-
-        if (!(await validateTokenBalance(fromChainId, fromToken, fromAmount))) return;
-
+    
+        console.log("[Validation] Checking token balance...");
+        if (!(await validateTokenBalance(fromChainId, fromToken, fromAmount))) {
+            console.warn("[Validation] Token balance insufficient or failed.");
+            return;
+        }
+    
         try {
+            console.log("[Execution] Preparing to execute route...");
             setLoading(true);
             setError(null);
-
+    
             const route = convertQuoteToRoute(quote);
-
+            console.log("[Route] Converted route object:", route);
+    
             return new Promise((resolve, reject) => {
+                console.log("[Execution] Starting route execution...");
+    
                 executeRoute(route, {
                     updateRouteHook(updatedRoute: any) {
+                        console.log("[Hook] Route updated:", updatedRoute);
+    
                         updatedRoute.steps.forEach((step: any) => {
                             step.execution?.process.forEach((process: any) => {
+                                console.log("[Step Process] Checking process:", process);
+    
                                 if (process.txHash && process.status === "PENDING") {
-                                    console.log("Transaction sent! TX Hash:", process.txHash);
-
+                                    console.log("✅ Transaction sent! TX Hash:", process.txHash);
+    
                                     // ✅ Push execution to background
                                     updateRouteExecution(updatedRoute, { executeInBackground: true });
-
+    
                                     // ✅ Resolve immediately with TX hash
                                     resolve({ txHash: process.txHash });
-
+    
                                     return;
                                 }
                             });
                         });
                     },
-                }) // If executionRoute throws, reject the promise can remove .catch(reject);
-                    .then(resolve) // Ensure promise resolves if execution completes
+                })
+                    .then((res: any) => {
+                        console.log("✅ Execution completed successfully:", res);
+                        resolve(res);
+                    })
                     .catch((err: any) => {
-                        // ✅ Properly catch errors and set error message
+                        console.error("❌ Execution failed with error:", err);
+    
                         if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                             setError("Transaction rejected by the user.");
                         } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
@@ -219,12 +269,14 @@ const useLifiHook = () => {
                         } else {
                             setError(err.message || "An unexpected error occurred.");
                         }
-
-                        reject(err); // Reject promise so caller knows execution failed
+    
+                        reject(err);
                     });
             });
-
+    
         } catch (err: any) {
+            console.error("❌ Unexpected error in executeLifi:", err);
+    
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                 setError("Transaction rejected by the user.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
@@ -235,9 +287,11 @@ const useLifiHook = () => {
                 setError(err.message || "An unexpected error occurred.");
             }
         } finally {
+            console.log("[Cleanup] Route execution ended. Resetting loading state.");
             setLoading(false);
         }
     };
+    
 
     return { loading, error, executeLifi, fetchQuote, fetchRoutes, validateTokenBalance };
 };
