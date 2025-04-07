@@ -18,6 +18,7 @@ import { MarketType } from "@/types/types";
 import { useWalletInfo } from "@reown/appkit/react";
 import { useAppKitNetwork } from "@reown/appkit/react";
 import { useWeb3AuthUser } from "@/contexts/Web3AuthUserContext";
+import { getWeb3AuthInstance } from "@/contexts/Web3authContext";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -59,7 +60,7 @@ export default function Dashboard({
   // const { user } = useUser();
   const user = useWeb3AuthUser();
   // const { isConnected, embeddedWalletInfo, caipAddress } = useAppKitAccount();
-  const { address, connector, isConnected } = useAccount();
+  const { address, connector, isConnected,chain ,chainId} = useAccount();
   const { connect, connectors, error } = useConnect();
   const { disconnect } = useDisconnect();
   // const { open } = useAppKit();
@@ -76,6 +77,26 @@ export default function Dashboard({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (isConnected && chain) {
+      console.log(" Connected Address:", address);
+      console.log(" Chain ID:", chainId);
+      console.log(" Chain Name:", chain.name);
+      console.log("Native Currency:", chain.nativeCurrency?.symbol);
+    }
+  }, [isConnected, chainId, chain, address]);
+  useEffect(() => {
+    const web3auth = getWeb3AuthInstance();
+
+    if (web3auth) {
+      const chainConfig = web3auth.options?.chainConfig;
+      console.log("🛠 Connected Chain Config:", chainConfig);
+    } else {
+      console.warn("Web3Auth instance not initialized yet.");
+    }
+  }, []);
+
+  
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -626,36 +647,33 @@ const response = await chat({
                 </h2>
                 {(!user && !address) && (
                   <div
-                    className="button-holder relative w-[15.5rem] h-[3rem] text-sm mt-4 flex items-center justify-center cursor-pointer"
-                    onClick={() => {
-                      if (!user || !address) {
-                        const web3authConnector = connectors.find(
-                          (c) => c.id === "web3auth" || c.name === "Web3Auth"
-                        );
-                        if (web3authConnector) {
-                          connect({ connector: web3authConnector });
-                        } else {
-                          console.error("Web3Auth connector not found");
-                        }
+                  className="button-holder relative w-[15.5rem] h-[3rem] text-sm mt-4 flex items-center justify-center cursor-pointer"
+                  onClick={() => {
+                    if (!user || !address) {
+                      const web3authConnector = connectors.find(
+                        (c) => c.id === "web3auth" || c.name === "Web3Auth"
+                      );
+                      if (web3authConnector) {
+                        connect({ connector: web3authConnector });
                       } else {
-                        connect({ connector: connectors[0] });
+                        console.error("Web3Auth connector not found");
                       }
-                    }}
-                  >
-                    <h2
-                      className="text-white font-medium"
-                      style={{ fontFamily: "manrope" }}
-                    >
-                      Connect Wallet
-                    </h2>
-                    <div className="absolute button-holder-abs top-0 left-0 right-0 bottom-0">
-                      <img
-                        src="/images/button-border.png"
-                        alt="agy"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
+                    } else {
+                      connect({ connector: connectors[0] });
+                    }
+                  }}
+                >
+                  <h2 className="text-white font-medium" style={{ fontFamily: "manrope" }}>
+                    Connect Wallet
+                  </h2>
+                  <div className="absolute button-holder-abs top-0 left-0 right-0 bottom-0">
+                    <img
+                      src="/images/button-border.png"
+                      alt="agy"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
+                </div>
                 )}
               </div>
             )}

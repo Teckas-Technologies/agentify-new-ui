@@ -28,7 +28,7 @@ const wagmiConfig = createWagmiConfig({
   connectors: [
     injected(),
     walletConnect({
-      projectId: "3314f39613059cb687432d249f1658d2",
+      projectId: "5bf8a3ccd6329b9fca26ed15efc8a3e3",
       showQrModal: true,
     }),
     coinbaseWallet({ appName: "YourApp" }),

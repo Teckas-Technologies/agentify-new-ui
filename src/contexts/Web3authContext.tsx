@@ -9,7 +9,8 @@ import {
 } from "@web3auth/base";
 import { Chain } from "wagmi/chains";
 import { WalletServicesPlugin } from "@web3auth/wallet-services-plugin";
-import { getDefaultExternalAdapters } from "@web3auth/default-evm-adapter"; 
+import { getDefaultExternalAdapters } from "@web3auth/default-evm-adapter";
+import { WalletConnectV2Adapter } from "@web3auth/wallet-connect-v2-adapter"; // ✅ import this
 
 let web3AuthInstance: Web3Auth;
 
@@ -32,7 +33,7 @@ export default async function Web3AuthConnectorInstance(chains: Chain[]) {
   const privateKeyProvider = new EthereumPrivateKeyProvider({ config: { chainConfig } });
 
   web3AuthInstance = new Web3Auth({
-    clientId: "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiAZOTEBtTXw4tsluTITPqA8zMsfxIKMjiqNQ",
+    clientId: "BBtch9ADWLB7T0061mzT0HugKNuDViTOjGl07APGxk0yd3679EAi-_DZ9A5HxnpwgS4ouHLOqqauC1q0MSfJoWU",
     chainConfig,
     privateKeyProvider,
     uiConfig: {
@@ -45,11 +46,23 @@ export default async function Web3AuthConnectorInstance(chains: Chain[]) {
       uxMode: "redirect",
       mode: "light",
     },
-    web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_MAINNET,
+    web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
     enableLogging: true,
   });
 
-  // ✅ Add wallet services plugin
+  // ✅ Add WalletConnectV2Adapter manually with projectId
+  const walletConnectV2Adapter = new WalletConnectV2Adapter({
+    adapterSettings: {
+      walletConnectInitOptions: {
+        projectId: "3314f39613059cb687432d249f1658d2", // ✅ Required
+       
+      },
+    },
+  });
+
+  web3AuthInstance.configureAdapter(walletConnectV2Adapter); // ✅ required
+
+  // ✅ Optional: Add wallet services plugin
   const walletServicesPlugin = new WalletServicesPlugin({
     walletInitOptions: {
       whiteLabel: {
@@ -60,11 +73,18 @@ export default async function Web3AuthConnectorInstance(chains: Chain[]) {
 
   web3AuthInstance.addPlugin(walletServicesPlugin);
 
-  // ✅ Configure external adapters
-  const externalAdapters = await getDefaultExternalAdapters({ options: web3AuthInstance.options });
-  externalAdapters.forEach((adapter: IAdapter<unknown>) => {
-    web3AuthInstance.configureAdapter(adapter);
+  // ✅ Configure other external adapters
+  const externalAdapters = await getDefaultExternalAdapters({
+    options: web3AuthInstance.options,
   });
+  
+  // Avoid duplicate WalletConnectV2Adapter
+  externalAdapters
+    .filter((adapter: IAdapter<unknown>) => adapter.name !== WALLET_ADAPTERS.WALLET_CONNECT_V2)
+    .forEach((adapter: IAdapter<unknown>) => {
+      web3AuthInstance.configureAdapter(adapter);
+    });
+  
 
   const modalConfig = {
     [WALLET_ADAPTERS.AUTH]: {
