@@ -10,16 +10,24 @@ import {
 import { Chain } from "wagmi/chains";
 import { WalletServicesPlugin } from "@web3auth/wallet-services-plugin";
 import { getDefaultExternalAdapters } from "@web3auth/default-evm-adapter";
-import { WalletConnectV2Adapter } from "@web3auth/wallet-connect-v2-adapter"; // ✅ import this
+import { WalletConnectV2Adapter } from "@web3auth/wallet-connect-v2-adapter";
 
 let web3AuthInstance: Web3Auth;
+let walletServicesPluginInstance: WalletServicesPlugin; // ✅ Store plugin instance
 
 export function getWeb3AuthInstance() {
   return web3AuthInstance;
 }
 
+export function getWalletServicesPluginInstance() {
+  return walletServicesPluginInstance; // ✅ Expose plugin instance
+}
+
 export default async function Web3AuthConnectorInstance(chains: Chain[]) {
-  const name = "My App Name";
+  console.log("Chains from wgmi --------------- ...",chains);
+  
+  const name = "Agentify";
+  const chain =  "https://mainnet.infura.io/v3/7bb6501ed7b74d1e91fdd69ddfe59ce8";
   const chainConfig = {
     chainNamespace: CHAIN_NAMESPACES.EIP155,
     chainId: "0x" + chains[0].id.toString(16),
@@ -41,50 +49,57 @@ export default async function Web3AuthConnectorInstance(chains: Chain[]) {
       loginMethodsOrder: ["google"],
       defaultLanguage: "en",
       modalZIndex: "2147483647",
-      logoLight: "https://web3auth.io/images/web3authlog.png",
-      logoDark: "https://web3auth.io/images/web3authlogodark.png",
+      logoLight: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo.png",
+      logoDark: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo.png",
       uxMode: "redirect",
-      mode: "light",
+      mode: "dark",
     },
     web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
     enableLogging: true,
   });
 
-  // ✅ Add WalletConnectV2Adapter manually with projectId
   const walletConnectV2Adapter = new WalletConnectV2Adapter({
     adapterSettings: {
       walletConnectInitOptions: {
-        projectId: "3314f39613059cb687432d249f1658d2", // ✅ Required
-       
+        projectId: "3314f39613059cb687432d249f1658d2",
       },
     },
   });
 
-  web3AuthInstance.configureAdapter(walletConnectV2Adapter); // ✅ required
+  web3AuthInstance.configureAdapter(walletConnectV2Adapter);
 
-  // ✅ Optional: Add wallet services plugin
-  const walletServicesPlugin = new WalletServicesPlugin({
+  // ✅ Create WalletServicesPlugin instance and save it
+  walletServicesPluginInstance = new WalletServicesPlugin({
+    wsEmbedOpts: {
+      web3AuthClientId: "BBtch9ADWLB7T0061mzT0HugKNuDViTOjGl07APGxk0yd3679EAi-_DZ9A5HxnpwgS4ouHLOqqauC1q0MSfJoWU",
+      web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
+    },
     walletInitOptions: {
       whiteLabel: {
         showWidgetButton: true,
+        buttonPosition: "bottom-left",
+        hideNftDisplay: false,
+        hideTokenDisplay: false,
+        hideTransfers: false,
+        hideTopup: false,
+        hideReceive: false,
+        hideSwap: true,
+        defaultPortfolio: "token",
       },
     },
   });
 
-  web3AuthInstance.addPlugin(walletServicesPlugin);
+  web3AuthInstance.addPlugin(walletServicesPluginInstance); // ✅ Add plugin
 
-  // ✅ Configure other external adapters
   const externalAdapters = await getDefaultExternalAdapters({
     options: web3AuthInstance.options,
   });
-  
-  // Avoid duplicate WalletConnectV2Adapter
+
   externalAdapters
     .filter((adapter: IAdapter<unknown>) => adapter.name !== WALLET_ADAPTERS.WALLET_CONNECT_V2)
     .forEach((adapter: IAdapter<unknown>) => {
       web3AuthInstance.configureAdapter(adapter);
     });
-  
 
   const modalConfig = {
     [WALLET_ADAPTERS.AUTH]: {

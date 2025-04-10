@@ -110,72 +110,7 @@ const useLifiHook = () => {
         }
     };
 
-    const fetchRoutes = async ({ address }: { address: `0x${string}` }) => {
-        if (!address) {
-            console.error('Please connect your wallet');
-            return;
-        }
-
-        try {
-            const routesRequest = {
-                fromChainId: 1, // Arbitrum
-                toChainId: 137, // Optimism
-                fromTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // USDC on Arbitrum
-                toTokenAddress: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', // DAI on Optimism
-                fromAmount: '1000000000000', // 10 USDC
-                fromAddress: address.toLowerCase(),
-            };
-
-            const result = await getRoutes(routesRequest);
-            const routes = result.routes;
-
-            return routes
-        } catch (error) {
-            console.error('Error fetching routes:', error);
-        }
-    }
-
-    // ✅ Fetch Quote with Validations
-    const fetchQuote = async ({ address }: { address: `0x${string}` }) => {
-        if (!address) {
-            setError("Wallet address is required. Please connect your wallet.");
-            return;
-        }
-
-        const fromChain = 1; // Polygon
-        const toChain = 137; // Ethereum Mainnet
-        const fromToken = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"; // ETH on Ethereum
-        const toToken = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"; // USDT on Polygon
-
-        // 🔍 Validate Chains & Connections Before Fetching Quote
-        if (!(await validateChains(fromChain, toChain))) return;
-        if (!(await validateConnections(fromChain, fromToken, toChain, toToken))) return;
-
-        try {
-            setLoading(true);
-            setError(null);
-
-            const quote = await getQuote({
-                fromChain,
-                toChain,
-                fromToken,
-                toToken,
-                fromAmount: "1000000000000", // 5 USDT
-                fromAddress: address.toLowerCase()
-            });
-
-            if (!quote || !quote.estimate || !quote.action) {
-                setError("Invalid quote received. Please try again.");
-                return;
-            }
-
-            return quote;
-        } catch (err: any) {
-            setError(err?.message || "Failed to fetch a quote. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  
 
     // Execute swap & bridge
     const executeLifi = async ({ quote }: { quote: any }) => {
@@ -293,7 +228,7 @@ const useLifiHook = () => {
     };
     
 
-    return { loading, error, executeLifi, fetchQuote, fetchRoutes, validateTokenBalance };
+    return { loading, error, executeLifi, validateTokenBalance };
 };
 
 export default useLifiHook;

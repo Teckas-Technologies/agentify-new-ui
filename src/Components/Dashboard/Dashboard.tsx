@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 import { useEffect, useRef, useState } from "react";
 import InlineSVG from "react-inlinesvg";
 import { BiUpArrowAlt } from "react-icons/bi";
@@ -70,7 +71,7 @@ export default function Dashboard({
   // const handleConnectWallet = () => {
   //   open({ view: "Connect" });
   // };
-  console.log("Conectors-----------------------------------",connectors);
+
 
   useEffect(() => {
     // Scroll to bottom when messages update
@@ -724,7 +725,7 @@ const response = await chat({
   )}
 </div> */}
 
-            {messages && messages.length !== 0 && (
+{messages && messages.length !== 0 && (
               <div className="w-full max-h-[70vh] md:max-h-[27rem] lg:max-h-[29rem] xl:max-h-[30rem] h-full px-4 scroll-d overflow-y-auto">
                 {messages?.map((msg, index) => (
                   <>
@@ -780,7 +781,7 @@ const response = await chat({
                             rel="noopener noreferrer"
                             className="approve-btn flex items-center justify-center gap-1 px-2 py-2 md:py-1 mt-1 min-w-[5rem] bg-grey-700 max-w-[9rem] rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
                           >
-                            <h2 className="text-center dark:text-black text-xs">
+                            <h2 className="text-center dark:text-white text-xs">
                               Check Explorer
                             </h2>
                             <InlineSVG
@@ -807,6 +808,8 @@ const response = await chat({
                 ))}
               </div>
             )}
+
+
 
             <div className="absolute top-0 left-0 right-0 bottom-0 rounded-lg z-[-1]">
               <img

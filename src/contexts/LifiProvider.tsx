@@ -1,22 +1,26 @@
 "use client";
 
 import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { getWalletClient, switchChain } from "@wagmi/core";
 import { ReactNode } from "react";
 import { http } from "viem";
-import {
-  mainnet,
-  polygon,
-  sepolia,
-} from "viem/chains";
+import { mainnet, sepolia, polygon } from "wagmi/chains";
 import { WagmiProvider, createConfig as createWagmiConfig } from "wagmi";
 import { coinbaseWallet, walletConnect, injected } from "wagmi/connectors";
 import Web3AuthConnectorInstance from "./Web3authContext";
 
 // Initialize outside component
 const queryClient = new QueryClient();
-const web3AuthConnector = await Web3AuthConnectorInstance([mainnet, sepolia, polygon]);
+const web3AuthConnector = await Web3AuthConnectorInstance([
+  mainnet,
+  sepolia,
+  polygon,
+]);
 
 const wagmiConfig = createWagmiConfig({
   chains: [mainnet, sepolia, polygon],
