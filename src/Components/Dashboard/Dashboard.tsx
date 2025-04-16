@@ -623,7 +623,7 @@ export default function Dashboard({
                 {ready && !authenticated && (
                   <div
                     className="button-holder relative w-[15.5rem] h-[3rem] mt-4 flex items-center justify-center cursor-pointer"
-                    onClick={connectWallet}
+                    onClick={login}
                   >
                     <h2
                       className="text-white font-medium"
