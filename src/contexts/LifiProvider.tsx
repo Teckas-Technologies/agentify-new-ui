@@ -50,7 +50,7 @@ import {
 import {
   WagmiProvider,
   createConfig as createWagmiConfig,
-} from "wagmi";
+} from "@privy-io/wagmi";
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
