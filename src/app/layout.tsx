@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ContextProvider from "@/contexts/ContextProvider";
 import { headers } from "next/headers";
-import { UserProvider } from "@auth0/nextjs-auth0/client";
+
 import { CustomWagmiProvider } from "@/contexts/LifiProvider";
 import Providers from "@/contexts/PriviWagmiProvider";
 
@@ -35,9 +35,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <UserProvider>
-          <CustomWagmiProvider>{children}</CustomWagmiProvider>
-        </UserProvider>
+        <CustomWagmiProvider>{children}</CustomWagmiProvider>
       </body>
     </html>
   );

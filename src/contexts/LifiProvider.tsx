@@ -50,7 +50,7 @@ import {
 import {
   WagmiProvider,
   createConfig as createWagmiConfig,
-} from "@privy-io/wagmi";
+} from "wagmi";
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
@@ -104,6 +104,7 @@ const wagmiConfig = createWagmiConfig({
     return createClient({ chain, transport: http() });
   },
 });
+console.log("App Id --",process.env.NEXT_PUBLIC_PRIVY_APP_ID);
 
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
@@ -112,7 +113,9 @@ const privyConfig: PrivyClientConfig = {
   },
   loginMethods: ["wallet", "email", "sms", "google"],
   appearance: {
-    showWalletLoginFirst: true,
+    showWalletLoginFirst: false,
+    landingHeader: 'Welcome to Agentify',
+    // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
     theme: "dark",
     accentColor: "#676FFF",
     logo: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo.png",

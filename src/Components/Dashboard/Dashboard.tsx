@@ -11,12 +11,11 @@ import dynamic from "next/dynamic";
 import "./Dashboard.css";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
-import { useUser } from "@auth0/nextjs-auth0/client";
 import useLifiHook from "@/hooks/useLifiHook";
 import useAaveHook from "@/hooks/useAaveHook";
 import { MarketType } from "@/types/types";
 import { LiFiWidget, WidgetConfig } from "@lifi/widget";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy,LoginModal,User, useWallets } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -55,12 +54,14 @@ export default function Dashboard({
   const [isExecutingLifi, setExecutingLifi] = useState(false);
   const [isExecutingAave, setExecutingAave] = useState(false);
   const [isSwaping, setIsSwaping] = useState(false);
-  const { user } = useUser();
+
+  const { wallets } = useWallets();
+  const wallet = wallets[0];
   // const { isConnected } = useAppKitAccount();
   const { address, isConnected } = useAccount();
   console.log("Address -----", address);
 
-  const { ready, authenticated, login, connectWallet, logout, linkWallet } =
+  const { ready, authenticated, login, connectWallet, logout, linkWallet,user} =
     usePrivy();
 
   const [showWidget, setShowWidget] = useState(false);
@@ -91,11 +92,11 @@ export default function Dashboard({
     if (address) {
       fetchHistory();
     }
-  }, [address, activeAgent, user]);
+  }, [address, activeAgent]);
 
   useEffect(() => {
     fetchAllAgents();
-  }, [user]);
+  }, []);
 
   // useEffect(() => {
   //   if (agents.length > 0) {
@@ -104,9 +105,9 @@ export default function Dashboard({
   // }, [agents])
 
   const fetchHistory = async () => {
-    if (!user?.sub || !activeAgent) return;
+    if (!address || !activeAgent) return;
     const history = await fetchChatHistory(
-      user?.sub?.split("|")[1],
+      address,
       activeAgent
     );
     const filteredMessages = history?.threads?.filter(
@@ -123,8 +124,8 @@ export default function Dashboard({
   };
 
   const clearChatHistory = async () => {
-    if (!user?.sub || !activeAgent) return;
-    await clearHistory(user?.sub?.split("|")[1], activeAgent);
+    if (!address || !activeAgent) return;
+    await clearHistory(address, activeAgent);
     setMessages([]);
   };
 
@@ -145,12 +146,17 @@ export default function Dashboard({
 
   // Chat functions & actions
   const handleChat = async () => {
-    if (!message.trim()) return;
-    if (isLoading) {
+    if (!message.trim()) {
+      console.log("Message is empty, returning...");
       return;
     }
-
-    if (!address || !user?.sub) {
+    if (isLoading) {
+      console.log("Already loading, returning...");
+      return;
+    }
+  
+    if (!address) {
+      console.log("No address found, returning...");
       return;
     }
 
@@ -164,7 +170,7 @@ export default function Dashboard({
       const response = await chat({
         inputMessage: message,
         agentName: activeAgent,
-        userId: user?.sub?.split("|")[1],
+        userId: address,
       });
       console.log("RES:", response);
       if (response?.success) {
@@ -466,6 +472,7 @@ export default function Dashboard({
 
   return (
     <div className="flex flex-col items-center h-screen bg-black text-white">
+    
       <div
         className="bg-gray-900 p-4 flex items-center md:gap-5 gap-3 w-full"
         style={{ fontFamily: "orbitron" }}
@@ -571,7 +578,6 @@ export default function Dashboard({
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center w-full md:w-[70%] lg:w-[71%] xl:w-[72%]">
           {/* Execute Transactions with AI Box bg-gray-950 */}
-
           <div className="relative z-0 flex-1 flex flex-col items-center justify-center  border border-gray-700 rounded-lg md:mt-4 md:mx-4 p-[0.1rem] md:p-[0.4rem] lg:p-[0.7rem] xl:p-[1rem]">
             {isConnected && address && messages && messages.length > 0 && (
               <div className="top w-full flex justify-between items-center px-5 md:px-0 border-b border-gray-700 pb-3">
@@ -617,7 +623,7 @@ export default function Dashboard({
                 {ready && !authenticated && (
                   <div
                     className="button-holder relative w-[15.5rem] h-[3rem] mt-4 flex items-center justify-center cursor-pointer"
-                    onClick={login}
+                    onClick={connectWallet}
                   >
                     <h2
                       className="text-white font-medium"
@@ -692,7 +698,7 @@ export default function Dashboard({
                             rel="noopener noreferrer"
                             className="approve-btn flex items-center justify-center gap-1 px-2 py-2 md:py-1 mt-1 min-w-[5rem] bg-grey-700 max-w-[9rem] rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
                           >
-                            <h2 className="text-center dark:text-black text-sm">
+                            <h2 className="text-center dark:text-white text-sm">
                               Check Explorer
                             </h2>
                             <InlineSVG

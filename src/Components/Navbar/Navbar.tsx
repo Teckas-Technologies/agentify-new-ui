@@ -184,61 +184,65 @@ export default function Navbar({
 
           {/* Connect Wallet Button */}
           <div className="mt-auto">
-            <div
-              className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
-              onClick={() => {
-                if (!isConnected) {
-                  login();
-                } else {
-                  logout(); // For users who signed in via Google OAuth
-
-                  disconnect(); // For wallet-only users
-                }
-              }}
-            >
-              <MdLink className="w-8 h-8" />
-              {(!isCollapsed || isMobileNavVisible) && (
-                <div className="flex items-center gap-2">
-                  {!isConnected ? (
+            {!isConnected ? (
+              <div
+                className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={login}
+              >
+                <MdLink className="w-8 h-8" />
+                {(!isCollapsed || isMobileNavVisible) && (
+                  <div className="flex items-center gap-2">
                     <h2
                       className="text-white font-medium"
                       style={{ fontFamily: "manrope" }}
                     >
                       Connect Wallet
                     </h2>
-                  ) : (
-                    <h2
-                    className="text-white font-medium"
-                    style={{ fontFamily: "manrope" }}
-                  >
-                    Disconnect
-                  </h2>
-                  )}
+                  </div>
+                )}
+                <div className="absolute top-0 left-0 right-0 bottom-0">
+                  <img
+                    src="/images/button-border.png"
+                    alt="agy"
+                    className={`w-full h-full ${
+                      !isCollapsed || isMobileNavVisible
+                        ? "object-contain"
+                        : "object-cover"
+                    }`}
+                  />
                 </div>
-              )}
-
-              <div className="absolute top-0 left-0 right-0 bottom-0">
-                <img
-                  src="/images/button-border.png"
-                  alt="agy"
-                  className={` w-full h-full ${
-                    !isCollapsed || isMobileNavVisible
-                      ? "object-contain"
-                      : "object-cover"
-                  }`}
-                />
               </div>
-            </div>
-            {/* <button
-              className="w-full py-2 rounded-lg cursor-pointer flex justify-center items-center gap-2 text-sm bg-white text-black font-bold hover:bg-gray-200 transition"
-              style={{ fontFamily: "manrope" }}
-              onClick={() => !isConnected ? connectWallet() : handleDisconnect()}
-            >
-              <MdLink className="w-6 h-6" />
-              {(!isCollapsed || isMobileNavVisible) && (
-                !isConnected ? <span>Connect Wallet</span> : <span>Disconnect</span>
-              )}
-            </button> */}
+            ) : user?.google?.email ? (
+              <UserPill />
+            ) : (
+              <div
+                className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={disconnect}
+              >
+                <MdLink className="w-8 h-8" />
+                {(!isCollapsed || isMobileNavVisible) && (
+                  <div className="flex items-center gap-2">
+                    <h2
+                      className="text-white font-medium"
+                      style={{ fontFamily: "manrope" }}
+                    >
+                      Disconnect Wallet
+                    </h2>
+                  </div>
+                )}
+                <div className="absolute top-0 left-0 right-0 bottom-0">
+                  <img
+                    src="/images/button-border.png"
+                    alt="agy"
+                    className={`w-full h-full ${
+                      !isCollapsed || isMobileNavVisible
+                        ? "object-contain"
+                        : "object-cover"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="absolute top-0 left-0 right-0 h-[20rem] z-[-1]">

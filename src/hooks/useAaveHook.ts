@@ -6,6 +6,7 @@ import { BigNumber } from "ethers";
 import { useAppKitProvider } from "@reown/appkit/react";
 import { marketConfigs } from "@/utils/markets";
 import { MarketType } from "@/types/types";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 
 interface LendingData {
     market: MarketType;
@@ -30,22 +31,55 @@ interface RepayData {
 
 const useAaveHook = () => {
     const { address, isConnected } = useAccount();
-    const { walletProvider } = useAppKitProvider("eip155");
+    // const { walletProvider } = useAppKitProvider("eip155");
+    const { wallets } = useWallets();
+     const { user } = usePrivy();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState("none");
-
+    const getProvider = async () => {
+        console.log("[getProvider] Getting provider from wallets");
+        
+        // Get the user's wallet type from Privy
+        const userWalletType = user?.wallet?.walletClientType;
+        if (!userWalletType) {
+            console.error("[getProvider] No wallet type found in user data");
+            setError("No wallet connection found");
+            return null;
+        }
+    
+        // Find the matching wallet
+        const matchedWallet = wallets.find(wallet => 
+            wallet.walletClientType === userWalletType
+        );
+    
+        if (!matchedWallet) {
+            console.error(`[getProvider] No wallet found matching type: ${userWalletType}`);
+            setError(`No ${userWalletType} wallet connected`);
+            return null;
+        }
+    
+        try {
+            // Get the Ethers provider from the matched wallet
+            const provider = await matchedWallet.getEthersProvider();
+            console.log("[getProvider] Provider obtained:", provider);
+            return provider;
+        } catch (err) {
+            console.error("[getProvider] Error getting provider:", err);
+            setError("Failed to get wallet provider");
+            return null;
+        }
+    };
     const supplyToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: LendingData) => {
         console.log("Entered!!!")
-        if (!walletProvider) {
-            console.log("Wallet Provider not found")
+        const provider = await getProvider();
+        if (!provider) {
+            console.error("[supplyToAave] Provider not found");
+            setError("Provider not found");
             return;
         }
-        const provider = new ethers.providers.Web3Provider(
-            walletProvider as ethers.providers.ExternalProvider,
-        );
         const signer = await provider.getSigner();
-
+        
         if (!isConnected || !address || !signer) {
             setError("Wallet not connected. Please connect your wallet first.");
             return;
@@ -161,9 +195,12 @@ const useAaveHook = () => {
         amount: string; // can pass "-1" to withdraw max
         onBehalfOf?: string;
     }) => {
-        const provider = new ethers.providers.Web3Provider(
-            walletProvider as ethers.providers.ExternalProvider
-        );
+        const provider = await getProvider();
+        if (!provider) {
+            console.error("[supplyToAave] Provider not found");
+            setError("Provider not found");
+            return;
+        }
         const signer = await provider.getSigner();
 
         if (!isConnected || !address || !signer) {
@@ -252,9 +289,12 @@ const useAaveHook = () => {
 
 
     const borrowToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: BorrowData) => {
-        const provider = new ethers.providers.Web3Provider(
-            walletProvider as ethers.providers.ExternalProvider
-        );
+        const provider = await getProvider();
+        if (!provider) {
+            console.error("[supplyToAave] Provider not found");
+            setError("Provider not found");
+            return;
+        }
         const signer = await provider.getSigner();
 
         if (!isConnected || !address || !signer) {
@@ -335,9 +375,12 @@ const useAaveHook = () => {
     };
 
     const repayToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: RepayData) => {
-        const provider = new ethers.providers.Web3Provider(
-            walletProvider as ethers.providers.ExternalProvider
-        );
+        const provider = await getProvider();
+        if (!provider) {
+            console.error("[supplyToAave] Provider not found");
+            setError("Provider not found");
+            return;
+        }
         const signer = await provider.getSigner();
 
         if (!isConnected || !address || !signer) {
