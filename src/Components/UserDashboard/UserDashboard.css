@@ -1,0 +1,17 @@
+.active-filter,
+.number.active {
+    background: linear-gradient(264.23deg, #91D695 4.52%, #293B93 102.75%);
+}
+
+.feature-box-holder {
+    transition: transform 0.3s ease;
+}
+
+.feature-box-holder.active {
+    transform: scale(1.08);
+    transition: transform 0.5s ease;
+}
+
+.feature-box-title {
+    letter-spacing: 0.25px;
+}
