@@ -1,12 +1,14 @@
+"use client";
 import { useState } from "react";
 import { ethers } from "ethers";
 import { useAccount } from "wagmi";
 import { Pool, ERC20Service, ERC20_2612Service, EthereumTransactionTypeExtended, InterestRate } from "@aave/contract-helpers";
 import { BigNumber } from "ethers";
-import { useAppKitProvider } from "@reown/appkit/react";
+// import { useAppKitProvider } from "@reown/appkit/react";
 import { marketConfigs } from "@/utils/markets";
 import { MarketType } from "@/types/types";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { switchNetwork } from "@/utils/switchNetwork";
 
 interface LendingData {
     market: MarketType;
@@ -33,13 +35,14 @@ const useAaveHook = () => {
     const { address, isConnected } = useAccount();
     // const { walletProvider } = useAppKitProvider("eip155");
     const { wallets } = useWallets();
-     const { user } = usePrivy();
+    const { user } = usePrivy();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState("none");
+    const wallet = wallets[0];
     const getProvider = async () => {
         console.log("[getProvider] Getting provider from wallets");
-        
+
         // Get the user's wallet type from Privy
         const userWalletType = user?.wallet?.walletClientType;
         if (!userWalletType) {
@@ -47,18 +50,18 @@ const useAaveHook = () => {
             setError("No wallet connection found");
             return null;
         }
-    
+
         // Find the matching wallet
-        const matchedWallet = wallets.find(wallet => 
+        const matchedWallet = wallets.find(wallet =>
             wallet.walletClientType === userWalletType
         );
-    
+
         if (!matchedWallet) {
             console.error(`[getProvider] No wallet found matching type: ${userWalletType}`);
             setError(`No ${userWalletType} wallet connected`);
             return null;
         }
-    
+
         try {
             // Get the Ethers provider from the matched wallet
             const provider = await matchedWallet.getEthersProvider();
@@ -71,20 +74,6 @@ const useAaveHook = () => {
         }
     };
     const supplyToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: LendingData) => {
-        console.log("Entered!!!")
-        const provider = await getProvider();
-        if (!provider) {
-            console.error("[supplyToAave] Provider not found");
-            setError("Provider not found");
-            return;
-        }
-        const signer = await provider.getSigner();
-        
-        if (!isConnected || !address || !signer) {
-            setError("Wallet not connected. Please connect your wallet first.");
-            return;
-        }
-
         const selectedMarket = marketConfigs[market];
 
         if (!selectedMarket) {
@@ -95,21 +84,39 @@ const useAaveHook = () => {
         const poolAddress = selectedMarket.pool;
         const wTokenGateWay = selectedMarket.wethGateway;
         const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+        const chainId = selectedMarket.chainId;
 
         if (!reserve) {
             setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
             return;
         }
 
-        if (!amount) {
-            setError("amount is missing.");
-            return;
-        }
-
-        const user = address;
-        const onBehalf = onBehalfOf || user;
-
         try {
+            if (wallet && chainId && parseInt(wallet.chainId.split(":")[1]) !== chainId) {
+                await switchNetwork(chainId);
+            }
+
+            const provider = await getProvider();
+            if (!provider) {
+                console.error("[supplyToAave] Provider not found");
+                setError("Provider not found");
+                return;
+            }
+            const signer = await provider.getSigner();
+
+            if (!isConnected || !address || !signer) {
+                setError("Wallet not connected. Please connect your wallet first.");
+                return;
+            }
+
+            if (!amount) {
+                setError("amount is missing.");
+                return;
+            }
+
+            const user = address;
+            const onBehalf = onBehalfOf || user;
+
             setLoading(true);
             setError(null);
 
@@ -175,6 +182,7 @@ const useAaveHook = () => {
                 setError("Transaction execution failed. Please try again.");
                 return { success: false, message: "Transaction execution failed. Please try again." };
             } else {
+                console.log("Error: ^^^ :", err)
                 setError(err.message || "An unexpected error occurred.");
                 return { success: false, message: "An unexpected error occurred." };
             }
@@ -195,19 +203,6 @@ const useAaveHook = () => {
         amount: string; // can pass "-1" to withdraw max
         onBehalfOf?: string;
     }) => {
-        const provider = await getProvider();
-        if (!provider) {
-            console.error("[supplyToAave] Provider not found");
-            setError("Provider not found");
-            return;
-        }
-        const signer = await provider.getSigner();
-
-        if (!isConnected || !address || !signer) {
-            setError("Wallet not connected. Please connect your wallet first.");
-            return;
-        }
-
         const selectedMarket = marketConfigs[market];
 
         if (!selectedMarket) {
@@ -219,6 +214,7 @@ const useAaveHook = () => {
         const wTokenGateWay = selectedMarket.wethGateway;
         const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
         const aTokenAddress = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.A_TOKEN;
+        const chainId = selectedMarket.chainId;
 
         console.log("A:", aTokenAddress)
 
@@ -228,15 +224,32 @@ const useAaveHook = () => {
             return;
         }
 
-        if (!amount) {
-            setError("Withdrawal amount is missing.");
-            return;
-        }
-
-        const user = address;
-        const onBehalf = onBehalfOf || user;
-
         try {
+            if (wallet && chainId && parseInt(wallet.chainId.split(":")[1]) !== chainId) {
+                await switchNetwork(chainId);
+            }
+
+            const provider = await getProvider();
+            if (!provider) {
+                console.error("[supplyToAave] Provider not found");
+                setError("Provider not found");
+                return;
+            }
+            const signer = await provider.getSigner();
+
+            if (!isConnected || !address || !signer) {
+                setError("Wallet not connected. Please connect your wallet first.");
+                return;
+            }
+
+            if (!amount) {
+                setError("Withdrawal amount is missing.");
+                return;
+            }
+
+            const user = address;
+            const onBehalf = onBehalfOf || user;
+
             setLoading(true);
             setError(null);
 
@@ -289,19 +302,6 @@ const useAaveHook = () => {
 
 
     const borrowToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: BorrowData) => {
-        const provider = await getProvider();
-        if (!provider) {
-            console.error("[supplyToAave] Provider not found");
-            setError("Provider not found");
-            return;
-        }
-        const signer = await provider.getSigner();
-
-        if (!isConnected || !address || !signer) {
-            setError("Wallet not connected. Please connect your wallet first.");
-            return;
-        }
-
         const selectedMarket = marketConfigs[market];
 
         if (!selectedMarket) {
@@ -312,21 +312,39 @@ const useAaveHook = () => {
         const poolAddress = selectedMarket.pool;
         const wTokenGateWay = selectedMarket.wethGateway;
         const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+        const chainId = selectedMarket.chainId;
 
         if (!reserve) {
             setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
             return;
         }
 
-        if (!amount) {
-            setError("amount is missing.");
-            return;
-        }
-
-        const user = address;
-        const onBehalf = onBehalfOf || user;
-
         try {
+            if (wallet && chainId && parseInt(wallet.chainId.split(":")[1]) !== chainId) {
+                await switchNetwork(chainId);
+            }
+
+            const provider = await getProvider();
+            if (!provider) {
+                console.error("[supplyToAave] Provider not found");
+                setError("Provider not found");
+                return;
+            }
+            const signer = await provider.getSigner();
+
+            if (!isConnected || !address || !signer) {
+                setError("Wallet not connected. Please connect your wallet first.");
+                return;
+            }
+
+            if (!amount) {
+                setError("amount is missing.");
+                return;
+            }
+
+            const user = address;
+            const onBehalf = onBehalfOf || user;
+
             setLoading(true);
             setError(null);
 

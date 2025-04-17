@@ -58,7 +58,48 @@ import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
 const connectors = [injected()];
 const queryClient = new QueryClient();
 // Create Wagmi config with default chain and without connectors
-const wagmiConfig = createWagmiConfig({
+const supportedChains = [
+  mainnet,
+  bsc,
+  arbitrum,
+  base,
+  blast,
+  avalanche,
+  polygon,
+  scroll,
+  optimism,
+  linea,
+  zksync,
+  gnosis,
+  fantom,
+  moonriver,
+  moonbeam,
+  fuse,
+  boba,
+  mode,
+  metis,
+  lisk,
+  unichain,
+  aurora,
+  sei,
+  immutableZkEvm,
+  sonic,
+  gravity,
+  taiko,
+  soneium,
+  cronos,
+  fraxtal,
+  abstract,
+  rootstock,
+  celo,
+  worldchain,
+  mantle,
+  ink,
+  berachain,
+  kaia,
+  sepolia,
+]
+export const wagmiConfig = createWagmiConfig({
   chains: [
     mainnet,
     bsc,
@@ -104,13 +145,15 @@ const wagmiConfig = createWagmiConfig({
     return createClient({ chain, transport: http() });
   },
 });
-console.log("App Id --",process.env.NEXT_PUBLIC_PRIVY_APP_ID);
+console.log("App Id --", process.env.NEXT_PUBLIC_PRIVY_APP_ID);
 
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
     createOnLogin: "users-without-wallets",
     requireUserPasswordOnCreate: true,
   },
+  defaultChain: mainnet,
+  supportedChains: supportedChains,
   loginMethods: ["wallet", "email", "sms", "google"],
   appearance: {
     showWalletLoginFirst: false,
@@ -150,6 +193,7 @@ function ChainFetcher({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
+
 
 export const CustomWagmiProvider = ({ children }: { children: ReactNode }) => {
   return (

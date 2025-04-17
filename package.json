@@ -11,7 +11,6 @@
   "dependencies": {
     "@aave/contract-helpers": "^1.33.0",
     "@aave/math-utils": "^1.33.0",
-    "@auth0/nextjs-auth0": "^3.5.0",
     "@bgd-labs/aave-address-book": "^4.17.0",
     "@bigmi/react": "^0.1.1",
     "@lifi/sdk": "^3.5.4",
@@ -19,24 +18,20 @@
     "@lifi/widget": "^3.18.4",
     "@privy-io/react-auth": "1.94.0",
     "@privy-io/wagmi": "0.2.12",
-    "@reown/appkit": "^1.7.0",
-    "@reown/appkit-adapter-wagmi": "^1.7.0",
-    "@solana/wallet-adapter-react": "^0.15.36",
     "@tanstack/react-query": "^5",
+    "@wagmi/chains": "^1.8.0",
     "@wagmi/core": "^2.16.5",
-    "@walletconnect/ethereum-provider": "^2.19.1",
     "dayjs": "^1.11.13",
     "ethers": "5",
     "lucide-react": "^0.479.0",
     "markdown-to-jsx": "^7.7.4",
     "next": "15.2.2",
     "pino-pretty": "^13.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-inlinesvg": "^4.2.0",
     "viem": "^2.23.11",
-    "@wagmi/chains": "^1.8.0",
     "wagmi": "^2.10.4"
   },
   "devDependencies": {
@@ -49,6 +44,11 @@
     "eslint-config-next": "15.2.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@headlessui/react": "1.7.18"
+    }
   },
   "packageManager": "pnpm@9.15.2+sha512.93e57b0126f0df74ce6bff29680394c0ba54ec47246b9cf321f0121d8d9bb03f750a705f24edc3c1180853afd7c2c3b94196d0a3d53d3e069d9e2793ef11f321"
 }

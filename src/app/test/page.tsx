@@ -4,27 +4,27 @@ import useAaveHook from "@/hooks/useAaveHook";
 import { supplyWithSign } from "@/hooks/useSupplyExample";
 import { MarketType } from "@/types/types";
 import { InterestRate } from "@aave/contract-helpers";
-import { useAppKit, useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
+// import { useAppKit, useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
 import { ethers } from "ethers";
 import { useAccount, useDisconnect } from "wagmi";
 
 export default function TestPage() {
-    const { isConnected } = useAppKitAccount();
+    // const { isConnected } = useAppKitAccount();
     const { address } = useAccount();
-    const { open } = useAppKit();
+    // const { open } = useAppKit();
     const { disconnect } = useDisconnect();
 
-    const handleConnectWallet = () => {
-        open({ view: 'Connect' });
-    }
+    // const handleConnectWallet = () => {
+    //     open({ view: 'Connect' });
+    // }
 
     const handleDisconnect = () => {
         disconnect();
     }
 
-    const handleViewAccount = () => {
-        open({ view: 'Account' });
-    }
+    // const handleViewAccount = () => {
+    //     open({ view: 'Account' });
+    // }
 
     // const { lending } = useAaveLendingHook();
 
@@ -77,9 +77,9 @@ export default function TestPage() {
             <div className="header w-full bg-black h-[6rem] flex items-center justify-between px-[4rem]">
                 <h2 className="text-white">Agentify</h2>
                 <div className="btns flex items-center gap-4">
-                    {isConnected && <h4 className="text-white">{address}</h4>}
+                    {/* {isConnected && <h4 className="text-white">{address}</h4>}
                     {!isConnected && <button className="px-6 py-2 rounded-md bg-green-300 text-white" onClick={handleConnectWallet}>Connect Wallet</button>}
-                    {isConnected && <button className="px-6 py-2 rounded-md bg-red-300 text-white" onClick={handleViewAccount}>View Account</button>}
+                    {isConnected && <button className="px-6 py-2 rounded-md bg-red-300 text-white" onClick={handleViewAccount}>View Account</button>} */}
                 </div>
             </div>
 

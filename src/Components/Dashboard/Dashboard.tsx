@@ -9,14 +9,14 @@ import AgentsModal from "../AgentsModal/AgentsModal";
 import { useChat } from "@/hooks/useChatHook";
 import dynamic from "next/dynamic";
 import "./Dashboard.css";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import useLifiHook from "@/hooks/useLifiHook";
 import useAaveHook from "@/hooks/useAaveHook";
 import { MarketType } from "@/types/types";
 import { LiFiWidget, WidgetConfig } from "@lifi/widget";
-import { usePrivy,LoginModal,User, useWallets } from "@privy-io/react-auth";
+import { usePrivy, LoginModal, User, useWallets } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
+import { switchNetwork } from "@/utils/switchNetwork";
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
 interface Message {
@@ -57,11 +57,12 @@ export default function Dashboard({
 
   const { wallets } = useWallets();
   const wallet = wallets[0];
+  console.log("Chain ID: >>> ", wallet?.chainId)
   // const { isConnected } = useAppKitAccount();
   const { address, isConnected } = useAccount();
   console.log("Address -----", address);
 
-  const { ready, authenticated, login, connectWallet, logout, linkWallet,user} =
+  const { ready, authenticated, login, connectWallet, logout, linkWallet, user } =
     usePrivy();
 
   const [showWidget, setShowWidget] = useState(false);
@@ -73,6 +74,16 @@ export default function Dashboard({
     // Scroll to bottom when messages update
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!address) {
+      setMessages([]);
+    }
+  }, [address])
+
+  // const switchNetwork = async (chainId: number) => {
+  //   await wallet.switchChain(chainId);
+  // }
 
   console.log("isConnected --", isConnected);
 
@@ -154,11 +165,13 @@ export default function Dashboard({
       console.log("Already loading, returning...");
       return;
     }
-  
+
     if (!address) {
       console.log("No address found, returning...");
       return;
     }
+
+    // switchNetwork(137)
 
     const userMessage: Message = { role: "human", message: message };
     setMessages((prev) => [...prev, userMessage]);
@@ -335,8 +348,10 @@ export default function Dashboard({
           }
 
           if (quote) {
-            const { fromChainId, fromToken, toChainId, toToken, fromAmount } =
-              quote?.action;
+            const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote?.action;
+            if (wallet && fromChainId && parseInt(wallet.chainId.split(":")[1]) !== fromChainId) {
+              await switchNetwork(fromChainId);
+            }
             const isEnoughBalance = await validateTokenBalance(
               fromChainId,
               fromToken,
@@ -358,7 +373,10 @@ export default function Dashboard({
               ...prev,
               {
                 role: "ai",
-                message: `Executing swap, don't close the page until get confirmations...`,
+                message: `Executing ${fromChainId.toString() === toChainId.toString()
+                  ? "Swap"
+                  : "Bridge"
+                  }, don't close the page until get confirmations...`,
               },
             ]);
             setExecutingLifi(true);
@@ -369,11 +387,10 @@ export default function Dashboard({
                 ...prev,
                 {
                   role: "ai",
-                  message: `${
-                    fromChainId.toString() === toChainId.toString()
-                      ? "Swap"
-                      : "Bridge"
-                  } executed successfully!`,
+                  message: `${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                    } executed successfully!`,
                   txHash: response?.txHash,
                 },
               ]);
@@ -384,11 +401,10 @@ export default function Dashboard({
                 ...prev,
                 {
                   role: "ai",
-                  message: `${
-                    fromChainId.toString() === toChainId.toString()
-                      ? "Swap"
-                      : "Bridge"
-                  } execution was failed!`,
+                  message: `${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                    } execution was failed!`,
                 },
               ]);
               setExecutingLifi(false);
@@ -472,7 +488,7 @@ export default function Dashboard({
 
   return (
     <div className="flex flex-col items-center h-screen bg-black text-white">
-    
+
       <div
         className="bg-gray-900 p-4 flex items-center md:gap-5 gap-3 w-full"
         style={{ fontFamily: "orbitron" }}
@@ -536,11 +552,10 @@ export default function Dashboard({
                   key={agent}
                   onClick={() => setActiveAgent(agent)}
                   className={`p-4 rounded cursor-pointer rounded-md border transition-all mt-2 duration-200 bg-[#0c1a27] 
-          ${
-            activeAgent === agent
-              ? "border-[#91D695]"
-              : "border-transparent hover:border-[#157626]"
-          }`}
+          ${activeAgent === agent
+                      ? "border-[#91D695]"
+                      : "border-transparent hover:border-[#157626]"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1 gap-2">
@@ -553,10 +568,10 @@ export default function Dashboard({
                         {agent === "bridgeAgent"
                           ? "Bridge Assistant"
                           : agent === "swapAgent"
-                          ? "Swap Assistant"
-                          : agent === "lendingBorrowingAgent"
-                          ? "Lending & Borrowing Assistant"
-                          : "Liquidity Assistant"}
+                            ? "Swap Assistant"
+                            : agent === "lendingBorrowingAgent"
+                              ? "Lending & Borrowing Assistant"
+                              : "Liquidity Assistant"}
                       </h3>
                     </div>
                     <IoMdInformationCircleOutline className="w-5 h-5 text-gray-400 cursor-pointer" />
@@ -565,10 +580,10 @@ export default function Dashboard({
                     {agent === "bridgeAgent"
                       ? "Assistant for helping users to bridge tokens between the EVM chains."
                       : agent === "swapAgent"
-                      ? "Assistant for helping users to swap tokens in the EVM chains."
-                      : agent === "lendingBorrowingAgent"
-                      ? "Assistant for helping users to lend & borrow the tokens in EVM chains."
-                      : "Assistant for helping users to add liquidity to pool in EVM chains."}
+                        ? "Assistant for helping users to swap tokens in the EVM chains."
+                        : agent === "lendingBorrowingAgent"
+                          ? "Assistant for helping users to lend & borrow the tokens in EVM chains."
+                          : "Assistant for helping users to add liquidity to pool in EVM chains."}
                   </p>
                 </div>
               ))}
@@ -648,20 +663,17 @@ export default function Dashboard({
                   <>
                     <div
                       key={index}
-                      className={`message w-full h-auto flex ${
-                        index === messages.length - 1 && "md:flex-row flex-col"
-                      } gap-1 md:gap-2 lg:gap-3 my-2 ${
-                        msg.role === "ai" ? "justify-start" : "justify-end"
-                      }`}
+                      className={`message w-full h-auto flex ${index === messages.length - 1 && "md:flex-row flex-col"
+                        } gap-1 md:gap-2 lg:gap-3 my-2 ${msg.role === "ai" ? "justify-start" : "justify-end"
+                        }`}
                     >
                       {/* <p className={`px-3 py-2.5 max-w-md rounded-md w-auto ${msg.role === "ai" ? "bg-gray-800" : "bg-[#0000ff]"}`}>
                       {msg.message}
                     </p> */}
 
                       <div
-                        className={`relative px-3 py-2.5 max-w-sm md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${
-                          msg.role === "ai" ? "bg-gray-800" : "user-msg"
-                        } `}
+                        className={`relative px-3 py-2.5 max-w-sm md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai" ? "bg-gray-800" : "user-msg"
+                          } `}
                       >
                         <MarkdownToJSX
                           options={{
@@ -749,10 +761,10 @@ export default function Dashboard({
                 {activeAgent === "bridgeAgent"
                   ? "BRIDGE ASSISTANT"
                   : activeAgent === "swapAgent"
-                  ? "SWAP ASSISTANT"
-                  : activeAgent === "lendingBorrowingAgent"
-                  ? "Lending & Borrow"
-                  : "AGENTIFY ASSISTANT"}
+                    ? "SWAP ASSISTANT"
+                    : activeAgent === "lendingBorrowingAgent"
+                      ? "Lending & Borrow"
+                      : "AGENTIFY ASSISTANT"}
               </span>
               <input
                 type="text"
@@ -771,9 +783,8 @@ export default function Dashboard({
 
             {/* Arrow Button */}
             <div
-              className={`md:w-12 w-10 flex cursor-pointer justify-center items-center px-2 py-2 rounded ml-3 transition-all ${
-                message.trim() ? "bg-[#0000ff]" : "bg-gray-700"
-              }`}
+              className={`md:w-12 w-10 flex cursor-pointer justify-center items-center px-2 py-2 rounded ml-3 transition-all ${message.trim() ? "bg-[#0000ff]" : "bg-gray-700"
+                }`}
               onClick={handleChat}
             >
               <BiUpArrowAlt className="w-8 h-8 text-white" />
@@ -791,10 +802,10 @@ export default function Dashboard({
                 {activeAgent === "bridgeAgent"
                   ? "BRIDGE ASSISTANT"
                   : activeAgent === "swapAgent"
-                  ? "SWAP ASSISTANT"
-                  : activeAgent === "lendingBorrowingAgent"
-                  ? "LENDING & BORROW"
-                  : "AGENTIFY ASSISTANT"}
+                    ? "SWAP ASSISTANT"
+                    : activeAgent === "lendingBorrowingAgent"
+                      ? "LENDING & BORROW"
+                      : "AGENTIFY ASSISTANT"}
               </span>
 
               {/* Agents Button */}
@@ -832,11 +843,10 @@ export default function Dashboard({
 
               {/* Send Button with Better Positioning */}
               <button
-                className={`ml-3 p-2 rounded flex items-center justify-center transition-all ${
-                  message.trim()
-                    ? "bg-[#0000ff] hover:bg-blue-700"
-                    : "bg-gray-700"
-                }`}
+                className={`ml-3 p-2 rounded flex items-center justify-center transition-all ${message.trim()
+                  ? "bg-[#0000ff] hover:bg-blue-700"
+                  : "bg-gray-700"
+                  }`}
                 onClick={handleChat}
                 disabled={!message.trim()}
               >

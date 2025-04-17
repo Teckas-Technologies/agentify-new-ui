@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { FaRobot, FaLaptopCode } from "react-icons/fa6";
 import { MdLink } from "react-icons/md";
 import { HiMiniArrowUpRight } from "react-icons/hi2";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
 import { usePrivy } from "@privy-io/react-auth";
@@ -55,6 +54,11 @@ export default function Navbar({
     setActive(page);
     router.push(page === "Browse Agents" ? "/browse" : "/");
   };
+
+  const disconnectAll = () => {
+    logout();
+    disconnect();
+  }
 
   return (
     <>
@@ -184,7 +188,7 @@ export default function Navbar({
 
           {/* Connect Wallet Button */}
           <div className="mt-auto">
-            {!isConnected ? (
+            {!isConnected && !user ? (
               <div
                 className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
                 onClick={login}
@@ -217,7 +221,7 @@ export default function Navbar({
             ) : (
               <div
                 className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
-                onClick={disconnect}
+                onClick={disconnectAll}
               >
                 <MdLink className="w-8 h-8" />
                 {(!isCollapsed || isMobileNavVisible) && (
