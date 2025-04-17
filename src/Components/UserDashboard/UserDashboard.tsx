@@ -3,7 +3,7 @@ import InlineSVG from "react-inlinesvg";
 import "./UserDashboard.css"
 import { useState } from "react";
 import { FaSearch } from "react-icons/fa";
-
+import { useRouter } from 'next/router';
 const dummyAnalytics = [
     {
         _id: 1,
@@ -67,7 +67,11 @@ export default function UserDashboard({
 }) {
 
     const [activeFilter, setActiveFilter] = useState("trade");
-
+    const router = useRouter();
+    const handleClick = () => {
+        console.log("Clicked");
+        router.push('/');
+      };
 
     return (
         <div className="w-full flex flex-col items-center h-screen bg-black text-white">
@@ -171,7 +175,7 @@ export default function UserDashboard({
                                     <p className="md:text-xs lg:text-sm xl:text-md text-white mt-2"><span className="md:text-sm lg:text-md xl:text-lg">Interactions:</span> {anals.interactions}</p>
                                     <p className="md:text-xs lg:text-sm xl:text-md text-white"><span className="md:text-sm lg:text-md xl:text-lg">Transactions:</span> {anals.transactions}</p>
                                     <div className="anals-actions grid grid-cols-2 gap-2">
-                                        <div className="button-holder active-filter relative border border-gray-700 h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer">
+                                        <div className="button-holder active-filter relative border border-gray-700 h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer" onClick={handleClick}>
                                             <h2 className="text-white font-medium text-sm" style={{ fontFamily: "manrope" }}>Chat</h2>
                                         </div>
                                         <div className="button-holder relative border border-gray-700 hover:border-gray-500 transition-colors duration-300 ease-in-out h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer">

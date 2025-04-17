@@ -4,7 +4,7 @@ import "./UserDashboard.css"
 import { useState } from "react";
 import { GraphChart } from "./Charts/GraphChart";
 import { FaSearch } from "react-icons/fa";
-
+import { useRouter } from 'next/navigation';
 const dummyAnalytics = [
     {
         _id: 1,
@@ -79,8 +79,11 @@ export default function UserDashboard2({
 }) {
 
     const [activeFilter, setActiveFilter] = useState("trade");
-
-
+    const router = useRouter();
+    const handleClick = () => {
+        console.log("Clicked");
+        router.push('/playground');
+      };
     return (
         <div className="w-full flex flex-col items-center h-screen bg-black text-white">
             <div
@@ -136,36 +139,44 @@ export default function UserDashboard2({
                 </div>
 
                 <div className="bottom-dashboard w-[96%]">
-                    <div className="top-filters-box w-full flex justify-between gap-4 mb-2">
-                        <div className="relative w-full flex items-center">
-                            <FaSearch className="absolute left-3 text-gray-400 xxl:text-lg xl:text-base" />
-                            <input
-                                type="text"
-                                placeholder="Search"
-                                className="w-full p-2 pl-10 bg-gray-800 text-white rounded placeholder:font-manrope placeholder:text-base placeholder:text-gray-400 focus:outline-none"
-                                style={{ fontFamily: "manrope" }}
-                            />
-                        </div>
-                        <div className="filters p-2 rounded-lg flex items-center gap-2">
-                            {filters?.map((filter) => (
-                                <div
-                                    key={filter.type}
-                                    className={`filter px-2 py-1 rounded-lg border border-gray-700 cursor-pointer ${activeFilter === filter.type ? "active-filter" : ""
-                                        }`}
-                                    onClick={() => setActiveFilter(filter.type)}
-                                >
-                                    <div className={`flex items-center gap-1 ${activeFilter === filter.type ? "text-white" : "text-gray-400"}`}>
-                                        {filter.type === "trade"
-                                            ? "Trading"
-                                            : filter.type === "nft"
-                                                ? "NFT"
-                                                : "DeFi"}
-                                        <div className={"bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs"}>{filter.count}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                <div className="top-filters-box w-full flex flex-col md:flex-row justify-between gap-4 mb-2">
+  <div className="relative w-full flex items-center">
+    <FaSearch className="absolute left-3 text-gray-400 xxl:text-lg xl:text-base" />
+    <input
+      type="text"
+      placeholder="Search"
+      className="w-full p-2 pl-10 bg-gray-800 text-white rounded placeholder:font-manrope placeholder:text-base placeholder:text-gray-400 focus:outline-none"
+      style={{ fontFamily: "manrope" }}
+    />
+  </div>
+  <div className="filters p-2 rounded-lg flex items-center gap-2">
+    {filters?.map((filter) => (
+      <div
+        key={filter.type}
+        className={`filter px-2 py-1 rounded-lg border border-gray-700 cursor-pointer ${
+          activeFilter === filter.type ? "active-filter" : ""
+        }`}
+        onClick={() => setActiveFilter(filter.type)}
+      >
+        <div
+          className={`flex items-center gap-1 ${
+            activeFilter === filter.type ? "text-white" : "text-gray-400"
+          }`}
+        >
+          {filter.type === "trade"
+            ? "Trading"
+            : filter.type === "nft"
+            ? "NFT"
+            : "DeFi"}
+          <div className="bg-gray-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+            {filter.count}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
                     <div className="botom-agent-analytics w-full">
                         <div className="features-boxes grid grid-cols-1 md:grid-cols-2 gap-3 w-full md:min-h-[12rem] lg:min-h-[13rem] xl:min-h-[16rem] md:gap-[0.6rem] lg:gap-[0.8rem] xl:gap-[1rem] mt-5">
@@ -184,10 +195,10 @@ export default function UserDashboard2({
                                         <p className="md:text-xs lg:text-sm xl:text-md text-white mt-2"><span className="md:text-sm lg:text-md xl:text-lg">Interactions:</span> {anals.interactions}</p>
                                         <p className="md:text-xs lg:text-sm xl:text-md text-white"><span className="md:text-sm lg:text-md xl:text-lg">Transactions:</span> {anals.transactions}</p>
                                         <div className="anals-actions grid grid-cols-2 gap-2">
-                                            <div className="button-holder active-filter relative border border-gray-700 h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer">
+                                            <div className="button-holder active-filter relative border border-gray-700 h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer" onClick={handleClick}>
                                                 <h2 className="text-white font-medium text-sm" style={{ fontFamily: "manrope" }}>Chat</h2>
                                             </div>
-                                            <div className="button-holder relative border border-gray-700 hover:border-gray-500 transition-colors duration-300 ease-in-out h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer">
+                                            <div className="button-holder relative border border-gray-700 hover:border-gray-500 transition-colors duration-300 ease-in-out h-[2.5rem] mt-4 flex items-center justify-center cursor-pointer" onClick={() => router.push(`/${anals._id}?agentName=${anals.agentName}`)}>
                                                 <h2 className="text-white font-medium text-sm" style={{ fontFamily: "manrope" }}>Transactions</h2>
                                             </div>
                                         </div>
@@ -205,9 +216,9 @@ export default function UserDashboard2({
                                             </>
                                         )}
                                     </div>
-                                    <div className="graph-view">
+                                    {/* <div className="graph-view">
                                         <GraphChart monthlyItx={monthlyItx} />
-                                    </div>
+                                    </div> */}
                                 </div>
                             ))}
                         </div>
