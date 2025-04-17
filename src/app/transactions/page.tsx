@@ -25,7 +25,7 @@ const Page = () => {
   }, [isCollapsed]);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white">
+    <div className="h-screen flex overflow-hidden bg-black">
       {/* Sidebar Navbar */}
       <Navbar
         isCollapsed={isCollapsed}
