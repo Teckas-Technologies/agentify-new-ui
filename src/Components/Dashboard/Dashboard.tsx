@@ -25,6 +25,13 @@ interface Message {
   txHash?: string;
 }
 
+export interface Agent {
+  agentId: string;
+  name: string;
+  description: string;
+  tags: string[];
+}
+
 export default function Dashboard({
   onToggle,
   onMobileNavToggle,
@@ -49,7 +56,7 @@ export default function Dashboard({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [isBridging, setIsBridging] = useState(false);
   const [isExecutingLifi, setExecutingLifi] = useState(false);
   const [isExecutingAave, setExecutingAave] = useState(false);
@@ -107,7 +114,7 @@ export default function Dashboard({
 
   useEffect(() => {
     fetchAllAgents();
-  }, []);
+  }, [address]);
 
   // useEffect(() => {
   //   if (agents.length > 0) {
@@ -131,7 +138,8 @@ export default function Dashboard({
 
   const fetchAllAgents = async () => {
     const res = await fetchAgents();
-    setAgents(res.agents);
+    console.log("Res:", res)
+    setAgents(res);
   };
 
   const clearChatHistory = async () => {
@@ -486,6 +494,8 @@ export default function Dashboard({
     }
   };
 
+  console.log("Agents:", agents)
+
   return (
     <div className="flex flex-col items-center h-screen bg-black text-white">
 
@@ -549,10 +559,10 @@ export default function Dashboard({
             {agents && agents?.length > 0 &&
               agents?.map((agent) => (
                 <div
-                  key={agent}
-                  onClick={() => setActiveAgent(agent)}
+                  key={agent.agentId}
+                  onClick={() => setActiveAgent(agent?.agentId)}
                   className={`p-4 rounded cursor-pointer rounded-md border transition-all mt-2 duration-200 bg-[#0c1a27] 
-          ${activeAgent === agent
+          ${activeAgent === agent.agentId
                       ? "border-[#91D695]"
                       : "border-transparent hover:border-[#157626]"
                     }`}
@@ -561,27 +571,27 @@ export default function Dashboard({
                     <div className="flex items-center space-x-1 gap-2">
                       <img
                         src="images/logo.png"
-                        alt={agent}
+                        alt={agent.agentId}
                         className="h-8 w-8 object-cover rounded-full"
                       />
                       <h3 className="font-semibold text-md truncate-1-lines w-[90%]">
-                        {agent === "bridgeAgent"
+                        {agent.agentId === "bridgeAgent"
                           ? "Bridge Assistant"
-                          : agent === "swapAgent"
+                          : agent.agentId === "swapAgent"
                             ? "Swap Assistant"
-                            : agent === "lendingBorrowingAgent"
-                              ? "Lending & Borrowing Assistant"
+                            : agent.agentId === "lendingBorrowingAgent"
+                              ? "Lend & Borrow Assistant"
                               : "Liquidity Assistant"}
                       </h3>
                     </div>
                     <IoMdInformationCircleOutline className="w-5 h-5 text-gray-400 cursor-pointer" />
                   </div>
                   <p className="text-sm text-gray-400 mt-1 w-[90%] truncate-3-lines">
-                    {agent === "bridgeAgent"
+                    {agent.agentId === "bridgeAgent"
                       ? "Assistant for helping users to bridge tokens between the EVM chains."
-                      : agent === "swapAgent"
+                      : agent.agentId === "swapAgent"
                         ? "Assistant for helping users to swap tokens in the EVM chains."
-                        : agent === "lendingBorrowingAgent"
+                        : agent.agentId === "lendingBorrowingAgent"
                           ? "Assistant for helping users to lend & borrow the tokens in EVM chains."
                           : "Assistant for helping users to add liquidity to pool in EVM chains."}
                   </p>
@@ -672,7 +682,7 @@ export default function Dashboard({
                     </p> */}
 
                       <div
-                        className={`relative px-3 py-2.5 max-w-sm md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai" ? "bg-gray-800" : "user-msg"
+                        className={`relative px-3 py-2.5 max-w-sm md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai" ? "bg-gray-800" : "user-msg agent-name"
                           } `}
                       >
                         <MarkdownToJSX
@@ -763,7 +773,7 @@ export default function Dashboard({
                   : activeAgent === "swapAgent"
                     ? "SWAP ASSISTANT"
                     : activeAgent === "lendingBorrowingAgent"
-                      ? "Lending & Borrow"
+                      ? "Lend & Borrow"
                       : "AGENTIFY ASSISTANT"}
               </span>
               <input

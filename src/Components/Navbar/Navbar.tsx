@@ -12,6 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { GoGraph } from "react-icons/go";
 import { BiTransferAlt } from "react-icons/bi";
+import "./Navbar.css"
 export default function Navbar({
   isCollapsed,
   isMobileNavVisible,

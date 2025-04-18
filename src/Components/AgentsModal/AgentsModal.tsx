@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { IoMdInformationCircleOutline } from "react-icons/io";
+import { Agent } from "../Dashboard/Dashboard";
 
 export default function AgentsModal({
   isOpen,
@@ -10,7 +11,7 @@ export default function AgentsModal({
   isOpen: boolean;
   onClose: () => void;
   setActiveAgent: (name: string) => void;
-  sonicAgents: string[]
+  sonicAgents: Agent[]
 }) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +86,7 @@ export default function AgentsModal({
                 key={index}
                 className="p-3 bg-[#0c1a27] rounded-md cursor-pointer hover:bg-gray-700 transition-all"
                 onClick={() => {
-                  setActiveAgent(agent);
+                  setActiveAgent(agent.agentId);
                   onClose(); // Close modal after selection
                 }}
               >
@@ -94,11 +95,11 @@ export default function AgentsModal({
                     <img src="images/logo.png" className="h-[30px] w-[30px] rounded-full" />
                     <h3 className="font-semibold text-sm truncate-1-lines">
                       {/* {agent.name.length > 25 ? agent.name.slice(0, 25) + "..." : agent.name} */}
-                      {agent === "bridgeAgent" ?
+                      {agent.agentId === "bridgeAgent" ?
                         "Bridge Assistant" :
-                        agent === "swapAgent" ?
+                        agent.agentId === "swapAgent" ?
                           "Swap Assistant" :
-                          agent === "lendingBorrowingAgent" ?
+                          agent.agentId === "lendingBorrowingAgent" ?
                             "Lending & Borrowing Assistant" :
                             "Liquidity Assistant"}
                     </h3>
@@ -108,11 +109,11 @@ export default function AgentsModal({
 
                 {/* Description */}
                 <p className="text-xs text-gray-400 mt-1">
-                  {agent === "bridgeAgent" ?
+                  {agent.agentId === "bridgeAgent" ?
                     "Assistant for helping users to bridge tokens between the EVM chains." :
-                    agent === "swapAgent" ?
+                    agent.agentId === "swapAgent" ?
                       "Assistant for helping users to swap tokens in the EVM chains." :
-                      agent === "lendingBorrowingAgent" ?
+                      agent.agentId === "lendingBorrowingAgent" ?
                         "Assistant for helping users to lend & borrow the tokens in EVM chains." :
                         "Assistant for helping users to add liquidity to pool in EVM chains."}
                 </p>

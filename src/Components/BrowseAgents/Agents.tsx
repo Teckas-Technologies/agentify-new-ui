@@ -7,6 +7,7 @@ import { MdKeyboardArrowRight, MdKeyboardArrowDown } from "react-icons/md";
 import { useChat } from "@/hooks/useChatHook";
 import { useRouter } from "next/navigation";
 import "./Agents.css"
+import { Agent } from "../Dashboard/Dashboard";
 
 const agents = [
   {
@@ -73,7 +74,7 @@ const Agents = ({
 }) => {
   const [isCategoryOpen, setIsCategoryOpen] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["DeFi"]);
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const router = useRouter();
   const { fetchAgents } = useChat();
 
@@ -91,7 +92,7 @@ const Agents = ({
 
   const fetchSonicAgents = async () => {
     const res = await fetchAgents();
-    setAgents(res.agents);
+    setAgents(res);
   }
 
   return (
@@ -208,7 +209,7 @@ const Agents = ({
                       {agent && (
                         <img
                           src="images/logo.png"
-                          alt={`${agent} logo`}
+                          alt={`${agent.agentId} logo`}
                           className="h-8 w-8"
                         />
                       )}
@@ -216,11 +217,11 @@ const Agents = ({
                         className="text-base font-semibold truncate-1-lines"
                         style={{ fontFamily: "orbitron" }}
                       >
-                        {agent === "bridgeAgent" ?
+                        {agent.agentId === "bridgeAgent" ?
                           "Bridge Assistant" :
-                          agent === "swapAgent" ?
+                          agent.agentId === "swapAgent" ?
                             "Swap Assistant" :
-                            agent === "lendingBorrowingAgent" ?
+                            agent.agentId === "lendingBorrowingAgent" ?
                               "Lending & Borrowing Assistant" :
                               "Liquidity Assistant"}
                       </h5>
@@ -228,7 +229,7 @@ const Agents = ({
                     <button
                       className="py-2 px-3 bg-gray-700 hover:bg-gray-600 cursor-pointer rounded text-sm"
                       style={{ fontFamily: "manrope" }}
-                      onClick={() => router.push(`/?agent=${agent}`)}
+                      onClick={() => router.push(`/playground?agent=${agent.agentId}`)}
                     >
                       Run Agent
                     </button>
@@ -242,11 +243,11 @@ const Agents = ({
                       maxWidth: "calc(100% - 1rem)",
                     }}
                   >
-                    {agent === "bridgeAgent" ?
+                    {agent.agentId === "bridgeAgent" ?
                       "Assistant for helping users to bridge tokens between the EVM chains." :
-                      agent === "swapAgent" ?
+                      agent.agentId === "swapAgent" ?
                         "Assistant for helping users to swap tokens in the EVM chains." :
-                        agent === "lendingBorrowingAgent" ?
+                        agent.agentId === "lendingBorrowingAgent" ?
                           "Assistant for helping users to lend & borrow the tokens in EVM chains." :
                           "Assistant for helping users to add liquidity to pool in EVM chains."}
                   </p>
