@@ -546,7 +546,7 @@ export default function Dashboard({
 
           {/* Scrollable List (Fixed) */}
           <div className="flex-grow overflow-y-auto scroll-d border border-gray-700 p-3 mt-4 rounded max-h-[430px]">
-            {agents.length > 0 &&
+            {agents && agents?.length > 0 &&
               agents?.map((agent) => (
                 <div
                   key={agent}
@@ -621,7 +621,7 @@ export default function Dashboard({
                 </div>
               </div>
             )}
-            {messages.length === 0 && (
+            {messages && messages?.length === 0 && (
               <div className="text-center flex flex-col items-center">
                 <div className="flex justify-center items-center">
                   <img

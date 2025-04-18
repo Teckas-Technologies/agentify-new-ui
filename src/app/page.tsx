@@ -12,10 +12,6 @@ const ClientLayout = dynamic(() => import("../Components/ClientLayout"), {
   ssr: false,
 });
 
-const Dashboard = dynamic(() => import("../Components/Dashboard/Dashboard"), {
-  ssr: false,
-});
-
 export default function Home() {
   // Load the initial state from localStorage
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -27,31 +23,33 @@ export default function Home() {
 
 
 
-    const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
+  const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
 
-    // Save state to localStorage whenever it changes
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            localStorage.setItem("isCollapsed", JSON.stringify(isCollapsed));
-        }
-    }, [isCollapsed]);
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("isCollapsed", JSON.stringify(isCollapsed));
+    }
+  }, [isCollapsed]);
 
-    return (
-        <div className="h-screen flex overflow-hidden bg-white">
-            {/* Sidebar Navbar */}
-            <Navbar
-                isCollapsed={isCollapsed}
-                isMobileNavVisible={isMobileNavVisible}
-                onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-            />
+  return (
+    <ClientLayout>
+      <div className="h-screen flex overflow-hidden bg-white">
+        {/* Sidebar Navbar */}
+        <Navbar
+          isCollapsed={isCollapsed}
+          isMobileNavVisible={isMobileNavVisible}
+          onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+        />
 
-            {/* Main Dashboard */}
-            <div className="flex-1 h-screen overflow-auto">
-                <UserDashboard2
-                    onToggle={() => setIsCollapsed((prev) => !prev)}
-                    onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-                />
-            </div>
+        {/* Main Dashboard */}
+        <div className="flex-1 h-screen overflow-auto">
+          <UserDashboard2
+            onToggle={() => setIsCollapsed((prev) => !prev)}
+            onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+          />
         </div>
-    );
+      </div>
+    </ClientLayout>
+  );
 }
