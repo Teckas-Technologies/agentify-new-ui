@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 // import Dashboard from "@/Components/Dashboard/Dashboard";
 import Navbar from "@/Components/Navbar/Navbar";
+import UserDashboard from "@/Components/UserDashboard/UserDashboard";
+import UserDashboard2 from "@/Components/UserDashboard/UserDashboard2";
 
 import dynamic from "next/dynamic";
 
@@ -24,33 +26,32 @@ export default function Home() {
   });
 
 
-  const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
 
-  // Save state to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("isCollapsed", JSON.stringify(isCollapsed));
-    }
-  }, [isCollapsed]);
+    const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
 
-  return (
-    <ClientLayout>
-      <div className="h-screen flex overflow-hidden bg-white">
-        {/* Sidebar Navbar */}
-        <Navbar
-          isCollapsed={isCollapsed}
-          isMobileNavVisible={isMobileNavVisible}
-          onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-        />
+    // Save state to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("isCollapsed", JSON.stringify(isCollapsed));
+        }
+    }, [isCollapsed]);
 
-        {/* Main Dashboard */}
-        <div className="flex-1 h-screen overflow-auto">
-          <Dashboard
-            onToggle={() => setIsCollapsed((prev) => !prev)}
-            onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-          />
+    return (
+        <div className="h-screen flex overflow-hidden bg-white">
+            {/* Sidebar Navbar */}
+            <Navbar
+                isCollapsed={isCollapsed}
+                isMobileNavVisible={isMobileNavVisible}
+                onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+            />
+
+            {/* Main Dashboard */}
+            <div className="flex-1 h-screen overflow-auto">
+                <UserDashboard2
+                    onToggle={() => setIsCollapsed((prev) => !prev)}
+                    onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+                />
+            </div>
         </div>
-      </div>
-    </ClientLayout>
-  );
+    );
 }

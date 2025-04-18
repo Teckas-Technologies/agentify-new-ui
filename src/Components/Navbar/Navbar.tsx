@@ -10,7 +10,8 @@ import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
 import { usePrivy } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
-
+import { GoGraph } from "react-icons/go";
+import { BiTransferAlt } from "react-icons/bi";
 export default function Navbar({
   isCollapsed,
   isMobileNavVisible,
@@ -41,18 +42,31 @@ export default function Navbar({
   // Determine active tab based on current route
   const getActiveTab = () => {
     if (pathname === "/browse") return "Browse Agents";
-    return "Chat"; // Default active tab
+    if (pathname === "/playground") return "Playground";
+    if (pathname === "/transactions") return "Transactions"; // ✅ Added this line
+    return "Dashboard"; // Default
   };
 
   const [active, setActive] = useState(getActiveTab);
 
   useEffect(() => {
-    setActive(getActiveTab()); // Update state when route changes
+    setActive(getActiveTab()); // ✅ Keep this to sync with route
   }, [pathname]);
 
   const handleNavigation = (page: string) => {
     setActive(page);
-    router.push(page === "Browse Agents" ? "/browse" : "/");
+
+    if (page === "Browse Agents") {
+      router.push("/browse");
+    } else if (page === "Playground") {
+      router.push("/playground");
+    } else if (page === "Transactions") {
+      router.push("/transactions");
+    } else if (page === "Integrations") {
+      setIsSoon(true); // ✅ Show "coming soon" or similar
+    } else {
+      router.push("/"); // Default for Dashboard or others
+    }
   };
 
   const disconnectAll = () => {
@@ -83,7 +97,11 @@ export default function Navbar({
           {/* Logo and Menu Items */}
           <div>
             {/* Logo */}
-            <div className="flex items-center space-x-2 font-semibold">
+
+            <div
+              className="flex items-center space-x-2 font-semibold cursor-pointer"
+              onClick={() => (window.location.href = "/")}
+            >
               <img
                 src="images/logo.png"
                 className="h-10 w-10 object-cover rounded-full"
@@ -103,13 +121,41 @@ export default function Navbar({
               <li>
                 <button
                   className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active === "Chat" ? "bg-gray-700" : "hover:bg-gray-800"
+                    active === "Dashboard" ? "bg-gray-700" : "hover:bg-gray-800"
                   }`}
-                  onClick={() => handleNavigation("Chat")}
+                  onClick={() => handleNavigation("Dashboard")}
+                >
+                  <GoGraph className="w-7 h-7" />
+                  {(!isCollapsed || isMobileNavVisible) && (
+                    <span className="text-base font-semibold">Dashboard</span>
+                  )}
+                </button>
+              </li>
+              <li>
+                <button
+                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    active === "Playground"
+                      ? "bg-gray-700"
+                      : "hover:bg-gray-800"
+                  }`}
+                  onClick={() => handleNavigation("Playground")}
                 >
                   <FaLaptopCode className="w-8 h-8" />
                   {(!isCollapsed || isMobileNavVisible) && (
-                    <span className="text-base font-semibold">Chat</span>
+                    <span className="text-base font-semibold">Playground</span>
+                  )}
+                </button>
+              </li>
+              <li>
+                <button
+                  className="flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-gray-800"
+                  onClick={() => handleNavigation("Integrations")}
+                >
+                  <GoGraph className="w-7 h-7" />
+                  {(!isCollapsed || isMobileNavVisible) && (
+                    <span className="text-base font-semibold">
+                      Integrations
+                    </span>
                   )}
                 </button>
               </li>
@@ -126,6 +172,24 @@ export default function Navbar({
                   {(!isCollapsed || isMobileNavVisible) && (
                     <span className="text-base font-semibold">
                       Browse Agents
+                    </span>
+                  )}
+                </button>
+              </li>
+
+              <li>
+                <button
+                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    active === "Transactions"
+                      ? "bg-gray-700"
+                      : "hover:bg-gray-800"
+                  }`}
+                  onClick={() => handleNavigation("Transactions")}
+                >
+                  <BiTransferAlt className="w-7 h-7" />
+                  {(!isCollapsed || isMobileNavVisible) && (
+                    <span className="text-base font-semibold">
+                      Transactions
                     </span>
                   )}
                 </button>
