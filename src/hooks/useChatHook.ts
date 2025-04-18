@@ -55,7 +55,7 @@ export const useChat = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${PYTHON_SERVER_URL}/api/list-agents`, {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/v1/agents/?user_id=${address}`, {
                 method: "GET",
                 // headers: {
                 //     "Content-Type": "application/json",
