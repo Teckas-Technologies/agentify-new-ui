@@ -6,7 +6,7 @@ import * as markets from "@bgd-labs/aave-address-book";
 import { BigNumber, ethers } from "ethers";
 import type { NextPage } from "next";
 import { useAccount, useDisconnect, useWalletClient } from "wagmi";
-import { useAppKit, useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
+// import { useAppKit, useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
 
 // import { useScaffoldContractRead } from "~~/hooks/scaffold-eth/useScaffoldContractRead";
 
@@ -48,25 +48,25 @@ const Test2: NextPage = () => {
 
     const { address: connectedAddress } = useAccount();
     const { data: walletClient } = useWalletClient();
-    const { isConnected } = useAppKitAccount();
-    const { walletProvider } = useAppKitProvider("eip155");
+    // const { isConnected } = useAppKitAccount();
+    // const { walletProvider } = useAppKitProvider("eip155");
 
-    const { open } = useAppKit();
+    // const { open } = useAppKit();
     const { disconnect } = useDisconnect();
 
-    const handleConnectWallet = () => {
-        open({ view: 'Connect' });
-    }
+    // const handleConnectWallet = () => {
+    //     open({ view: 'Connect' });
+    // }
 
-    const handleDisconnect = () => {
-        disconnect();
-    }
+    // const handleDisconnect = () => {
+    //     disconnect();
+    // }
 
-    console.log("walletClient", walletClient)
+    // console.log("walletClient", walletClient)
 
-    const handleViewAccount = () => {
-        open({ view: 'Account' });
-    }
+    // const handleViewAccount = () => {
+    //     open({ view: 'Account' });
+    // }
     // const { targetNetwork } = useTargetNetwork();
 
     const [fromInputValue, setFromInputValue] = useState("");
@@ -148,51 +148,51 @@ const Test2: NextPage = () => {
         // const provider = new ethers.providers.Web3Provider((window as any).ethereum);
         // const provider = new ethers.providers.Web3Provider((window as any).ethereum);
         // const signer = provider.getSigner();
-        const provider = new ethers.providers.Web3Provider(
-            walletProvider as ethers.providers.ExternalProvider,
-        );
+        // const provider = new ethers.providers.Web3Provider(
+        //     walletProvider as ethers.providers.ExternalProvider,
+        // );
 
-        const signer = await provider.getSigner();
-        const signerAddress = await signer.getAddress();
+        // const signer = await provider.getSigner();
+        // const signerAddress = await signer.getAddress();
 
-        const pool = new Pool(provider, {
-            POOL: AAVE_POOL_SEPOLIA,
-            WETH_GATEWAY: WETH_GATEWAY_SEPOLIA,
-        });
+        // const pool = new Pool(provider, {
+        //     POOL: AAVE_POOL_SEPOLIA,
+        //     WETH_GATEWAY: WETH_GATEWAY_SEPOLIA,
+        // });
 
-        console.log(provider);
-        console.log(pool);
-        console.log(signer);
-        if (!signerAddress) {
-            console.log("No signer address")
-            return;
-        }
+        // console.log(provider);
+        // console.log(pool);
+        // console.log(signer);
+        // if (!signerAddress) {
+        //     console.log("No signer address")
+        //     return;
+        // }
 
-        const signature = await approveAndSign({
-            pool: pool,
-            provider: provider,
-            address: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
-            asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-            amount: "1",
-        });
+        // const signature = await approveAndSign({
+        //     pool: pool,
+        //     provider: provider,
+        //     address: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
+        //     asset: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        //     amount: "1",
+        // });
 
-        const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-        await wait(5000);
-        console.log("done");
+        // const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+        // await wait(5000);
+        // console.log("done");
 
-        const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
-            user: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
-            reserve: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-            amount: "1",
-            signature: signature,
-            onBehalfOf: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
-            deadline: DEADLINE,
-        });
+        // const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
+        //     user: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
+        //     reserve: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        //     amount: "1",
+        //     signature: signature,
+        //     onBehalfOf: "0xFf43E33C40276FEEff426C5448cF3AD9df6b5741",
+        //     deadline: DEADLINE,
+        // });
 
-        console.log("SUPPLY WITH:", txs)
+        // console.log("SUPPLY WITH:", txs)
 
-        const txResponse = await submitTransaction({ provider: provider, tx: txs[0] });
-        console.log(txResponse);
+        // const txResponse = await submitTransaction({ provider: provider, tx: txs[0] });
+        // console.log(txResponse);
     };
 
     return (
@@ -201,9 +201,9 @@ const Test2: NextPage = () => {
                 <div className="header w-full bg-black h-[6rem] flex items-center justify-between px-[4rem]">
                     <h2 className="text-white">Agentify</h2>
                     <div className="btns flex items-center gap-4">
-                        {isConnected && <h4 className="text-white">{connectedAddress}</h4>}
+                        {/* {isConnected && <h4 className="text-white">{connectedAddress}</h4>}
                         {!isConnected && <button className="px-6 py-2 rounded-md bg-green-300 text-white" onClick={handleConnectWallet}>Connect Wallet</button>}
-                        {isConnected && <button className="px-6 py-2 rounded-md bg-red-300 text-white" onClick={handleViewAccount}>View Account</button>}
+                        {isConnected && <button className="px-6 py-2 rounded-md bg-red-300 text-white" onClick={handleViewAccount}>View Account</button>} */}
                     </div>
                 </div>
                 <div className="px-5">

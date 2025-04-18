@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ContextProvider from "@/contexts/ContextProvider";
 import { headers } from "next/headers";
-import { UserProvider } from '@auth0/nextjs-auth0/client';
-import { CustomWagmiProvider } from "@/contexts/LifiProvider";
+
+// import { CustomWagmiProvider } from "@/contexts/LifiProvider";
+import Providers from "@/contexts/PriviWagmiProvider";
+
+// import ClientLayout from "../Components/ClientLayout";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -17,7 +20,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Agentify",
-  description: "We are providing specialized agents for bridging, swapping, adding, or closing liquidity between the Ethereum chains",
+  description:
+    "We are providing specialized agents for bridging, swapping, adding, or closing liquidity between the Ethereum chains",
 };
 
 export default async function RootLayout({
@@ -32,15 +36,10 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <UserProvider>
-          <ContextProvider cookies={cookies}>
-            <CustomWagmiProvider>
-              {children}
-            </CustomWagmiProvider>
-          </ContextProvider>
-        </UserProvider>
+        {/* <ClientLayout> */}
+        {children}
+        {/* </ClientLayout> */}
       </body>
-
     </html>
   );
 }

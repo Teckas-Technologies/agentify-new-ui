@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import { FaRobot, FaLaptopCode } from "react-icons/fa6";
 import { MdLink } from "react-icons/md";
 import { HiMiniArrowUpRight } from "react-icons/hi2";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
+import { usePrivy } from "@privy-io/react-auth";
+import { UserPill } from "@privy-io/react-auth/ui";
 import { GoGraph } from "react-icons/go";
 import { BiTransferAlt } from "react-icons/bi";
 export default function Navbar({
@@ -23,22 +24,20 @@ export default function Navbar({
   const router = useRouter();
   const pathname = usePathname();
   const [isSoon, setIsSoon] = useState(false);
-  const { isConnected } = useAppKitAccount();
-  const { address } = useAccount();
-  const { open } = useAppKit();
+  // const { isConnected } = useAppKitAccount();
+  const { address, isConnected } = useAccount();
+
   const { disconnect } = useDisconnect();
-
-  const handleConnectWallet = () => {
-    open({ view: "Connect" });
-  };
-
-  const handleDisconnect = () => {
-    disconnect();
-  };
-
-  const handleViewAccount = () => {
-    open({ view: "Account" });
-  };
+  const {
+    ready,
+    user,
+    authenticated,
+    login,
+    connectWallet,
+    logout,
+    linkWallet,
+  } = usePrivy();
+  console.log("User ---------:", user);
 
   // Determine active tab based on current route
   const getActiveTab = () => {
@@ -70,6 +69,11 @@ export default function Navbar({
     }
   };
 
+  const disconnectAll = () => {
+    logout();
+    disconnect();
+  }
+
   return (
     <>
       {/* Overlay for mobile */}
@@ -93,6 +97,7 @@ export default function Navbar({
           {/* Logo and Menu Items */}
           <div>
             {/* Logo */}
+
             <div
               className="flex items-center space-x-2 font-semibold cursor-pointer"
               onClick={() => (window.location.href = "/")}
@@ -247,43 +252,65 @@ export default function Navbar({
 
           {/* Connect Wallet Button */}
           <div className="mt-auto">
-            <div
-              className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
-              onClick={() =>
-                !isConnected ? handleConnectWallet() : handleViewAccount()
-              }
-            >
-              <MdLink className="w-8 h-8" />
-              {(!isCollapsed || isMobileNavVisible) && (
-                <h2
-                  className="text-white font-medium"
-                  style={{ fontFamily: "manrope" }}
-                >
-                  {!isConnected ? "Connect Wallet" : "View Account"}
-                </h2>
-              )}
-              <div className="absolute top-0 left-0 right-0 bottom-0">
-                <img
-                  src="/images/button-border.png"
-                  alt="agy"
-                  className={` w-full h-full ${
-                    !isCollapsed || isMobileNavVisible
-                      ? "object-contain"
-                      : "object-cover"
-                  }`}
-                />
+            {!isConnected && !user ? (
+              <div
+                className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={login}
+              >
+                <MdLink className="w-8 h-8" />
+                {(!isCollapsed || isMobileNavVisible) && (
+                  <div className="flex items-center gap-2">
+                    <h2
+                      className="text-white font-medium"
+                      style={{ fontFamily: "manrope" }}
+                    >
+                      Connect Wallet
+                    </h2>
+                  </div>
+                )}
+                <div className="absolute top-0 left-0 right-0 bottom-0">
+                  <img
+                    src="/images/button-border.png"
+                    alt="agy"
+                    className={`w-full h-full ${
+                      !isCollapsed || isMobileNavVisible
+                        ? "object-contain"
+                        : "object-cover"
+                    }`}
+                  />
+                </div>
               </div>
-            </div>
-            {/* <button
-              className="w-full py-2 rounded-lg cursor-pointer flex justify-center items-center gap-2 text-sm bg-white text-black font-bold hover:bg-gray-200 transition"
-              style={{ fontFamily: "manrope" }}
-              onClick={() => !isConnected ? connectWallet() : handleDisconnect()}
-            >
-              <MdLink className="w-6 h-6" />
-              {(!isCollapsed || isMobileNavVisible) && (
-                !isConnected ? <span>Connect Wallet</span> : <span>Disconnect</span>
-              )}
-            </button> */}
+            ) : user?.google?.email ? (
+              <UserPill />
+            ) : (
+              <div
+                className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={disconnectAll}
+              >
+                <MdLink className="w-8 h-8" />
+                {(!isCollapsed || isMobileNavVisible) && (
+                  <div className="flex items-center gap-2">
+                    <h2
+                      className="text-white font-medium"
+                      style={{ fontFamily: "manrope" }}
+                    >
+                      Disconnect Wallet
+                    </h2>
+                  </div>
+                )}
+                <div className="absolute top-0 left-0 right-0 bottom-0">
+                  <img
+                    src="/images/button-border.png"
+                    alt="agy"
+                    className={`w-full h-full ${
+                      !isCollapsed || isMobileNavVisible
+                        ? "object-contain"
+                        : "object-cover"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="absolute top-0 left-0 right-0 h-[20rem] z-[-1]">

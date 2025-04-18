@@ -1,18 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// import Dashboard from "@/Components/Dashboard/Dashboard";
 import Navbar from "@/Components/Navbar/Navbar";
 import UserDashboard from "@/Components/UserDashboard/UserDashboard";
 import UserDashboard2 from "@/Components/UserDashboard/UserDashboard2";
 
-export default function DashboardPage() {
-    // Load the initial state from localStorage
-    const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-        if (typeof window !== "undefined") {
-            return JSON.parse(localStorage.getItem("isCollapsed") || "false");
-        }
-        return false;
-    });
+import dynamic from "next/dynamic";
+
+const ClientLayout = dynamic(() => import("../Components/ClientLayout"), {
+  ssr: false,
+});
+
+const Dashboard = dynamic(() => import("../Components/Dashboard/Dashboard"), {
+  ssr: false,
+});
+
+export default function Home() {
+  // Load the initial state from localStorage
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return JSON.parse(localStorage.getItem("isCollapsed") || "false");
+    }
+    return false;
+  });
+
 
 
     const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
