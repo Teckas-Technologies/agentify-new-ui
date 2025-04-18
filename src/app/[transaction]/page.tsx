@@ -5,6 +5,11 @@ import Navbar from "@/Components/Navbar/Navbar";
 import Transaction from "@/Components/Transaction/Transaction";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
+  ssr: false,
+});
 
 const TransactionsPage = () => {
   const params = useParams(); // Extract the dynamic [transaction] path parameter
@@ -41,24 +46,26 @@ const TransactionsPage = () => {
   };
 
   const initialTab = agentToTabMap[agentName || ""] || "Swap";
-  console.log("Tab---",initialTab);
-  
+  console.log("Tab---", initialTab);
+
   return (
-    <div className="h-screen flex overflow-hidden bg-black">
-      {/* Sidebar Navbar */}
-      <Navbar
-        isCollapsed={isCollapsed}
-        isMobileNavVisible={isMobileNavVisible}
-        onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-      />
-      <div className="flex-1 h-screen overflow-auto">
-        <Transaction
-          initialTab={initialTab}
-          onToggle={() => setIsCollapsed((prev) => !prev)}
+    <ClientLayout>
+      <div className="h-screen flex overflow-hidden bg-black">
+        {/* Sidebar Navbar */}
+        <Navbar
+          isCollapsed={isCollapsed}
+          isMobileNavVisible={isMobileNavVisible}
           onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
         />
+        <div className="flex-1 h-screen overflow-auto">
+          <Transaction
+            initialTab={initialTab}
+            onToggle={() => setIsCollapsed((prev) => !prev)}
+            onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+          />
+        </div>
       </div>
-    </div>
+    </ClientLayout>
   );
 };
 
