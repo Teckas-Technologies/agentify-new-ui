@@ -12,32 +12,38 @@ import {
     Tooltip,
     Legend,
 } from "chart.js";
+import useFetchGraphData from "@/hooks/useDashboardGraph";
 
-const transformMonthlyRent = (totalItx: { month: string; totalItx: number }[]): number[] => {
+const transformMonthlyTransactions = (transactions: { month: string; transactions: number }[]): number[] => {
     const months = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
 
-    // Create an array of 12 elements, filling missing months with 0
     return months.map((month) => {
-        const rentData = totalItx.find((m) => m.month === month);
-        return rentData ? rentData.totalItx : 0;
+        const transactionData = transactions.find((m) => m.month === month);
+        return transactionData ? transactionData.transactions : 0;
     });
 };
 
-// Register the required chart components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 type LineChartRef = MutableRefObject<ChartJS<"line"> | null>;
 
 interface Props {
-    monthlyItx: { month: string; totalItx: number }[] | undefined;
+    userId: string;
+    agentId: string;
+    year: number;
 }
 
-export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
+export const GraphChart: React.FC<Props> = ({ userId, agentId, year }) => {
     const chartRef: LineChartRef = useRef(null);
-    const [values, setvalues] = useState<number[]>([]);
+    const [values, setValues] = useState<number[]>([]);
+    const { graphData, loading, error, fetchGraphData } = useFetchGraphData(userId, agentId, year);
+
+    useEffect(() => {
+        fetchGraphData();
+    }, [fetchGraphData]);
 
     useEffect(() => {
         const chart = chartRef.current;
@@ -45,8 +51,8 @@ export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
         if (chart) {
             const ctx = chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-            gradient.addColorStop(0, "rgba(75, 192, 192, 0.4)"); // Light color at the top
-            gradient.addColorStop(1, "rgba(75, 192, 192, 0)");   // Fully transparent at the bottom
+            gradient.addColorStop(0, "rgba(75, 192, 192, 0.4)");
+            gradient.addColorStop(1, "rgba(75, 192, 192, 0)");
 
             chart.data.datasets[0].backgroundColor = gradient;
             chart.update();
@@ -54,17 +60,18 @@ export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
     }, []);
 
     useEffect(() => {
-        if (monthlyItx) {
-            const data = transformMonthlyRent(monthlyItx);
-            setvalues(data)
+        if (graphData && graphData.length > 0) {
+            const data = transformMonthlyTransactions(graphData);
+            setValues(data);
         }
-    }, [monthlyItx])
+    }, [graphData]);
 
-    const dataValues = values || [32000, 33000, 31000, 34000, 29000, 35000, 37000, 34000, 32000, 31000, 45000, 28000];
+   
+    if (error) return <div>Error: {error}</div>;
+
+    const dataValues = values || Array(12).fill(0);
     const minValue = Math.min(...dataValues);
     const maxValue = Math.max(...dataValues);
-
-    const year = new Date().getFullYear();
 
     const data = {
         labels: [
@@ -73,7 +80,7 @@ export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
         ],
         datasets: [
             {
-                label: `Total Revenue - ${year}`,
+                label: `Total Transactions - ${year}`,
                 data: dataValues,
                 fill: true,
                 backgroundColor: "rgba(0, 123, 255, 0.2)",
@@ -102,8 +109,6 @@ export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
         scales: {
             y: {
                 beginAtZero: true,
-                // min: minValue,
-                // max: maxValue,
                 ticks: {
                     callback: function (tickValue: string | number) {
                         return `${Number(tickValue)}`;
@@ -112,7 +117,6 @@ export const GraphChart: React.FC<Props> = ({ monthlyItx }) => {
             },
         },
     };
-    return (
-        <Line ref={chartRef} data={data} options={options} />
-    )
-}
+
+    return <Line ref={chartRef} data={data} options={options} />;
+};
