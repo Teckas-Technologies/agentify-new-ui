@@ -18,6 +18,7 @@ import { usePrivy, LoginModal, User, useWallets } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { switchNetwork } from "@/utils/switchNetwork";
 import { useTransactions } from "@/hooks/useTransactionsHook";
+import { v4 as uuidv4 } from 'uuid';
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
 interface Message {
@@ -40,6 +41,9 @@ interface RequestFields {
      agent_id: string;
      transaction_type: string;
      status: string;
+     transaction_volume:string;
+     explorer_link:string;
+
 }
 
 export default function Dashboard({
@@ -150,11 +154,11 @@ export default function Dashboard({
   const fetchAllAgents = async () => {
     const res = await fetchAgents();
     console.log("Res:", res)
-    setAgents(res?.data);
+    setAgents(res.data);
   };
 
 
-  const createTrans = async(  transaction_id: string,user_id: string,wallet_address:string,agent_id: string,transaction_type: string,status: string)=>{
+  const createTrans = async(  transaction_id: string,user_id: string,wallet_address:string,agent_id: string,transaction_type: string,status: string,transaction_volume:string,explorer_link:string)=>{
     const payload:RequestFields = {
       transaction_id,
       user_id,
@@ -162,6 +166,8 @@ export default function Dashboard({
       agent_id,
       transaction_type,
       status,
+      transaction_volume,
+      explorer_link
     };
     const data = await createTransactions(payload);
   }
@@ -259,7 +265,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","lending","Successful");
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","lending","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -270,7 +276,7 @@ export default function Dashboard({
                   message: `Lending ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              // await createTrans("",address,address,"swapAgent","lending","Failed");
+              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -308,7 +314,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","borrow","Successful");
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","borrow","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -319,7 +325,7 @@ export default function Dashboard({
                   message: `Borrow ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              // await createTrans("",address,address,"swapAgent","lending","Failed");
+              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -357,7 +363,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","withdraw","Successful");
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","withdraw","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -368,7 +374,7 @@ export default function Dashboard({
                   message: `Withdraw ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              //  await createTrans("",address,address,"swapAgent","lending","Failed");
+               await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -412,6 +418,10 @@ export default function Dashboard({
               const response: any = await executeLifi({ quote });
               console.log("Res:", response);
               if (response?.txHash) {
+                const agentId = fromChainId.toString() === toChainId.toString()
+                ? "swapAgent"
+                : "bridgeAgent";
+                await createTrans(response.txHash,address,address,agentId,agentId,"Successful",fromAmount,`${explorer}tx/${response?.txHash}`);  
                 setMessages((prev) => [
                   ...prev,
                   {
@@ -426,6 +436,10 @@ export default function Dashboard({
                 setExecutingLifi(false);
                 return;
               } else {
+                const agentId = fromChainId.toString() === toChainId.toString()
+                ? "swapAgent"
+                : "bridgeAgent";
+                await createTrans( `failed_${uuidv4()}`,address,address,agentId,agentId,"Failed",fromAmount,`${explorer}tx/failed`);  
                 setMessages((prev) => [
                   ...prev,
                   {
