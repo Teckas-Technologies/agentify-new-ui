@@ -3,7 +3,7 @@
 ## Introduction
 
 Sonic SVM AI Agents is a decentralized application (dApp) built on **Next.js** and **OpenAI Multi-Agent Systems**. It facilitates seamless blockchain interactions using **Natural Language Processing (NLP)**, enabling users to bridge tokens, swap assets, and track market performance effortlessly.
-
+ 
 [![Demo](https://img.shields.io/badge/Demo-Visit%20Demo-brightgreen)](https://sonic-agents-ui.vercel.app/)
 [![Deploy](https://img.shields.io/badge/Deploy-on%20Vercel-blue)](https://vercel.com/new/clone?repository-url=https://github.com/Teckas-Technologies/sonic-agents)
 
