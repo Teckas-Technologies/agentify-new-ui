@@ -18,6 +18,7 @@ import { usePrivy, LoginModal, User, useWallets } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { switchNetwork } from "@/utils/switchNetwork";
 import { useTransactions } from "@/hooks/useTransactionsHook";
+import { v4 as uuidv4 } from 'uuid';
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
 interface Message {
@@ -41,6 +42,8 @@ interface RequestFields {
      transaction_type: string;
      status: string;
      transaction_volume:string;
+     explorer_link:string;
+
 }
 
 export default function Dashboard({
@@ -272,7 +275,7 @@ export default function Dashboard({
                   message: `Lending ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              // await createTrans("",address,address,"swapAgent","lending","Failed");
+              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount);
               setExecutingAave(false);
               return;
             }
@@ -321,7 +324,7 @@ export default function Dashboard({
                   message: `Borrow ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              // await createTrans("",address,address,"swapAgent","lending","Failed");
+              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount);
               setExecutingAave(false);
               return;
             }
@@ -370,7 +373,7 @@ export default function Dashboard({
                   message: `Withdraw ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              //  await createTrans("",address,address,"swapAgent","lending","Failed");
+               await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount);
               setExecutingAave(false);
               return;
             }
@@ -432,10 +435,10 @@ export default function Dashboard({
                 setExecutingLifi(false);
                 return;
               } else {
-                // const agentId = fromChainId.toString() === toChainId.toString()
-                // ? "swapAgent"
-                // : "bridgeAgent";
-                // await createTrans(response.txHash,address,address,agentId,agentId,"Successful",'1');  
+                const agentId = fromChainId.toString() === toChainId.toString()
+                ? "swapAgent"
+                : "bridgeAgent";
+                await createTrans( `failed_${uuidv4()}`,address,address,agentId,agentId,"Failed",amount);  
                 setMessages((prev) => [
                   ...prev,
                   {

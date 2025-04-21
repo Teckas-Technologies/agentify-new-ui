@@ -9,6 +9,8 @@ export interface RequestFields {
      transaction_type: string;
      status: string;
      transaction_volume:string;
+     explorer_link:string;
+
 }
 
 export const useTransactions = () => {

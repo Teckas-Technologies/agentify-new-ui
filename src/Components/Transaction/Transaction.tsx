@@ -25,6 +25,7 @@ interface Transaction {
   status: TransactionStatus;
   time?: string;
   user_id: string;
+  explorer_link:string;
 }
 
 export default function Transaction({ onToggle, onMobileNavToggle, initialTab }: Props) {
