@@ -123,7 +123,13 @@ export default function Transaction({ onToggle, onMobileNavToggle, initialTab }:
                 activeTab === tab ? "active-filter text-white" : "text-gray-400 hover:bg-gray-800"
               }`}
             >
-              {tab}
+              {tab === "bridgeAgent"
+                          ? "Bridge Assistant"
+                          : tab === "swapAgent"
+                            ? "Swap Assistant"
+                            : tab === "lendingBorrowingAgent"
+                              ? "Lend & Borrow Assistant"
+                              : "Liquidity Assistant"}
             </button>
           ))}
         </div>
@@ -145,8 +151,14 @@ export default function Transaction({ onToggle, onMobileNavToggle, initialTab }:
                   activeTab === tab ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-800"
                 }`}
               >
-                {tab}
-              </button>
+              {tab === "bridgeAgent"
+              ? "Bridge Assistant"
+              : tab === "swapAgent"
+                ? "Swap Assistant"
+                : tab === "lendingBorrowingAgent"
+                  ? "Lend & Borrow Assistant"
+                  : "Liquidity Assistant"} 
+             </button>
             ))}
           </div>
         </div>
