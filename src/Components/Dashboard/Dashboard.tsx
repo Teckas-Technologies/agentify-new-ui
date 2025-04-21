@@ -150,7 +150,7 @@ export default function Dashboard({
   const fetchAllAgents = async () => {
     const res = await fetchAgents();
     console.log("Res:", res)
-    setAgents(res);
+    setAgents(res?.data);
   };
 
 
@@ -661,7 +661,7 @@ export default function Dashboard({
                 </div>
               </div>
             )}
-            {messages && messages?.length === 0 && (
+            {messages?.length === 0 && (
               <div className="text-center flex flex-col items-center">
                 <div className="flex justify-center items-center">
                   <img
@@ -675,10 +675,10 @@ export default function Dashboard({
                 >
                   Execute Transactions with AI
                 </h2>
-                {ready && !authenticated && (
+                {!isConnected || !user && (
                   <div
                     className="button-holder relative w-[15.5rem] h-[3rem] mt-4 flex items-center justify-center cursor-pointer"
-                    onClick={login}
+                    onClick={() => { !user ? login() : connectWallet() }}
                   >
                     <h2
                       className="text-white font-medium"

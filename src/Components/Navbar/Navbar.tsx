@@ -8,7 +8,7 @@ import { MdLink } from "react-icons/md";
 import { HiMiniArrowUpRight } from "react-icons/hi2";
 import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
-import { usePrivy } from "@privy-io/react-auth";
+import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { GoGraph } from "react-icons/go";
 import { BiTransferAlt } from "react-icons/bi";
@@ -38,6 +38,7 @@ export default function Navbar({
     logout,
     linkWallet,
   } = usePrivy();
+  // const { login } = useLogin();
   console.log("User ---------:", user);
 
   // Determine active tab based on current route
@@ -75,6 +76,12 @@ export default function Navbar({
     disconnect();
   }
 
+  useEffect(() => {
+    if (user && !address) {
+      localStorage.clear()
+    }
+  }, [user])
+
   return (
     <>
       {/* Overlay for mobile */}
@@ -86,13 +93,11 @@ export default function Navbar({
       )}
 
       <nav
-        className={`fixed md:relative h-screen bg-black bg-opacity-90 text-white p-4 flex-col justify-between border-r border-gray-700 transition-all ${
-          isCollapsed && !isMobileNavVisible
+        className={`fixed md:relative h-screen bg-black bg-opacity-90 text-white p-4 flex-col justify-between border-r border-gray-700 transition-all ${isCollapsed && !isMobileNavVisible
             ? "w-20"
             : "w-[14rem] md:w-[15rem] lg:w-[16rem]"
-        } ${
-          isMobileNavVisible ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 z-50`}
+          } ${isMobileNavVisible ? "translate-x-0" : "-translate-x-full"
+          } md:translate-x-0 z-50`}
       >
         <div className="flex flex-col h-full">
           {/* Logo and Menu Items */}
@@ -121,9 +126,8 @@ export default function Navbar({
             <ul className="mt-6 space-y-2" style={{ fontFamily: "manrope" }}>
               <li>
                 <button
-                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active === "Dashboard" ? "bg-gray-700" : "hover:bg-gray-800"
-                  }`}
+                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active === "Dashboard" ? "bg-gray-700" : "hover:bg-gray-800"
+                    }`}
                   onClick={() => handleNavigation("Dashboard")}
                 >
                   <GoGraph className="w-7 h-7" />
@@ -134,11 +138,10 @@ export default function Navbar({
               </li>
               <li>
                 <button
-                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active === "Playground"
+                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active === "Playground"
                       ? "bg-gray-700"
                       : "hover:bg-gray-800"
-                  }`}
+                    }`}
                   onClick={() => handleNavigation("Playground")}
                 >
                   <FaLaptopCode className="w-8 h-8" />
@@ -162,11 +165,10 @@ export default function Navbar({
               </li>
               <li>
                 <button
-                  className={`flex cursor-pointer items-center w-full px-3 gap-2 py-2 rounded-lg text-sm transition-colors ${
-                    active === "Browse Agents"
+                  className={`flex cursor-pointer items-center w-full px-3 gap-2 py-2 rounded-lg text-sm transition-colors ${active === "Browse Agents"
                       ? "bg-gray-700"
                       : "hover:bg-gray-800"
-                  }`}
+                    }`}
                   onClick={() => handleNavigation("Browse Agents")}
                 >
                   <FaRobot className="w-8 h-8" />
@@ -180,11 +182,10 @@ export default function Navbar({
 
               <li>
                 <button
-                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    active === "Transactions"
+                  className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active === "Transactions"
                       ? "bg-gray-700"
                       : "hover:bg-gray-800"
-                  }`}
+                    }`}
                   onClick={() => handleNavigation("Transactions")}
                 >
                   <BiTransferAlt className="w-7 h-7" />
@@ -203,9 +204,9 @@ export default function Navbar({
                   onClick={
                     isMobileNavVisible
                       ? () => {
-                          onMobileNavToggle();
-                          setIsSoon(true);
-                        }
+                        onMobileNavToggle();
+                        setIsSoon(true);
+                      }
                       : () => setIsSoon(true)
                   }
                   className="build-agent block flex items-center justify-between text-gray-400 text-lg font-semibold hover:bg-gray-800 px-2 py-2 rounded-lg"
@@ -226,9 +227,9 @@ export default function Navbar({
                   onClick={
                     isMobileNavVisible
                       ? () => {
-                          onMobileNavToggle();
-                          setIsSoon(true);
-                        }
+                        onMobileNavToggle();
+                        setIsSoon(true);
+                      }
                       : () => setIsSoon(true)
                   }
                   className="build-agent block flex items-center justify-between gap-1 text-gray-400 text-lg font-semibold hover:bg-gray-800 px-2 py-2 rounded-lg"
@@ -253,10 +254,10 @@ export default function Navbar({
 
           {/* Connect Wallet Button */}
           <div className="mt-auto">
-            {!isConnected && !user ? (
+            {!isConnected || !user ? (
               <div
                 className="button-holder relative w-full h-[3rem] mt-4 flex items-center justify-center gap-2 cursor-pointer"
-                onClick={login}
+                onClick={() => { !user ? login() : connectWallet() }}
               >
                 <MdLink className="w-8 h-8" />
                 {(!isCollapsed || isMobileNavVisible) && (
@@ -273,11 +274,10 @@ export default function Navbar({
                   <img
                     src="/images/button-border.png"
                     alt="agy"
-                    className={`w-full h-full ${
-                      !isCollapsed || isMobileNavVisible
+                    className={`w-full h-full ${!isCollapsed || isMobileNavVisible
                         ? "object-contain"
                         : "object-cover"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -303,11 +303,10 @@ export default function Navbar({
                   <img
                     src="/images/button-border.png"
                     alt="agy"
-                    className={`w-full h-full ${
-                      !isCollapsed || isMobileNavVisible
+                    className={`w-full h-full ${!isCollapsed || isMobileNavVisible
                         ? "object-contain"
                         : "object-cover"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -328,11 +327,10 @@ export default function Navbar({
       {isSoon && (
         <div
           onClick={() => setIsSoon(false)}
-          className={`absolute top-0 bottom-0 right-0 left-0 bg-transparent backdrop-blur-[10px] z-10 flex justify-center items-center ${
-            isCollapsed && !isMobileNavVisible
+          className={`absolute top-0 bottom-0 right-0 left-0 bg-transparent backdrop-blur-[10px] z-10 flex justify-center items-center ${isCollapsed && !isMobileNavVisible
               ? ""
               : " md:pl-[15rem] lg:pl-[16rem]"
-          }`}
+            }`}
         >
           <div className="center-box w-[22rem] md:w-[24rem] lg:w-[25rem] xl:w-[26rem] min-h-[12rem] md:min-h-[15rem] bg-gray-800 rounded-md">
             <div className="top-close h-[2rem] w-full flex justify-end items-center pr-5 pt-5">
