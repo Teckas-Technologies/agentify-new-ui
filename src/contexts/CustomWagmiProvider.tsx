@@ -155,7 +155,7 @@ console.log("App Id --", process.env.NEXT_PUBLIC_PRIVY_APP_ID);
 
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
-    createOnLogin: "users-without-wallets",
+    createOnLogin: "off",
     requireUserPasswordOnCreate: true,
   },
   defaultChain: mainnet,

@@ -98,10 +98,10 @@ export default function Dashboard({
   }, [messages]);
 
   useEffect(() => {
-    if (!address) {
+    if (!address || !user) {
       setMessages([]);
     }
-  }, [address])
+  }, [address, user])
 
   // const switchNetwork = async (chainId: number) => {
   //   await wallet.switchChain(chainId);
@@ -122,10 +122,10 @@ export default function Dashboard({
   }, [agents]);
 
   useEffect(() => {
-    if (address) {
+    if (address && user) {
       fetchHistory();
     }
-  }, [address, activeAgent]);
+  }, [address, activeAgent, user]);
 
   useEffect(() => {
     fetchAllAgents();
@@ -648,7 +648,7 @@ export default function Dashboard({
         <div className="flex-1 flex flex-col justify-center w-full md:w-[70%] lg:w-[71%] xl:w-[72%]">
           {/* Execute Transactions with AI Box bg-gray-950 */}
           <div className="relative z-0 flex-1 flex flex-col items-center justify-center  border border-gray-700 rounded-lg md:mt-4 md:mx-4 p-[0.1rem] md:p-[0.4rem] lg:p-[0.7rem] xl:p-[1rem]">
-            {isConnected && address && messages && messages.length > 0 && (
+            {user && address && messages && messages.length > 0 && (
               <div className="top w-full flex justify-between items-center px-5 md:px-0 border-b border-gray-700 pb-3">
                 <h2
                   className="font-semibold text-md"
@@ -689,10 +689,10 @@ export default function Dashboard({
                 >
                   Execute Transactions with AI
                 </h2>
-                {ready && !authenticated && (
+                {(!address || !user) && (
                   <div
                     className="button-holder relative w-[15.5rem] h-[3rem] mt-4 flex items-center justify-center cursor-pointer"
-                    onClick={login}
+                    onClick={() => { !user ? login() : connectWallet() }}
                   >
                     <h2
                       className="text-white font-medium"
@@ -711,7 +711,7 @@ export default function Dashboard({
                 )}
               </div>
             )}
-            {messages && messages.length !== 0 && (
+            {messages && messages.length !== 0 && address && user && (
               <div className="w-full max-h-[70vh] md:max-h-[27rem] lg:max-h-[29rem] xl:max-h-[30rem] h-full px-4 scroll-d overflow-y-auto">
                 {messages?.map((msg, index) => (
                   <>
