@@ -64,7 +64,8 @@ const useAaveHook = () => {
 
         try {
             // Get the Ethers provider from the matched wallet
-            const provider = await matchedWallet.getEthersProvider();
+            const ethereumProvider = await matchedWallet.getEthereumProvider();
+            const provider = new ethers.providers.Web3Provider(ethereumProvider);
             console.log("[getProvider] Provider obtained:", provider);
             return provider;
         } catch (err) {
