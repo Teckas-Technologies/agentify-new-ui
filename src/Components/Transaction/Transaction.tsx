@@ -184,7 +184,7 @@ export default function Transaction({ onToggle, onMobileNavToggle, initialTab }:
                       <td className="py-3 px-4 whitespace-nowrap">{formatDate(transaction.time)}</td>
                       <td className="flex justify-center py-3 md:px-4 px-1 text-gray-700 whitespace-nowrap">
                         <a
-                          href={transaction.transaction_id}
+                          href={transaction.explorer_link}
                           className="approve-btn flex items-center justify-center gap-1 px-2 py-1 mt-1 min-w-[6rem] max-w-[7rem] bg-grey-700 rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
                         >
                           <h2 className="text-center dark:text-white text-sm">Check</h2>
