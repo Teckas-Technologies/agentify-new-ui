@@ -226,7 +226,7 @@ export default function Dashboard({
           const toolMessage = JSON.parse(response?.data?.tool_response);
 
           if (toolMessage?.type === "lend") {
-            const { market, tokenSymbol, amount } = toolMessage;
+            const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
               console.log("Err missing fields");
             }
@@ -256,7 +256,7 @@ export default function Dashboard({
                 {
                   role: "ai",
                   message: `Lending ${amount} ${tokenSymbol} executed successfully!`,
-                  txHash: res?.txHashes[0],
+                  txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
               await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","lending","Successful");
@@ -275,7 +275,7 @@ export default function Dashboard({
               return;
             }
           } else if (toolMessage?.type === "borrow") {
-            const { market, tokenSymbol, amount } = toolMessage;
+            const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
               console.log("Err missing fields");
             }
@@ -305,7 +305,7 @@ export default function Dashboard({
                 {
                   role: "ai",
                   message: `Borrow ${amount} ${tokenSymbol} executed successfully!`,
-                  txHash: res?.txHashes[0],
+                  txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
               await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","borrow","Successful");
@@ -324,7 +324,7 @@ export default function Dashboard({
               return;
             }
           } else if (toolMessage?.type === "withdraw") {
-            const { market, tokenSymbol, amount } = toolMessage;
+            const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
               console.log("Err missing fields");
             }
@@ -354,7 +354,7 @@ export default function Dashboard({
                 {
                   role: "ai",
                   message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`,
-                  txHash: res?.txHashes[0],
+                  txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
               await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","withdraw","Successful");
@@ -373,7 +373,7 @@ export default function Dashboard({
               return;
             }
           } else if (toolMessage?.type === "swap" || toolMessage?.type === "bridge") {
-            const quote = toolMessage?.quote
+            const { quote, explorer } = toolMessage
             console.log("Quote:", quote);
 
             if (quote) {
@@ -420,7 +420,7 @@ export default function Dashboard({
                       ? "Swap"
                       : "Bridge"
                       } executed successfully!`,
-                    txHash: response?.txHash,
+                    txHash: `${explorer}tx/${response?.txHash}`,
                   },
                 ]);
                 setExecutingLifi(false);
@@ -745,7 +745,7 @@ export default function Dashboard({
                       {msg?.txHash && msg.role === "ai" && (
                         <>
                           <a
-                            href={`https://etherscan.io/tx/${msg?.txHash}`}
+                            href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx")?"":"tx/"}${msg?.txHash}`}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="approve-btn flex items-center justify-center gap-1 px-2 py-2 md:py-1 mt-1 min-w-[5rem] bg-grey-700 max-w-[9rem] rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
