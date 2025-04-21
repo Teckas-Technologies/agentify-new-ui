@@ -274,7 +274,7 @@ export default function UserDashboard2({
                         <h2 className="feature-box-title text-white text-[1rem] md:text-[1.1rem] lg:text-[1.2rem] xl:text-[1.3rem] leading-tight font-clash font-semibold">
                           {anals.agentId
                             .replace(/([A-Z])/g, " $1")
-                            .replace(/^./, (str) => str.toUpperCase())}
+                            .replace(/^./, (str: string) => str.toUpperCase())}
                         </h2>
 
                         <p className="text-xs md:text-xs lg:text-sm xl:text-sm text-white mt-2 truncate-2-lines">
@@ -415,17 +415,16 @@ export default function UserDashboard2({
 
                   return (
                     <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      pageNum === currentPage
-                        ? "active-filter text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                  
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        pageNum === currentPage
+                          ? "active-filter text-white"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
                   );
                 })}
 
