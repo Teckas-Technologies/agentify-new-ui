@@ -164,12 +164,12 @@ const useLifiHook = () => {
 
     // Execute swap & bridge
     const executeLifi = async ({ quote }: { quote: any }) => {
-        if (!quote || !quote.action) {
+        if (!quote || !quote?.fromChainId) {
             setError("Invalid quote. Please fetch a new quote before proceeding.");
             return;
         }
 
-        const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote.action;
+        const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote;
 
         if (!(await validateChains(fromChainId, toChainId))) return;
         if (!(await validateTools(fromChainId))) return;
@@ -185,10 +185,10 @@ const useLifiHook = () => {
             setLoading(true);
             setError(null);
 
-            const route = convertQuoteToRoute(quote);
+            // const route = convertQuoteToRoute(quote);
 
             return new Promise((resolve, reject) => {
-                executeRoute(route, {
+                executeRoute(quote, { // route
                     updateRouteHook(updatedRoute: any) {
                         updatedRoute.steps.forEach((step: any) => {
                             step.execution?.process.forEach((process: any) => {
@@ -209,6 +209,7 @@ const useLifiHook = () => {
                 }) // If executionRoute throws, reject the promise can remove .catch(reject);
                     .then(resolve) // Ensure promise resolves if execution completes
                     .catch((err: any) => {
+                        console.log("Err ---> 1 :", err)
                         // ✅ Properly catch errors and set error message
                         if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                             setError("Transaction rejected by the user.");
@@ -225,6 +226,7 @@ const useLifiHook = () => {
             });
 
         } catch (err: any) {
+            console.log("Err ---> 2 :", err)
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                 setError("Transaction rejected by the user.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {

@@ -342,82 +342,82 @@ export default function Dashboard({
               setExecutingAave(false);
               return;
             }
+          } else if (toolMessage?.type === "swap" || toolMessage?.type === "bridge") {
+            const quote = toolMessage?.quote
+            console.log("Quote:", quote);
+
+            if (quote) {
+              const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote;
+              if (wallet && fromChainId && parseInt(wallet.chainId.split(":")[1]) !== fromChainId) {
+                await switchNetwork(fromChainId);
+              }
+              const isEnoughBalance = await validateTokenBalance(
+                fromChainId,
+                fromToken,
+                fromAmount
+              );
+
+              if (!isEnoughBalance) {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "ai",
+                    message: `Insufficient balance. Please check your wallet and try again.`,
+                  },
+                ]);
+                return;
+              }
+
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  message: `Executing ${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                    }, don't close the page until get confirmations...`,
+                },
+              ]);
+              setExecutingLifi(true);
+              const response: any = await executeLifi({ quote });
+              console.log("Res:", response);
+              if (response?.txHash) {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "ai",
+                    message: `${fromChainId.toString() === toChainId.toString()
+                      ? "Swap"
+                      : "Bridge"
+                      } executed successfully!`,
+                    txHash: response?.txHash,
+                  },
+                ]);
+                setExecutingLifi(false);
+                return;
+              } else {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "ai",
+                    message: `${fromChainId.toString() === toChainId.toString()
+                      ? "Swap"
+                      : "Bridge"
+                      } execution was failed!`,
+                  },
+                ]);
+                setExecutingLifi(false);
+                return;
+              }
+            }
           }
 
-          const quote = JSON.parse(response?.data?.tool_response);
-          console.log("Quote:", quote);
-
-          if (quote?.error) {
+          if (toolMessage?.error) {
             setMessages((prev) => [
               ...prev,
-              { role: "ai", message: `${quote?.error}` },
+              { role: "ai", message: `${toolMessage?.error}` },
             ]);
             return;
-          }
-
-          if (quote) {
-            const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote?.action;
-            if (wallet && fromChainId && parseInt(wallet.chainId.split(":")[1]) !== fromChainId) {
-              await switchNetwork(fromChainId);
-            }
-            const isEnoughBalance = await validateTokenBalance(
-              fromChainId,
-              fromToken,
-              fromAmount
-            );
-
-            if (!isEnoughBalance) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "ai",
-                  message: `Insufficient balance. Please check your wallet and try again.`,
-                },
-              ]);
-              return;
-            }
-
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "ai",
-                message: `Executing ${fromChainId.toString() === toChainId.toString()
-                  ? "Swap"
-                  : "Bridge"
-                  }, don't close the page until get confirmations...`,
-              },
-            ]);
-            setExecutingLifi(true);
-            const response: any = await executeLifi({ quote });
-            console.log("Res:", response);
-            if (response?.txHash) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "ai",
-                  message: `${fromChainId.toString() === toChainId.toString()
-                    ? "Swap"
-                    : "Bridge"
-                    } executed successfully!`,
-                  txHash: response?.txHash,
-                },
-              ]);
-              setExecutingLifi(false);
-              return;
-            } else {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "ai",
-                  message: `${fromChainId.toString() === toChainId.toString()
-                    ? "Swap"
-                    : "Bridge"
-                    } execution was failed!`,
-                },
-              ]);
-              setExecutingLifi(false);
-              return;
-            }
           }
 
           // const toolMessage = JSON.parse(response?.data?.tool_response?.replace(/^"|"$/g, ""));
