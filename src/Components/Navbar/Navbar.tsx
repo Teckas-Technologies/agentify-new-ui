@@ -8,7 +8,7 @@ import { MdLink } from "react-icons/md";
 import { HiMiniArrowUpRight } from "react-icons/hi2";
 import { useAccount, useDisconnect } from "wagmi";
 import InlineSVG from "react-inlinesvg";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { GoGraph } from "react-icons/go";
 import { BiTransferAlt } from "react-icons/bi";
@@ -38,7 +38,6 @@ export default function Navbar({
     logout,
     linkWallet,
   } = usePrivy();
-  // const { login } = useLogin();
   console.log("User ---------:", user);
 
   // Determine active tab based on current route
