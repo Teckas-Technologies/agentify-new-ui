@@ -92,7 +92,7 @@ const Agents = ({
 
   const fetchSonicAgents = async () => {
     const res = await fetchAgents();
-    setAgents(res);
+    setAgents(res?.data);
   }
 
   return (
