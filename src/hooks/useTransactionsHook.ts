@@ -8,6 +8,7 @@ export interface RequestFields {
      agent_id: string;
      transaction_type: string;
      status: string;
+     transaction_volume:string;
 }
 
 export const useTransactions = () => {
@@ -18,7 +19,7 @@ export const useTransactions = () => {
         setLoading(true);
         setError(null)
         try {
-            const response = await fetch(`${PYTHON_SERVER_URL}/api/transactions/${agentId}/${userId}?skip=${skip}&limit=${limit}&agent_id=${agentId}&user_id=${userId}`);
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/transactions/?skip=${skip}&limit=${limit}&agent_id=${agentId}&user_id=${userId}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -50,6 +51,7 @@ export const useTransactions = () => {
                     agent_id: data.agent_id,
                     transaction_type: data.transaction_type,
                     status: data.status,
+                    transaction_volume: data.transaction_volume
                 })
             });
 
