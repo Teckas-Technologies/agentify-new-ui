@@ -17,6 +17,7 @@ import { LiFiWidget, WidgetConfig } from "@lifi/widget";
 import { usePrivy, LoginModal, User, useWallets } from "@privy-io/react-auth";
 import { UserPill } from "@privy-io/react-auth/ui";
 import { switchNetwork } from "@/utils/switchNetwork";
+import { useTransactions } from "@/hooks/useTransactionsHook";
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
 interface Message {
@@ -30,6 +31,15 @@ export interface Agent {
   name: string;
   description: string;
   tags: string[];
+}
+
+interface RequestFields {
+     transaction_id: string;
+     user_id: string;
+     wallet_address:string;
+     agent_id: string;
+     transaction_type: string;
+     status: string;
 }
 
 export default function Dashboard({
@@ -61,6 +71,7 @@ export default function Dashboard({
   const [isExecutingLifi, setExecutingLifi] = useState(false);
   const [isExecutingAave, setExecutingAave] = useState(false);
   const [isSwaping, setIsSwaping] = useState(false);
+  const{loading,createTransactions}=useTransactions();
 
   const { wallets } = useWallets();
   const wallet = wallets[0];
@@ -141,6 +152,19 @@ export default function Dashboard({
     console.log("Res:", res)
     setAgents(res);
   };
+
+
+  const createTrans = async(  transaction_id: string,user_id: string,wallet_address:string,agent_id: string,transaction_type: string,status: string)=>{
+    const payload:RequestFields = {
+      transaction_id,
+      user_id,
+      wallet_address,
+      agent_id,
+      transaction_type,
+      status,
+    };
+    const data = await createTransactions(payload);
+  }
 
   const clearChatHistory = async () => {
     if (!address || !activeAgent) return;
@@ -235,6 +259,7 @@ export default function Dashboard({
                   txHash: res?.txHashes[0],
                 },
               ]);
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","lending","Successful");
               setExecutingAave(false);
               return;
             } else {
@@ -245,6 +270,7 @@ export default function Dashboard({
                   message: `Lending ${tokenSymbol} execution was failed!`,
                 },
               ]);
+              // await createTrans("",address,address,"swapAgent","lending","Failed");
               setExecutingAave(false);
               return;
             }
@@ -282,6 +308,7 @@ export default function Dashboard({
                   txHash: res?.txHashes[0],
                 },
               ]);
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","borrow","Successful");
               setExecutingAave(false);
               return;
             } else {
@@ -292,6 +319,7 @@ export default function Dashboard({
                   message: `Borrow ${tokenSymbol} execution was failed!`,
                 },
               ]);
+              // await createTrans("",address,address,"swapAgent","lending","Failed");
               setExecutingAave(false);
               return;
             }
@@ -329,6 +357,7 @@ export default function Dashboard({
                   txHash: res?.txHashes[0],
                 },
               ]);
+              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","withdraw","Successful");
               setExecutingAave(false);
               return;
             } else {
@@ -339,6 +368,7 @@ export default function Dashboard({
                   message: `Withdraw ${tokenSymbol} execution was failed!`,
                 },
               ]);
+              //  await createTrans("",address,address,"swapAgent","lending","Failed");
               setExecutingAave(false);
               return;
             }

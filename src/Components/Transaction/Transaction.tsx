@@ -4,6 +4,9 @@ import InlineSVG from "react-inlinesvg";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { HiMenu } from "react-icons/hi"; // Burger icon
 import "./Transaction.css";
+import { useTab } from "@/hooks/useTabHooks";
+import { useTransactions } from "@/hooks/useTransactionsHook";
+import { useAccount } from "wagmi";
 
 interface Props {
   onToggle: () => void;
@@ -14,11 +17,14 @@ interface Props {
 type TransactionStatus = "PENDING" | "COMPLETED" | "FAILED";
 
 interface Transaction {
-  transaction_hash: string;
+  transaction_id: string;
   transaction_type: string;
-  transaction_volume: string;
+  wallet_address: string;
+  agent_id: TransactionStatus;
   status: TransactionStatus;
   time?: string;
+  user_id: string;
+
 }
 
 export default function Transaction({
@@ -26,77 +32,52 @@ export default function Transaction({
   onMobileNavToggle,
   initialTab,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"Swap" | "Bridge" | "Lend" | "Borrow">(initialTab);
+  const [activeTab, setActiveTab] = useState<any>();
   const [showMobileDropdown, setShowMobileDropdown] = useState(false);
+  const [tabs,setTabs] = useState([]);
+  const {address} = useAccount();
+  const{loading,error,getTabs} = useTab();
+  const{fetchTransactions} = useTransactions();
+  const [skip, setSkip] = useState(0);
+  const limit = 10;
+  const [transactions,setTransactions] = useState<Transaction[]>([]);
+  const currentPage = Math.floor(skip / limit) + 1;
 
-  const dummyTransactions: Transaction[] = [
-    {
-      transaction_hash: "0x4a7d2e8f1b...",
-      transaction_type: "SWAP",
-      transaction_volume: "1.25 ETH",
-      status: "COMPLETED",
-      time: "2023-05-15T10:30:00Z",
-    },
-    {
-      transaction_hash: "0x8c3f5a2b1e...",
-      transaction_type: "BRIDGE",
-      transaction_volume: "0.50 ETH",
-      status: "PENDING",
-      time: "2023-05-16T14:45:00Z",
-    },
-    {
-      transaction_hash: "0x1d9f3c7a5b...",
-      transaction_type: "LEND",
-      transaction_volume: "2.75 ETH",
-      status: "FAILED",
-      time: "2023-05-17T09:15:00Z",
-    },
-    {
-      transaction_hash: "0x6e2a8d4f1c...",
-      transaction_type: "BORROW",
-      transaction_volume: "3.20 ETH",
-      status: "COMPLETED",
-      time: "2023-05-18T16:20:00Z",
-    },
-    {
-      transaction_hash: "0x3b7f5a9d2e...",
-      transaction_type: "SWAP",
-      transaction_volume: "0.15 ETH",
-      status: "COMPLETED",
-      time: "2023-05-19T11:10:00Z",
-    },
-    {
-      transaction_hash: "0x9a2e4f6d3b...",
-      transaction_type: "SWAP",
-      transaction_volume: "5.00 ETH",
-      status: "COMPLETED",
-      time: "2023-05-20T08:30:00Z",
-    },
-    {
-      transaction_hash: "0x5d1f3a8e7c...",
-      transaction_type: "BRIDGE",
-      transaction_volume: "1.80 ETH",
-      status: "PENDING",
-      time: "2023-05-21T13:25:00Z",
-    },
-    {
-      transaction_hash: "0x2e8c5a7d1f...",
-      transaction_type: "LEND",
-      transaction_volume: "0.95 ETH",
-      status: "COMPLETED",
-      time: "2023-05-22T17:45:00Z",
-    },
-  ];
+  const fetchTabs = async() =>{
+    const tabs = await getTabs();
+    console.log(tabs);
+    setTabs(tabs.data.agents);
+    setActiveTab(tabs.data.agents[0]);
+    fetchTrans(tabs.data.agents[0], skip, limit);
+  }
 
-  const filteredTransactions = dummyTransactions.filter(
-    (txn) => txn.transaction_type === activeTab.toUpperCase()
-  );
+  useEffect(()=>{
+    fetchTabs();
+  },[]);
 
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+  const fetchTrans = async(agentId:any,skip:any,limit:any)=>{
+    console.log(agentId);
+    const trans = await fetchTransactions("123",agentId,skip,limit);
+    setTransactions(trans.data);
+  }
 
-  const handleTabClick = (tab: "Swap" | "Bridge" | "Lend" | "Borrow") => {
+
+  const filteredTransactions = (transactions || []).filter(
+    (txn) => txn.agent_id === activeTab
+  );  
+
+  const handleNext = () => {
+    setSkip(prev => prev + limit);
+  };
+  
+  const handlePrev = () => {
+    setSkip(prev => Math.max(0, prev - limit));
+  }
+  // useEffect(() => {
+  //   setActiveTab(initialTab);
+  // }, [initialTab]);
+
+  const handleTabClick = (tab:any) => {
     setActiveTab(tab);
     setShowMobileDropdown(false);
   };
@@ -146,7 +127,7 @@ export default function Transaction({
 
         {/* Desktop Tabs */}
         <div className="md:flex hidden gap-4 text-sm font-medium">
-          {["Swap", "Bridge", "Lend", "Borrow"].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => handleTabClick(tab as any)}
@@ -176,7 +157,7 @@ export default function Transaction({
       {showMobileDropdown && (
         <div className="md:hidden w-full px-4 py-2 bg-gray-900 border-b border-[#1E1E1E]">
           <div className="flex flex-col gap-2">
-            {["Swap", "Bridge", "Lend", "Borrow"].map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabClick(tab as any)}
@@ -219,17 +200,17 @@ export default function Transaction({
                 <tbody className="text-sm text-white">
                   {filteredTransactions.map((transaction) => (
                     <tr
-                      key={transaction.transaction_hash}
+                      key={transaction.transaction_id}
                       className="border-b border-[#2D2D2D]"
                     >
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {transaction.transaction_hash.substring(0, 8)}...
+                        {transaction.transaction_id.substring(0, 8)}...
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {transaction.transaction_type}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {transaction.transaction_volume}
+                        {transaction.wallet_address}
                       </td>
                       <td
                         className={`py-3 px-4 font-semibold whitespace-nowrap ${getStatusColor(
@@ -243,7 +224,7 @@ export default function Transaction({
                       </td>
                       <td className="flex justify-center py-3 md:px-4 px-1 text-gray-700 whitespace-nowrap">
                         <a
-                          href="#"
+                          href={transaction.transaction_id}
                           className="approve-btn flex items-center justify-center gap-1 px-2 py-1 mt-1 min-w-[6rem] max-w-[7rem] bg-grey-700 rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
                         >
                           <h2 className="text-center dark:text-white text-sm">
@@ -263,6 +244,15 @@ export default function Transaction({
           </div>
         </div>
       </div>
+      <div className="pagination-block flex justify-center items-center gap-3 my-5 pb-4">
+                        <h2>&larr; previous</h2>
+                        <div className="numbers flex justify-center items-center gap-2">
+                            <div className="number w-8 h-8 rounded-full flex items-center justify-center active" >
+                                <h2>1</h2>
+                            </div>
+                        </div>
+                        <h2>next &rarr;</h2>
+                    </div>
     </div>
   );
 }
