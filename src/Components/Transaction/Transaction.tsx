@@ -168,7 +168,13 @@ export default function Transaction({ onToggle, onMobileNavToggle, initialTab }:
       <div className="p-4 md:p-8 w-full flex-grow">
         <div className="bg-black p-4 md:p-6 rounded-lg shadow-lg border border-gray-700">
           <div className="flex justify-between items-center pb-4">
-            <h2 className="text-xl font-semibold text-white">{activeTab} Transactions</h2>
+            <h2 className="text-xl font-semibold text-white">  {activeTab === "bridgeAgent"
+              ? "Bridge Assistant"
+              : activeTab === "swapAgent"
+                ? "Swap Assistant"
+                : activeTab === "lendingBorrowingAgent"
+                  ? "Lend & Borrow Assistant"
+                  : "Liquidity Assistant"}  Transactions </h2>
           </div>
 
           <div className="w-full text-center max-h-[calc(100vh-220px)] overflow-y-auto sm:overflow-x-auto scroll-d">
