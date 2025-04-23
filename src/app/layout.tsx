@@ -3,10 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { headers } from "next/headers";
 
-// import { CustomWagmiProvider } from "@/contexts/LifiProvider";
-import Providers from "@/contexts/PriviWagmiProvider";
-
-// import ClientLayout from "../Components/ClientLayout";
+import { CustomWagmiProvider } from "@/contexts/CustomWagmiProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,9 +33,9 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* <ClientLayout> */}
-        {children}
-        {/* </ClientLayout> */}
+        <CustomWagmiProvider>
+          {children}
+        </CustomWagmiProvider>
       </body>
     </html>
   );

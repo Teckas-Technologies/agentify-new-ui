@@ -224,3 +224,8 @@ body {
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
+
+[data-selected="true"] {
+  background: unset !important;
+  color: unset !important;
+}

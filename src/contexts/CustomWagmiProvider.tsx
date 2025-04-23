@@ -5,7 +5,8 @@ import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { getWalletClient, switchChain } from "@wagmi/core";
 import { ReactNode } from "react";
-import { createClient, http } from "viem";
+// import { createClient, http } from "viem";
+import { http, Transport } from "wagmi";
 import {
   mainnet,
   bsc,
@@ -103,6 +104,11 @@ const supportedChains = [
   kaia,
   sepolia,
 ]
+
+const transports: Record<number, Transport> = Object.fromEntries(
+  supportedChains.map((chain) => [chain.id, http()])
+);
+
 export const wagmiConfig = createWagmiConfig({
   chains: [
     mainnet,
@@ -147,9 +153,10 @@ export const wagmiConfig = createWagmiConfig({
     kaia,
     sepolia,
   ],
-  client({ chain }) {
-    return createClient({ chain, transport: http() });
-  },
+  transports,
+  // client({ chain }) {
+  //   return createClient({ chain, transport: http() });
+  // },
 });
 console.log("App Id --", process.env.NEXT_PUBLIC_PRIVY_APP_ID);
 
@@ -162,6 +169,7 @@ const privyConfig: PrivyClientConfig = {
   supportedChains: supportedChains,
   loginMethods: ["wallet", "email", "sms", "google"],
   appearance: {
+    walletChainType: "ethereum-only",
     showWalletLoginFirst: false,
     landingHeader: 'Welcome to Agentify',
     // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
@@ -172,7 +180,7 @@ const privyConfig: PrivyClientConfig = {
 };
 // Create SDK config using Wagmi actions and configuration
 createConfig({
-  integrator: "Agentifytt",
+  integrator: "Agentify",
   providers: [
     EVM({
       getWalletClient: () => getWalletClient(wagmiConfig),

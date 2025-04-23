@@ -29,6 +29,7 @@ export default function Navbar({
   const { address, isConnected } = useAccount();
 
   const { disconnect } = useDisconnect();
+  
   const {
     ready,
     user,
@@ -124,30 +125,30 @@ export default function Navbar({
             {/* Menu Items */}
             <ul className="mt-6 space-y-2" style={{ fontFamily: "manrope" }}>
               <li>
-                <button
+                <Link href={"/"}
                   className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active === "Dashboard" ? "bg-gray-700" : "hover:bg-gray-800"
                     }`}
-                  onClick={() => handleNavigation("Dashboard")}
+                  // onClick={() => handleNavigation("Dashboard")}
                 >
                   <GoGraph className="w-7 h-7" />
                   {(!isCollapsed || isMobileNavVisible) && (
                     <span className="text-base font-semibold">Dashboard</span>
                   )}
-                </button>
+                </Link>
               </li>
               <li>
-                <button
+                <Link href={"/playground"}
                   className={`flex cursor-pointer items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active === "Playground"
                       ? "bg-gray-700"
                       : "hover:bg-gray-800"
                     }`}
-                  onClick={() => handleNavigation("Playground")}
+                  // onClick={() => handleNavigation("Playground")}
                 >
                   <FaLaptopCode className="w-8 h-8" />
                   {(!isCollapsed || isMobileNavVisible) && (
                     <span className="text-base font-semibold">Playground</span>
                   )}
-                </button>
+                </Link>
               </li>
               <li>
                 <button
