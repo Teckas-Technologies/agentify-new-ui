@@ -25,7 +25,7 @@ import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
 import { Input } from "@/Components/ui/input";
 import { useEffect, useState } from "react";
-import Navbar from '../Navbar/Navbar';
+import Navbar from '../Dashboard/Navbar/Navbar';
 import { useTransactions } from "@/hooks/useTransactionsHook";
 import { useAccount } from "wagmi";
 
