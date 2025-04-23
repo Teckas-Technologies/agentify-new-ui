@@ -24,8 +24,10 @@ import {
 import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
 import { Input } from "@/Components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from '../Navbar/Navbar';
+import { useTransactions } from "@/hooks/useTransactionsHook";
+import { useAccount } from "wagmi";
 
 const getTransactionIcon = (type: string) => {
   switch (type) {
@@ -48,126 +50,84 @@ const getTransactionIcon = (type: string) => {
   }
 };
 
-export const transactionLogsData = [
-    {
-      id: "tx-1",
-      type: "swap",
-      description: "Swapped 0.5 ETH to 942.32 USDC",
-      chain: "Arbitrum",
-      time: "2025-04-22T08:30:00",
-      amount: "0.5 ETH",
-      status: "success" as const,
-      hash: "0x3a8d...b4e2",
-      gas: "0.0015 ETH",
-    },
-    {
-      id: "tx-2",
-      type: "bridge",
-      description: "Bridged 500 USDT from Ethereum to Optimism",
-      chain: "Ethereum → Optimism",
-      time: "2025-04-21T14:15:00",
-      amount: "500 USDT",
-      status: "success" as const,
-      hash: "0x7c2e...9f01",
-      gas: "0.0032 ETH",
-    },
-    {
-      id: "tx-3",
-      type: "lend",
-      description: "Supplied 1000 USDC to Aave",
-      chain: "Arbitrum",
-      time: "2025-04-21T09:45:00",
-      amount: "1000 USDC",
-      status: "pending" as const,
-      hash: "0x5d1a...2c18",
-      gas: "0.0009 ETH",
-    },
-    {
-      id: "tx-4",
-      type: "swap",
-      description: "Swapped 2000 USDC to 0.037 wBTC",
-      chain: "Polygon",
-      time: "2025-04-20T17:20:00",
-      amount: "2000 USDC",
-      status: "success" as const,
-      hash: "0x91f4...8a76",
-      gas: "0.0004 MATIC",
-    },
-    {
-      id: "tx-5",
-      type: "reward",
-      description: "Claimed 23.5 OP tokens from staking",
-      chain: "Optimism",
-      time: "2025-04-20T11:35:00",
-      amount: "23.5 OP",
-      status: "failed" as const,
-      hash: "0xe67b...3d92",
-      gas: "0.0001 ETH",
-    },
-    {
-      id: "tx-6",
-      type: "borrow",
-      description: "Borrowed 500 DAI against ETH collateral",
-      chain: "Ethereum",
-      time: "2025-04-19T13:50:00",
-      amount: "500 DAI",
-      status: "success" as const,
-      hash: "0x2c8d...f7e4",
-      gas: "0.0028 ETH",
-    },
-    {
-      id: "tx-7",
-      type: "swap",
-      description: "Swapped 100 USDC to 100 BUSD",
-      chain: "BSC",
-      time: "2025-04-19T10:25:00",
-      amount: "100 USDC",
-      status: "success" as const,
-      hash: "0x8a3f...c6b2",
-      gas: "0.0003 BNB",
-    },
-    {
-      id: "tx-8",
-      type: "bridge",
-      description: "Bridged 1.5 ETH from Ethereum to Arbitrum",
-      chain: "Ethereum → Arbitrum",
-      time: "2025-04-18T16:40:00",
-      amount: "1.5 ETH",
-      status: "success" as const,
-      hash: "0xf19a...7e2d",
-      gas: "0.0045 ETH",
-    },
-    {
-      id: "tx-9",
-      type: "stake",
-      description: "Staked 50 MATIC in validator",
-      chain: "Polygon",
-      time: "2025-04-18T09:15:00",
-      amount: "50 MATIC",
-      status: "success" as const,
-      hash: "0x4d7e...9c35",
-      gas: "0.0006 MATIC",
-    },
-    {
-      id: "tx-10",
-      type: "withdraw",
-      description: "Withdrew 500 USDC from Aave",
-      chain: "Arbitrum",
-      time: "2025-04-17T14:30:00",
-      amount: "500 USDC",
-      status: "pending" as const,
-      hash: "0xb23a...5f81",
-      gas: "0.0008 ETH",
-    },
-  ];
+export interface Transaction {
+  _id:string;
+  user_id: string;
+  agent_id: string;
+  transaction_type: string;
+  description: string;
+  chain: string;
+  time: Date;
+  crypto: string;
+  amount: number;
+  transaction_hash: string;
+  explorer_url: string;
+  status: string;
+  amountUSD: number;
+  gasUSD: number;
+  agent_name: string;
+}
+
+type StatusType = "success" | "pending" | "failed";
+
 const ActivityPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const filteredTransactions = transactionLogsData.filter(tx => 
+  const {error,loading,fetchTransactions} = useTransactions();
+  const [transactionData,setTransactionData] = useState<Transaction[]>([]);
+  const [skip, setSkip] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const limit = 8;
+  const {address} = useAccount();
+  const fetchTransactionData = async(skip:any,limit:any)=>{
+    const response = await fetchTransactions(address,searchQuery,skip,limit);
+    console.log("API Response:", response);
+    setTransactionData(response.data.data);
+    setCurrentPage(response.data.currentPage); 
+    setTotalPages(response.data.totalPages);
+  }
+
+  useEffect(()=>{
+    fetchTransactionData((currentPage - 1) * limit, limit);
+  },[address]);
+
+  useEffect(()=>{
+    fetchTransactionData((currentPage - 1) * limit, limit);
+  },[searchQuery]);
+
+  const filteredTransactions = transactionData.filter(tx => 
     tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tx.transaction_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
     tx.chain.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const mapStatus = (status: string): StatusType => {
+    const lower = status.toLowerCase();
+    if (lower === "success" || lower === "pending" || lower === "failed") {
+      return lower;
+    }
+    return "pending"; 
+  };
+  
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      const newPage = currentPage - 1;
+      setCurrentPage(newPage);
+      const newSkip = (newPage - 1) * limit;
+      setSkip(newSkip);
+      fetchTransactionData(newSkip, limit);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      const newPage = currentPage + 1;
+      setCurrentPage(newPage);
+      const newSkip = (newPage - 1) * limit;
+      setSkip(newSkip);
+      fetchTransactionData(newSkip, limit);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -203,7 +163,7 @@ const ActivityPage = () => {
           </div>
 
           {/* Transactions Table */}
-          <Card className="neumorphic border-none">
+          <Card className="neumorphic border-none mb-16">
             <CardContent>
               <Table>
                 <TableHeader>
@@ -220,31 +180,31 @@ const ActivityPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
+                    <TableRow key={tx._id}>
                       <TableCell>
                         <div className="flex items-center">
                           <span className="bg-primary/10 p-1 rounded-full mr-2 text-primary">
-                            {getTransactionIcon(tx.type)}
+                            {getTransactionIcon(tx.transaction_type.toLowerCase())}
                           </span>
-                          <span className="capitalize">{tx.type}</span>
+                          <span className="capitalize">{tx.transaction_type}</span>
                         </div>
                       </TableCell>
                       <TableCell>{tx.description}</TableCell>
                       <TableCell>{tx.chain}</TableCell>
                       <TableCell>{format(new Date(tx.time), "MMM d, h:mm a")}</TableCell>
                       <TableCell>{tx.amount}</TableCell>
-                      <TableCell>{tx.gas}</TableCell>
+                      <TableCell>{tx.gasUSD}</TableCell>
                       <TableCell>
-                        <StatusBadge status={tx.status} />
+                      <StatusBadge status={mapStatus(tx.status)} />
                       </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-8 px-2 text-xs"
-                          onClick={() => window.open(`https://etherscan.io/tx/${tx.hash}`, "_blank")}
+                          onClick={() => window.open(`${tx.explorer_url}`, "_blank")}
                         >
-                          {tx.hash.slice(0, 6)}...
+                          {tx.transaction_hash.slice(0, 6)}...
                           <ExternalLink className="ml-1 h-3 w-3" />
                         </Button>
                       </TableCell>
@@ -256,7 +216,46 @@ const ActivityPage = () => {
           </Card>
         </div>
       </div>
-    </div>
+      <div className="pagination-block fixed bottom-0 left-0 w-full bg-black bg-opacity-20 backdrop-blur-sm py-4 flex justify-center items-center gap-3 z-50">
+      <button
+          className={`text-white ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          disabled={currentPage === 1}
+          onClick={handlePrevious}
+        >
+          &larr; Previous
+        </button>
+
+        <div className="numbers flex justify-center items-center gap-2">
+          {Array.from({ length: totalPages }, (_, i) => {
+            const pageNum = i + 1;
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  setCurrentPage(pageNum);
+                  const newSkip = (pageNum - 1) * limit;
+                  setSkip(newSkip);
+                  fetchTransactionData(newSkip, limit);
+                }}
+                className={`number w-8 h-8 rounded-full flex items-center justify-center ${
+                  currentPage === pageNum ? "bg-violet-900 text-white" : "text-gray-400 hover:bg-violet-600"
+                }`}
+              >
+                <h2>{pageNum}</h2>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          className={`text-white ${currentPage >= totalPages ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          disabled={currentPage >= totalPages}
+          onClick={handleNext}
+        >
+          Next &rarr;
+        </button>
+      </div>
+      </div>
   );
 };
 

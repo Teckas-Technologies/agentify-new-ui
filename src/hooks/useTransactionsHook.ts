@@ -17,11 +17,11 @@ export const useTransactions = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchTransactions = async (userId:any,agentId:any,skip:any,limit:any) => {
+    const fetchTransactions = async (userId:any,search_query:any,skip:any,limit:any) => {
         setLoading(true);
         setError(null)
         try {
-            const response = await fetch(`${PYTHON_SERVER_URL}/api/transactions/?skip=${skip}&limit=${limit}&agent_id=${agentId}&user_id=${userId}`);
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/transactions/?skip=${skip}&limit=${limit}&user_id=${userId}&search_query=${search_query}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
