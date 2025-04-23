@@ -152,7 +152,7 @@ export default function Dashboard({
   };
 
   const fetchAllAgents = async () => {
-    const res = await fetchAgents();
+    const res = await fetchAgents({});
     console.log("Res:", res)
     setAgents(res.data);
   };

@@ -50,12 +50,32 @@ export const useChat = () => {
         }
     };
 
-    const fetchAgents = async () => {
+    const fetchAgents = async ({
+        page = 1,
+        limit = 10,
+        is_favourite = false,
+        search_query = ""
+    }: {
+        page?: number;
+        limit?: number;
+        is_favourite?: boolean;
+        search_query?: string;
+    }) => {
         try {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${PYTHON_SERVER_URL}/api/v1/agents/?user_id=${address}`, {
+            const skip = (page - 1) * limit;
+
+            const queryParams = new URLSearchParams({
+                user_id: address || "1",
+                skip: skip.toString(),
+                limit: limit.toString(),
+                is_favourite: is_favourite.toString(),
+                search_query,
+            });
+
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/v1/agents/?${queryParams.toString()}`, {
                 method: "GET",
                 // headers: {
                 //     "Content-Type": "application/json",
@@ -76,7 +96,7 @@ export const useChat = () => {
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     const fetchChatHistory = async (userId: string, agentId: string) => {
         if (!address) {

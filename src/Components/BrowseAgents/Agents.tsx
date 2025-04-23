@@ -91,7 +91,7 @@ const Agents = ({
   }, [])
 
   const fetchSonicAgents = async () => {
-    const res = await fetchAgents();
+    const res = await fetchAgents({});
     setAgents(res?.data);
   }
 
