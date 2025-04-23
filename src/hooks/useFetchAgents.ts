@@ -14,7 +14,7 @@ const useFetchAgents = () => {
   const fetchAgents = async ({
     userId,
     skip = 0,
-    limit = 2,
+    limit = 6,
     searchQuery = "",
     isFavourite = false,
     filter = "",
@@ -36,9 +36,13 @@ const useFetchAgents = () => {
         limit: limit.toString(),
         search_query: searchQuery,
         is_favourite: isFavourite.toString(),
-        filter: filter, // 👈 added this
       });
-
+      
+      if (filter && filter.trim() !== "") {
+        query.append("filter", filter); // ✅ only if filter has a value
+      }
+      const url = `${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`;
+    console.log("Fetching agents from URL:", url); // 👈 your URL log
       const response = await fetch(`${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`);
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 

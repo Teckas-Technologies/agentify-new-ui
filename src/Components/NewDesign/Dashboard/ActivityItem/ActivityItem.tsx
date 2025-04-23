@@ -1,8 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { StatusBadge } from "../StatusBadge/StatusBadge";
-
+import { StatusBadge } from "../../StatusBadge/StatusBadge";
 
 type ActivityStatus = "success" | "pending" | "failed";
 
@@ -22,8 +21,10 @@ export const ActivityItem = ({
   description,
 }: ActivityItemProps) => {
   return (
-    <div className="flex gap-3 py-3 border-b border-white last:border-0" style={{ borderColor: 'rgba(255, 255, 255, 0.05)' }}>
-
+    <div
+      className="flex gap-3 py-3 border-b border-white last:border-0"
+      style={{ borderColor: "rgba(255, 255, 255, 0.05)" }}
+    >
       {icon && <div className="mt-1 text-primary/70">{icon}</div>}
       <div className="flex-1">
         <div className="flex justify-between items-start">

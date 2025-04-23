@@ -1,5 +1,5 @@
-'use client'
-import React from 'react';
+"use client";
+import React from "react";
 
 import {
   Activity,
@@ -12,20 +12,89 @@ import {
   Lightbulb,
   Bell,
 } from "lucide-react";
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import Navbar from '../Navbar/Navbar';
-import { Button } from '@/Components/ui/button';
-import { StatCard } from '../StatCard/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '../Card/Card';
-import { Tabs } from '@radix-ui/react-tabs';
-import { TabsContent, TabsList, TabsTrigger } from '../Tabs/Tabs';
-import { ActivityItem } from '../ActivityItem/ActivityItem';
-import { ChainBadge } from '../ChainBadge/ChainBadge';
-import { SavedCommand } from '../SavedCommand/SavedCommand';
+import Navbar from "./Navbar/Navbar";
+import { Button } from "@/Components/ui/button";
+import { StatCard } from "../StatCard/StatCard";
+import { Card, CardContent, CardHeader, CardTitle } from "./Card/Card";
+import { Tabs } from "@radix-ui/react-tabs";
+import { TabsContent, TabsList, TabsTrigger } from "../Tabs/Tabs";
+import { ActivityItem } from "./ActivityItem/ActivityItem";
+import { ChainBadge } from "./ChainBadge/ChainBadge";
+import { SavedCommand } from "../SavedCommand/SavedCommand";
+import { BarChartComponent } from "./BarChart/BharChartComponent";
+import { AgentUsageChart } from "./AgentUsageChart/AgentUsageChart";
+import { TransactionLogs } from "./TransactionLogs/TransactionLogs";
 
-const Index = () => {
+export const agentUsageData = [
+  { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
+  { name: "Bridge", value: 26, color: "hsl(12, 76.4%, 64.7%)" },
+  { name: "Lend/Borrow", value: 12, color: "hsl(142, 76.2%, 36.3%)" },
+];
+
+export const chainActivityData = [
+  { name: "Arbitrum", count: 58 },
+  { name: "Polygon", count: 42 },
+  { name: "Optimism", count: 37 },
+  { name: "Ethereum", count: 26 },
+  { name: "Base", count: 15 },
+];
+
+export const gasUsageData = {
+  totalGas: "0.138 ETH",
+  avgGas: "0.0006 ETH",
+};
+
+export const gasHistoryData = [
+  { name: "Mon", value: 0.0004 },
+  { name: "Tue", value: 0.0007 },
+  { name: "Wed", value: 0.0009 },
+  { name: "Thu", value: 0.0005 },
+  { name: "Fri", value: 0.0006 },
+  { name: "Sat", value: 0.0008 },
+  { name: "Sun", value: 0.0004 },
+];
+
+const quickActions = [
+  {
+    title: "Quick Swap",
+    description: "Swap tokens with minimal clicks",
+    icon: Repeat2,
+    action: "/playground",
+  },
+  {
+    title: "Command History",
+    description: "View your recent commands",
+    icon: Terminal,
+    action: "/commands",
+  },
+  {
+    title: "Run Last Command",
+    description: "Execute your most recent transaction",
+    icon: PlayCircle,
+    action: "/playground",
+  },
+];
+const savedCommandsData = [
+  {
+    id: 1,
+    title: "ETH to USDC Swap",
+    command: "swap 0.1 ETH to USDC on Arbitrum",
+  },
+  {
+    id: 2,
+    title: "Bridge to Optimism",
+    command: "bridge 100 USDC to Optimism",
+  },
+  {
+    id: 3,
+    title: "Lend on Aave",
+    command: "lend 500 USDC on Arbitrum Aave",
+  },
+];
+const Dashboard = () => {
   const router = useRouter();
 
   return (
@@ -38,10 +107,10 @@ const Index = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <Button
-            variant="outline" 
-            size="sm" 
+            variant="outline"
+            size="sm"
             className="neumorphic-sm flex items-center gap-2"
-            onClick={() => router.push('/playground')}
+            onClick={() => router.push("/playground")}
           >
             <Terminal className="h-4 w-4" />
             Go to Playground
@@ -83,12 +152,14 @@ const Index = () => {
             {/* Recent Activity Timeline */}
             <Card className="neumorphic border-none">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-bold">Recent Activity</CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <CardTitle className="text-lg font-bold">
+                  Recent Activity
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-muted-foreground text-xs"
-                  onClick={() => router.push('/activity')}
+                  onClick={() => router.push("/activity")}
                 >
                   View All
                   <ArrowRight className="ml-1 h-3 w-3" />
@@ -133,12 +204,12 @@ const Index = () => {
               {/* Agent Usage Chart */}
               <Card className="neumorphic border-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-bold">Agent Usage</CardTitle>
+                  <CardTitle className="text-lg font-bold">
+                    Agent Usage
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[200px] flex items-center justify-center bg-gray-100 rounded">
-                    <p className="text-muted-foreground">Agent Usage Chart</p>
-                  </div>
+                  <AgentUsageChart data={agentUsageData} />
                 </CardContent>
               </Card>
 
@@ -151,16 +222,21 @@ const Index = () => {
                   <div className="flex justify-between mb-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Total Gas</p>
-                      <p className="text-xl font-bold">1.42 ETH</p>
+                      <p className="text-xl font-bold">
+                        {gasUsageData.totalGas}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Avg per Tx</p>
-                      <p className="text-xl font-bold">0.012 ETH</p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg per Tx
+                      </p>
+                      <p className="text-xl font-bold">{gasUsageData.avgGas}</p>
                     </div>
                   </div>
-                  <div className="h-[150px] flex items-center justify-center bg-gray-100 rounded">
-                    <p className="text-muted-foreground">Gas Usage Chart</p>
-                  </div>
+                  <BarChartComponent
+                    data={gasHistoryData}
+                    barColor="hsl(var(--primary))"
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -170,49 +246,30 @@ const Index = () => {
               {/* Quick Actions Section */}
               <Card className="neumorphic border-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-bold">Quick Actions</CardTitle>
+                  <CardTitle className="text-lg font-bold">
+                    Quick Actions
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-3 h-auto p-3"
-                      onClick={() => router.push('/playground')}
-                    >
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <Repeat2 className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="font-medium">Quick Swap</h4>
-                        <p className="text-xs text-muted-foreground">Swap tokens with minimal clicks</p>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-3 h-auto p-3"
-                      onClick={() => router.push('/commands')}
-                    >
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <Terminal className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="font-medium">Command History</h4>
-                        <p className="text-xs text-muted-foreground">View your recent commands</p>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-3 h-auto p-3"
-                      onClick={() => router.push('/playground')}
-                    >
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <PlayCircle className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="font-medium">Run Last Command</h4>
-                        <p className="text-xs text-muted-foreground">Execute your most recent transaction</p>
-                      </div>
-                    </Button>
+                    {quickActions.map((action, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-auto p-3"
+                        onClick={() => router.push(action.action)}
+                      >
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <action.icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="text-left">
+                          <h4 className="font-medium">{action.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {action.description}
+                          </p>
+                        </div>
+                      </Button>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -220,35 +277,28 @@ const Index = () => {
               {/* Chain Activity */}
               <Card className="neumorphic border-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-bold">Chain Activity</CardTitle>
+                  <CardTitle className="text-lg font-bold">
+                    Chain Activity
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    <ChainBadge
-                      name="Ethereum"
-                      count="42"
-                      color="bg-primary/20"
-                    />
-                    <ChainBadge
-                      name="Arbitrum"
-                      count="28"
-                      color="bg-accent/20"
-                    />
-                    <ChainBadge
-                      name="Polygon"
-                      count="15"
-                      color="bg-success/20"
-                    />
-                    <ChainBadge
-                      name="Optimism"
-                      count="9"
-                      color="bg-secondary"
-                    />
-                    <ChainBadge
-                      name="Avalanche"
-                      count="5"
-                      color="bg-secondary"
-                    />
+                    {chainActivityData.map((chain, index) => (
+                      <ChainBadge
+                        key={chain.name}
+                        name={chain.name}
+                        count={chain.count}
+                        color={
+                          index === 0
+                            ? "bg-primary/20"
+                            : index === 1
+                            ? "bg-accent/20"
+                            : index === 2
+                            ? "bg-success/20"
+                            : "bg-secondary"
+                        }
+                      />
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -260,30 +310,25 @@ const Index = () => {
             {/* Saved Commands */}
             <Card className="neumorphic border-none">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">Saved Commands</CardTitle>
+                <CardTitle className="text-lg font-bold">
+                  Saved Commands
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <SavedCommand
-                    title="Swap ETH to USDC"
-                    command="swap eth usdc --amount 0.5"
-                    icon={<PlayCircle className="h-4 w-4" />}
-                  />
-                  <SavedCommand
-                    title="Bridge USDC to Arbitrum"
-                    command="bridge usdc arbitrum --amount 500"
-                    icon={<PlayCircle className="h-4 w-4" />}
-                  />
-                  <SavedCommand
-                    title="Deposit to AAVE"
-                    command="deposit aave eth --amount 1.2"
-                    icon={<PlayCircle className="h-4 w-4" />}
-                  />
-                  <Button 
-                    variant="outline" 
-                    className="w-full mt-2" 
+                  {savedCommandsData.map((command) => (
+                    <SavedCommand
+                      key={command.id}
+                      title={command.title}
+                      command={command.command}
+                      icon={<PlayCircle className="h-4 w-4" />}
+                    />
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="w-full mt-2"
                     size="sm"
-                    onClick={() => router.push('/commands')}
+                    onClick={() => router.push("/commands")}
                   >
                     View All Commands
                   </Button>
@@ -294,47 +339,38 @@ const Index = () => {
             {/* Transaction Logs */}
             <Card className="neumorphic border-none">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">Transaction Logs</CardTitle>
+                <CardTitle className="text-lg font-bold">
+                  Transaction Logs
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="all">
                   <TabsList className="neumorphic-inset p-1 mb-4">
-                    <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                    <TabsTrigger value="swap" className="text-xs">Swaps</TabsTrigger>
-                    <TabsTrigger value="bridge" className="text-xs">Bridges</TabsTrigger>
-                    <TabsTrigger value="lend" className="text-xs">Lending</TabsTrigger>
+                    <TabsTrigger value="all" className="text-xs">
+                      All
+                    </TabsTrigger>
+                    <TabsTrigger value="swap" className="text-xs">
+                      Swaps
+                    </TabsTrigger>
+                    <TabsTrigger value="bridge" className="text-xs">
+                      Bridges
+                    </TabsTrigger>
+                    <TabsTrigger value="lend" className="text-xs">
+                      Lending
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="all" className="m-0">
                     <div className="space-y-4">
-                      <div className="p-3 border rounded">
-                        <div className="flex justify-between">
-                          <span className="font-medium">ETH → DAI</span>
-                          <span className="text-sm text-muted-foreground">10 min ago</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">0.5 ETH → 1250 DAI</p>
-                      </div>
-                      <div className="p-3 border rounded">
-                        <div className="flex justify-between">
-                          <span className="font-medium">USDC Bridge</span>
-                          <span className="text-sm text-muted-foreground">25 min ago</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">500 USDC to Arbitrum</p>
-                      </div>
-                      <div className="p-3 border rounded">
-                        <div className="flex justify-between">
-                          <span className="font-medium">AAVE Deposit</span>
-                          <span className="text-sm text-muted-foreground">2 hrs ago</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">1.2 ETH deposited</p>
-                      </div>
-                      <Button 
-                        className="glow w-full" 
-                        onClick={() => router.push('/transactions')}
+                      <TransactionLogs limit={3} />
+                      <Button
+                        className="glow w-full"
+                        onClick={() => router.push("/transactions")}
                       >
                         View All Transactions
                       </Button>
                     </div>
                   </TabsContent>
+                  {/* Other tab contents would be similar */}
                 </Tabs>
               </CardContent>
             </Card>
@@ -345,4 +381,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Dashboard;
