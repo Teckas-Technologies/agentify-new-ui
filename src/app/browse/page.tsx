@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/Components/Navbar/Navbar";
+import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
 import Agents from "@/Components/BrowseAgents/Agents";
 import dynamic from "next/dynamic";
 

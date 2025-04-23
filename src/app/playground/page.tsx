@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react";
 // import Dashboard from "@/Components/Dashboard/Dashboard";
-import Navbar from "@/Components/Navbar/Navbar";
+import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
 import dynamic from "next/dynamic";
 
 const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
   ssr: false,
 });
 
-const Dashboard = dynamic(() => import("../../Components/Dashboard/Dashboard"), {
-  ssr: false,
-});
+const Dashboard = dynamic(
+  () => import("../../Components/Dashboard/Dashboard"),
+  {
+    ssr: false,
+  }
+);
 
 export default function PlaygroundPage() {
   // Load the initial state from localStorage
@@ -21,7 +24,6 @@ export default function PlaygroundPage() {
     }
     return false;
   });
-
 
   const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
 

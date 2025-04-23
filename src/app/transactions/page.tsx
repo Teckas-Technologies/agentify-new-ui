@@ -1,7 +1,7 @@
 // app/[transaction]/page.tsx
 "use client";
 
-import Navbar from "@/Components/Navbar/Navbar";
+import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
 import Transaction from "@/Components/Transaction/Transaction";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
