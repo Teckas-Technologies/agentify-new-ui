@@ -27,3 +27,21 @@ export type Agent = {
     is_favourite: boolean;
     is_hidden: boolean;
 };
+
+export type Message = {
+    role: "ai" | "human";
+    message: string;
+    txHash?: string;
+}
+
+export type RequestFields = {
+    transaction_id: string;
+    user_id: string;
+    wallet_address: string;
+    agent_id: string;
+    transaction_type: string;
+    status: string;
+    transaction_volume: string;
+    explorer_link: string;
+
+}

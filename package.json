@@ -18,6 +18,7 @@
     "@lifi/widget": "^3.18.4",
     "@privy-io/react-auth": "^2.10.0",
     "@privy-io/wagmi": "0.2.12",
+    "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-scroll-area": "^1.2.6",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.8",

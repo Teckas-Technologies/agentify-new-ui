@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Zap, Layers, Code, MessageCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { AgentSelector } from "@/Components/NewDesign/playground/AgentSelector";
@@ -7,6 +7,9 @@ import { CommandInterface } from "@/Components/NewDesign/playground/CommandInter
 import Navbar from "@/Components/NewDesign/Navbar/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { useRouter } from "next/navigation";
+import { useAccount, useDisconnect } from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
+import { Agent } from "@/types/types";
 
 const PlaygroundFeatures = [
     {
@@ -27,15 +30,37 @@ const PlaygroundFeatures = [
 ];
 
 const Playground = () => {
-    const [selectedAgent, setSelectedAgent] = useState("swapAgent");
+    const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [isWalletConnected, setIsWalletConnected] = useState(false);
     const router = useRouter();
+    const { address, isConnected } = useAccount();
+    const { disconnect } = useDisconnect();
+    const { user, login, logout, connectWallet } = usePrivy();
+
+    useEffect(() => {
+        if (address && user) {
+            setIsWalletConnected(true);
+        }
+    }, [address, user])
+
+    const handleWalletConnect = () => {
+        if (!user) {
+            login();
+        } else {
+            connectWallet();
+        }
+    }
+
+    const disconnectAll = () => {
+        logout();
+        disconnect();
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-background/95 xl:px-6 xl:py-4">
             <Navbar />
 
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-3 py-6 md:px-4 md:py-8">
                 <div className="mb-8">
                     <Button
                         variant="outline"
@@ -90,7 +115,7 @@ const Playground = () => {
                         <CommandInterface
                             selectedAgent={selectedAgent}
                             isWalletConnected={isWalletConnected}
-                            onConnect={() => setIsWalletConnected(true)}
+                            onConnect={handleWalletConnect}
                         />
                     </div>
                 </div>

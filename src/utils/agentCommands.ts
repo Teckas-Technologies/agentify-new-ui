@@ -1,11 +1,11 @@
 
 export const agentExampleCommands: Record<string, string[]> = {
-    swap: [
+    swapAgent: [
         "Swap 0.1 ETH for USDC",
         "Convert 100 USDC to ETH using Uniswap",
         "Trade 50 DAI for WETH"
     ],
-    bridge: [
+    bridgeAgent: [
         "Bridge 0.5 ETH from Ethereum to Polygon",
         "Send 100 USDC from Arbitrum to Optimism",
         "Transfer 200 USDT to Avalanche"
