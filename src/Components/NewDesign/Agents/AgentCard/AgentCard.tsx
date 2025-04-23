@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from "@/Components/ui/dialog";
 import { Button } from "@/Components/ui/button";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
