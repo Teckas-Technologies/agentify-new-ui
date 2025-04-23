@@ -10,7 +10,7 @@ export const agentExampleCommands: Record<string, string[]> = {
         "Send 100 USDC from Arbitrum to Optimism",
         "Transfer 200 USDT to Avalanche"
     ],
-    lend: [
+    lendingBorrowingAgent: [
         "Deposit 1 ETH into Aave",
         "Borrow 500 USDC against my ETH collateral",
         "View my lending positions"

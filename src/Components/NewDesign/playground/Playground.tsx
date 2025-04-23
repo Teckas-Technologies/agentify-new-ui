@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Zap, Layers, Code, MessageCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { AgentSelector } from "@/Components/NewDesign/playground/AgentSelector";
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
 import { usePrivy } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
+import { useWalletConnect } from "@/hooks/useWalletConnect";
 
 const PlaygroundFeatures = [
     {
@@ -36,6 +37,7 @@ const Playground = () => {
     const { address, isConnected } = useAccount();
     const { disconnect } = useDisconnect();
     const { user, login, logout, connectWallet } = usePrivy();
+    const { handleWalletConnect, disconnectAll } = useWalletConnect();
 
     useEffect(() => {
         if (address && user) {
@@ -43,24 +45,19 @@ const Playground = () => {
         }
     }, [address, user])
 
-    const handleWalletConnect = () => {
-        if (!user) {
-            login();
-        } else {
-            connectWallet();
-        }
-    }
-
-    const disconnectAll = () => {
-        logout();
-        disconnect();
-    }
+    // const handleWalletConnect = useCallback(() => {
+    //     if (!user) {
+    //         login();
+    //     } else {
+    //         connectWallet();
+    //     }
+    // }, [user, login, connectWallet]);
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-background/95 xl:px-6 xl:py-4">
             <Navbar />
 
-            <main className="container mx-auto px-3 py-6 md:px-4 md:py-8">
+            <main className="container relative mx-auto px-3 py-6 md:px-4 md:py-8">
                 <div className="mb-8">
                     <Button
                         variant="outline"
@@ -81,14 +78,14 @@ const Playground = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-4 space-y-4">
-                        <div className="p-4 rounded-xl neumorphic border-none bg-gradient-to-b from-background/95 to-background">
+                        <div className="hidden md:flex p-4 rounded-xl neumorphic border-none bg-gradient-to-b from-background/95 to-background">
                             <AgentSelector
                                 selectedAgent={selectedAgent}
                                 onSelectAgent={setSelectedAgent}
                             />
                         </div>
 
-                        <Card className="neumorphic border-none">
+                        <Card className="neumorphic border-none hidden md:block">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <MessageCircle className="h-5 w-5 text-primary" />
@@ -116,6 +113,7 @@ const Playground = () => {
                             selectedAgent={selectedAgent}
                             isWalletConnected={isWalletConnected}
                             onConnect={handleWalletConnect}
+                            onSelectAgent={setSelectedAgent}
                         />
                     </div>
                 </div>
