@@ -55,7 +55,7 @@ const Playground = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-background/95 xl:px-6 xl:py-4">
-            <Navbar />
+            <Navbar /> 
 
             <main className="container relative mx-auto px-3 py-6 md:px-4 md:py-8">
                 <div className="mb-8">
