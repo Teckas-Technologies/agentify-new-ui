@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import Navbar from "@/Components/Navbar/Navbar";
 import dynamic from "next/dynamic";
 
-const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
-  ssr: false,
-});
+// const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
+//   ssr: false,
+// });
 
 const Dashboard = dynamic(() => import("../../Components/Dashboard/Dashboard"), {
   ssr: false,
@@ -33,7 +33,7 @@ export default function PlaygroundPage() {
   }, [isCollapsed]);
 
   return (
-    <ClientLayout>
+    // <ClientLayout>
       <div className="h-screen flex overflow-hidden bg-white">
         {/* Sidebar Navbar */}
         <Navbar
@@ -50,6 +50,6 @@ export default function PlaygroundPage() {
           />
         </div>
       </div>
-    </ClientLayout>
+    // </ClientLayout>
   );
 }

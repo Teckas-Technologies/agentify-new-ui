@@ -5,11 +5,11 @@ import Navbar from "@/Components/Navbar/Navbar";
 import Transaction from "@/Components/Transaction/Transaction";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
+// import dynamic from "next/dynamic";
 
-const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
-  ssr: false,
-});
+// const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
+//   ssr: false,
+// });
 
 const TransactionsPage = () => {
   const params = useParams(); // Extract the dynamic [transaction] path parameter
@@ -49,7 +49,7 @@ const TransactionsPage = () => {
   console.log("Tab---", initialTab);
 
   return (
-    <ClientLayout>
+    // <ClientLayout>
       <div className="h-screen flex overflow-hidden bg-black">
         {/* Sidebar Navbar */}
         <Navbar
@@ -65,7 +65,7 @@ const TransactionsPage = () => {
           />
         </div>
       </div>
-    </ClientLayout>
+    // </ClientLayout>
   );
 };
 
