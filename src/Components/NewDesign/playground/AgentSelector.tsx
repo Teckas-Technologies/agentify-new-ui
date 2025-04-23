@@ -2,7 +2,7 @@
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/Components/ui/command";
 import { ArrowLeftRight, Layers, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useChat } from "@/hooks/useChatHook";
 import { useAccount } from "wagmi";
 import { Agent } from "@/types/types";
@@ -35,16 +35,19 @@ const dummyAgents = [
 
 export const AgentSelector = ({
     selectedAgent,
-    onSelectAgent
+    onSelectAgent,
+    setModelOpen
 }: {
     selectedAgent: Agent | null;
     onSelectAgent: (id: Agent) => void;
+    setModelOpen?: (e: boolean) => void;
 }) => {
     const [search, setSearch] = useState("");
     const [agents, setAgents] = useState<Agent[] | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
-    const { chat, fetchChatHistory, clearHistory, fetchAgents } = useChat();
+    const [loading, setLoading] = useState(false);
+    const { fetchAgents } = useChat();
     const { address, isConnected } = useAccount();
     const [queryAgent, setQueryAgent] = useState<string>();
 
@@ -64,32 +67,41 @@ export const AgentSelector = ({
         }
     }, []);
 
-    const fetchAllAgents = async () => {
+    useEffect(() => {
+        if (queryAgent && agents && agents?.length > 0) {
+            const matched = agents?.find(
+                (agent: Agent) =>
+                    agent.agentId === queryAgent || agent.name?.toLowerCase() === queryAgent.toLowerCase()
+            );
+            if (matched) {
+                onSelectAgent(matched);
+            } else {
+                onSelectAgent(agents[0]);
+            }
+        }
+    }, [queryAgent, agents])
+
+    const fetchAllAgents = useCallback(async () => {
+        setLoading(true);
         const res = await fetchAgents({ page: page, search_query: search });
-        console.log("Res:", res)
+        console.log("Res:", res);
         setAgents(res.data);
-        setTotalPages(res?.totalPages)
+        setTotalPages(res?.totalPages);
+        setLoading(false);
+    }, [page, search]);
 
-        // if (queryAgent) {
-        //     const matched = res.data.find(
-        //         (agent: Agent) =>
-        //             agent.agentId === queryAgent || agent.name?.toLowerCase() === queryAgent.toLowerCase()
-        //     );
-        //     if (matched) {
-        //         onSelectAgent(matched);
-        //     }
-        // }
-    };
-
-    const handleSelectAgent = (agent: Agent) => {
+    const handleSelectAgent = useCallback((agent: Agent) => {
         // Update the selected agent in the current component
         onSelectAgent(agent);
+        if (setModelOpen) {
+            setModelOpen(false);
+        }
 
         // Optional: Update the URL query parameter without navigation
         const url = new URL(window.location.href);
         url.searchParams.set('agent', agent?.agentId);
         window.history.pushState({}, '', url);
-    };
+    }, [onSelectAgent]);
 
     return (
         <Command className="rounded-xl border-0 bg-background/50 backdrop-blur-xl">
@@ -101,9 +113,10 @@ export const AgentSelector = ({
             />
             <CommandList>
                 {/* <CommandEmpty>No agents found.</CommandEmpty> */}
-                {agents && agents?.length === 0 && <h2 className="text-center py-2 pt-6">No agents found.</h2>}
+                {agents && agents?.length === 0 && !loading && <h2 className="text-center text-white py-2 pt-6">No agents found.</h2>}
+                {agents && agents?.length === 0 && loading && <h2 className="text-center text-white py-2 pt-6">Fetching agents...</h2>}
                 <CommandGroup>
-                    {agents && agents.length !== 0 && agents.map((agent, index) => (
+                    {agents && agents.length !== 0 && !loading && agents.map((agent, index) => (
                         <div
                             key={agent.agentId || index}
                             onClick={() => handleSelectAgent(agent)}
