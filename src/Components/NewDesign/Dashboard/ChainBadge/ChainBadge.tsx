@@ -1,18 +1,13 @@
-"use client";
 
 import { cn } from "@/lib/utils";
 
 interface ChainBadgeProps {
   name: string;
-  count: string;
+  count: number;
   color?: string;
 }
 
-export const ChainBadge = ({
-  name,
-  count,
-  color = "bg-primary/20",
-}: ChainBadgeProps) => {
+export const ChainBadge = ({ name, count, color = "bg-primary/20" }: ChainBadgeProps) => {
   return (
     <div className={cn("rounded-full px-3 py-1 flex items-center gap-1.5", color)}>
       <span className="font-medium text-sm">{name}</span>

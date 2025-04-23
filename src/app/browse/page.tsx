@@ -4,11 +4,6 @@
 import { useState, useEffect } from "react";
 import Navbar from "@/Components/Navbar/Navbar";
 import Agents from "@/Components/BrowseAgents/Agents";
-import dynamic from "next/dynamic";
-
-const ClientLayout = dynamic(() => import("../../Components/ClientLayout"), {
-  ssr: false,
-});
 
 const Page = () => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -28,23 +23,21 @@ const Page = () => {
   }, [isCollapsed]);
 
   return (
-    <ClientLayout>
-      <div className="relative h-screen flex">
-        {/* Sidebar Navbar */}
-        <Navbar
-          isCollapsed={isCollapsed}
-          isMobileNavVisible={isMobileNavVisible}
+    <div className="relative h-screen flex">
+      {/* Sidebar Navbar */}
+      <Navbar
+        isCollapsed={isCollapsed}
+        isMobileNavVisible={isMobileNavVisible}
+        onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+      />
+      <div className="flex-1 h-full">
+        <Agents
+          onToggle={() => setIsCollapsed((prev) => !prev)}
           onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
+          isMobileNavVisible={isMobileNavVisible}
         />
-        <div className="flex-1 h-full">
-          <Agents
-            onToggle={() => setIsCollapsed((prev) => !prev)}
-            onMobileNavToggle={() => setIsMobileNavVisible(!isMobileNavVisible)}
-            isMobileNavVisible={isMobileNavVisible}
-          />
-        </div>
       </div>
-    </ClientLayout>
+    </div>
   );
 };
 

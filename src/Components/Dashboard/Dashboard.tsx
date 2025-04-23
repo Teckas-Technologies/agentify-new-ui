@@ -35,14 +35,14 @@ export interface Agent {
 }
 
 interface RequestFields {
-     transaction_id: string;
-     user_id: string;
-     wallet_address:string;
-     agent_id: string;
-     transaction_type: string;
-     status: string;
-     transaction_volume:string;
-     explorer_link:string;
+  transaction_id: string;
+  user_id: string;
+  wallet_address: string;
+  agent_id: string;
+  transaction_type: string;
+  status: string;
+  transaction_volume: string;
+  explorer_link: string;
 
 }
 
@@ -75,7 +75,7 @@ export default function Dashboard({
   const [isExecutingLifi, setExecutingLifi] = useState(false);
   const [isExecutingAave, setExecutingAave] = useState(false);
   const [isSwaping, setIsSwaping] = useState(false);
-  const{loading,createTransactions}=useTransactions();
+  const { loading, createTransactions } = useTransactions();
 
   const { wallets } = useWallets();
   const wallet = wallets[0];
@@ -84,8 +84,7 @@ export default function Dashboard({
   const { address, isConnected } = useAccount();
   console.log("Address -----", address);
 
-  const { ready, authenticated, login, connectWallet, logout, linkWallet, user } =
-    usePrivy();
+  const { login, connectWallet, user } = usePrivy();
 
   const [showWidget, setShowWidget] = useState(false);
 
@@ -152,14 +151,14 @@ export default function Dashboard({
   };
 
   const fetchAllAgents = async () => {
-    const res = await fetchAgents();
+    const res = await fetchAgents({});
     console.log("Res:", res)
     setAgents(res.data);
   };
 
 
-  const createTrans = async(  transaction_id: string,user_id: string,wallet_address:string,agent_id: string,transaction_type: string,status: string,transaction_volume:string,explorer_link:string)=>{
-    const payload:RequestFields = {
+  const createTrans = async (transaction_id: string, user_id: string, wallet_address: string, agent_id: string, transaction_type: string, status: string, transaction_volume: string, explorer_link: string) => {
+    const payload: RequestFields = {
       transaction_id,
       user_id,
       wallet_address,
@@ -265,7 +264,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","lending","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
+              await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "lending", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -276,7 +275,7 @@ export default function Dashboard({
                   message: `Lending ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
+              await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -314,7 +313,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","borrow","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
+              await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "borrow", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -325,7 +324,7 @@ export default function Dashboard({
                   message: `Borrow ${tokenSymbol} execution was failed!`,
                 },
               ]);
-              await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
+              await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -363,7 +362,7 @@ export default function Dashboard({
                   txHash: `${explorer}tx/${res?.txHashes[0]}`,
                 },
               ]);
-              await createTrans(res.txHashes[0],address,address,"lendingBorrowingAgent","withdraw","Successful",amount,`${explorer}tx/${res?.txHashes[0]}`);
+              await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
               setExecutingAave(false);
               return;
             } else {
@@ -374,7 +373,7 @@ export default function Dashboard({
                   message: `Withdraw ${tokenSymbol} execution was failed!`,
                 },
               ]);
-               await createTrans( `failed_${uuidv4()}`,address,address,"swapAgent","lending","Failed",amount,`${explorer}tx/failed`);
+              await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
               setExecutingAave(false);
               return;
             }
@@ -419,9 +418,9 @@ export default function Dashboard({
               console.log("Res:", response);
               if (response?.txHash) {
                 const agentId = fromChainId.toString() === toChainId.toString()
-                ? "swapAgent"
-                : "bridgeAgent";
-                await createTrans(response.txHash,address,address,agentId,agentId,"Successful",fromAmount,`${explorer}tx/${response?.txHash}`);  
+                  ? "swapAgent"
+                  : "bridgeAgent";
+                await createTrans(response.txHash, address, address, agentId, agentId, "Successful", fromAmount, `${explorer}tx/${response?.txHash}`);
                 setMessages((prev) => [
                   ...prev,
                   {
@@ -437,9 +436,9 @@ export default function Dashboard({
                 return;
               } else {
                 const agentId = fromChainId.toString() === toChainId.toString()
-                ? "swapAgent"
-                : "bridgeAgent";
-                await createTrans( `failed_${uuidv4()}`,address,address,agentId,agentId,"Failed",fromAmount,`${explorer}tx/failed`);  
+                  ? "swapAgent"
+                  : "bridgeAgent";
+                await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
                 setMessages((prev) => [
                   ...prev,
                   {
@@ -457,6 +456,13 @@ export default function Dashboard({
           }
 
           if (toolMessage?.error) {
+            if (toolMessage.error?.includes("No routes found")) {
+              setMessages((prev) => [
+                ...prev,
+                { role: "ai", message: `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊` },
+              ]);
+              return;
+            }
             setMessages((prev) => [
               ...prev,
               { role: "ai", message: `${toolMessage?.error}` },
@@ -759,7 +765,7 @@ export default function Dashboard({
                       {msg?.txHash && msg.role === "ai" && (
                         <>
                           <a
-                            href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx")?"":"tx/"}${msg?.txHash}`}`}
+                            href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx") ? "" : "tx/"}${msg?.txHash}`}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="approve-btn flex items-center justify-center gap-1 px-2 py-2 md:py-1 mt-1 min-w-[5rem] bg-grey-700 max-w-[9rem] rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
