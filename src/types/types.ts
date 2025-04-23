@@ -18,3 +18,12 @@ export enum MarketType {
     // Celo = "Celo",
     Sepolia = "Sepolia"
 }
+
+export type Agent = {
+    agentId: string;
+    name: string;
+    description: string;
+    tags: string[];
+    is_favourite: boolean;
+    is_hidden: boolean;
+};
