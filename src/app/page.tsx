@@ -6,11 +6,11 @@ import Navbar from "@/Components/Navbar/Navbar";
 import UserDashboard from "@/Components/UserDashboard/UserDashboard";
 import UserDashboard2 from "@/Components/UserDashboard/UserDashboard2";
 
-import dynamic from "next/dynamic";
+// import dynamic from "next/dynamic";
 
-const ClientLayout = dynamic(() => import("../Components/ClientLayout"), {
-  ssr: false,
-});
+// const ClientLayout = dynamic(() => import("../Components/ClientLayout"), {
+//   ssr: false,
+// });
 
 export default function Home() {
   // Load the initial state from localStorage
@@ -33,7 +33,7 @@ export default function Home() {
   }, [isCollapsed]);
 
   return (
-    <ClientLayout>
+    // <ClientLayout>
       <div className="h-screen flex overflow-hidden bg-white">
         {/* Sidebar Navbar */}
         <Navbar
@@ -50,6 +50,6 @@ export default function Home() {
           />
         </div>
       </div>
-    </ClientLayout>
+    // </ClientLayout>
   );
 }
