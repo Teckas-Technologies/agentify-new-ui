@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation"; // ✅ use usePathname instead
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -13,8 +13,8 @@ interface NavLinkProps {
 }
 
 const NavLink: React.FC<NavLinkProps> = ({ to, icon: Icon, children }) => {
-  const router = useRouter();
-  const isActive = router.pathname === to;
+  const pathname = usePathname(); // ✅ get current path
+  const isActive = pathname === to;
 
   return (
     <Link 
