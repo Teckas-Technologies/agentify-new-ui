@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, ArrowRight, Construction } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import Navbar from "../Navbar/Navbar";
+import Navbar from "../Dashboard/Navbar/Navbar";
 import SearchAndFilter from "./SearchAndFilter/SearchAndFilter";
 import AgentCard from "./AgentCard/AgentCard";
 import {
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import useFetchAgents from "@/hooks/useFetchAgents"; 
+import useFetchAgents from "@/hooks/useFetchAgents";
 interface AgentData {
   agentId: string;
   name: string;
@@ -23,31 +23,29 @@ interface AgentData {
   is_hidden: boolean;
 }
 
-
 export interface AgentCategory {
   id: string;
   name: string;
 }
-
 
 // const agentsData: AgentData[] = [
 //   {
 //     id: "swap",
 //     name: "Swap Assistant",
 //     description: "Execute token swaps across any DEX with smart routing and optimal rates",
-    
+
 //     categories: ["DeFi"],
 //     tags: ["Multi-chain", "Auto Route", "Fee Optimized"],
-    
+
 //   },
 //   {
 //     id: "bridge",
 //     name: "Bridge Assistant",
 //     description: "Bridge tokens between networks with cost-effective routes and gas estimations",
-    
+
 //     categories: ["Cross-chain", "DeFi"],
 //     tags: ["Cross-chain", "Gas Optimized", "Auto Route"],
-    
+
 //   },
 //   {
 //     id: "lend",
@@ -55,7 +53,7 @@ export interface AgentCategory {
 //     description: "Manage lending positions across protocols with interest rate tracking and health monitoring",
 //     categories: ["DeFi"],
 //     tags: ["Multi-protocol", "Interest Optimized", "Risk Monitoring"],
-    
+
 //   },
 
 // ];
@@ -64,12 +62,7 @@ const AgentsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
 
-  const {
-    agentsData,
-    loading,
-    error,
-    fetchAgents,
-  } = useFetchAgents();
+  const { agentsData, loading, error, fetchAgents } = useFetchAgents();
 
   useEffect(() => {
     fetchAgents({
@@ -179,6 +172,5 @@ const AgentsPage = () => {
     </div>
   );
 };
-
 
 export default AgentsPage;

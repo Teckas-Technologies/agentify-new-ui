@@ -15,7 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import Navbar from "../Navbar/Navbar";
+import Navbar from "./Navbar/Navbar";
 import { Button } from "@/Components/ui/button";
 import { StatCard } from "../StatCard/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "./Card/Card";
