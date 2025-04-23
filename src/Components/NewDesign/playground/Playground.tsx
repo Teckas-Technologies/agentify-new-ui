@@ -4,13 +4,14 @@ import { ArrowLeft, Zap, Layers, Code, MessageCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { AgentSelector } from "@/Components/NewDesign/playground/AgentSelector";
 import { CommandInterface } from "@/Components/NewDesign/playground/CommandInterface";
-import Navbar from "@/Components/NewDesign/Navbar/Navbar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { useRouter } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
 import { usePrivy } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
+import Navbar from "../Dashboard/Navbar/Navbar";
 
 const PlaygroundFeatures = [
     {
