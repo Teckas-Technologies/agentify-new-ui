@@ -14,55 +14,22 @@ import {
   DialogTrigger,
 } from "@/Components/ui/dialog";
 import useFetchAgents from "@/hooks/useFetchAgents";
-interface AgentData {
-  agentId: string;
-  name: string;
-  description: string;
-  tags: string[];
-  is_favourite: boolean;
-  is_hidden: boolean;
-}
 
 export interface AgentCategory {
   id: string;
   name: string;
 }
 
-// const agentsData: AgentData[] = [
-//   {
-//     id: "swap",
-//     name: "Swap Assistant",
-//     description: "Execute token swaps across any DEX with smart routing and optimal rates",
+interface AgentsPageProps {
+  initialAgents?: any[];
+}
 
-//     categories: ["DeFi"],
-//     tags: ["Multi-chain", "Auto Route", "Fee Optimized"],
-
-//   },
-//   {
-//     id: "bridge",
-//     name: "Bridge Assistant",
-//     description: "Bridge tokens between networks with cost-effective routes and gas estimations",
-
-//     categories: ["Cross-chain", "DeFi"],
-//     tags: ["Cross-chain", "Gas Optimized", "Auto Route"],
-
-//   },
-//   {
-//     id: "lend",
-//     name: "Lend & Borrow Assistant",
-//     description: "Manage lending positions across protocols with interest rate tracking and health monitoring",
-//     categories: ["DeFi"],
-//     tags: ["Multi-protocol", "Interest Optimized", "Risk Monitoring"],
-
-//   },
-
-// ];
-const AgentsPage = () => {
+const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
 
-  const { agentsData, loading, error, fetchAgents } = useFetchAgents();
+  const { agentsData, loading, error, fetchAgents } = useFetchAgents(initialAgents);
 
   useEffect(() => {
     fetchAgents({
