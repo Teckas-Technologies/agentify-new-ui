@@ -15,8 +15,6 @@ export default async function Page() {
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
-  console.log("Server Res:", data)
-
   return (
     <main className="min-h-screen bg-[var(--bg-dark)] text-white">
       <AgentsPage initialAgents={data.data || []} />
