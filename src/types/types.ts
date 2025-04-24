@@ -34,14 +34,22 @@ export type Message = {
     txHash?: string;
 }
 
-export type RequestFields = {
-    transaction_id: string;
-    user_id: string;
-    wallet_address: string;
-    agent_id: string;
-    transaction_type: string;
-    status: string;
-    transaction_volume: string;
-    explorer_link: string;
+export type TransactionType = "SWAP" | "BRIDGE" | "LEND" | "BORROW" | "REPAY" | "WITHDRAW";
+export type TransactionStatus = "SUCCESS" | "FAILED" | "INITIATED";
 
+export interface RequestFields {
+    user_id: string;
+    agent_id: string;
+    transaction_type: TransactionType;
+    description: string;
+    chain: string;
+    time: Date;
+    crypto: string;
+    amount: number;
+    transaction_hash: string;
+    explorer_url: string;
+    status: TransactionStatus;
+    amountUSD: number;
+    gasUSD: number;
+    agent_name: string;
 }

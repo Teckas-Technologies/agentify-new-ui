@@ -28,6 +28,8 @@ import { useEffect, useState } from "react";
 import Navbar from '../Dashboard/Navbar/Navbar';
 import { useTransactions } from "@/hooks/useTransactionsHook";
 import { useAccount } from "wagmi";
+import { LoadingSkeleton } from "@/Components/shared/LoadingSkeleton";
+import { EmptyState } from "@/Components/shared/EmptyState";
 
 const getTransactionIcon = (type: string) => {
   switch (type) {
@@ -165,6 +167,9 @@ const ActivityPage = () => {
           {/* Transactions Table */}
           <Card className="neumorphic border-none mb-16">
             <CardContent>
+            {loading ? (
+                <LoadingSkeleton rows={5} />
+              ) : filteredTransactions.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -212,10 +217,17 @@ const ActivityPage = () => {
                   ))}
                 </TableBody>
               </Table>
+                 ) : (
+                  <EmptyState 
+                    title="No transactions yet" 
+                    description="Start exploring and performing transactions to see your activity here." 
+                  />
+                )}
             </CardContent>
           </Card>
         </div>
       </div>
+      {filteredTransactions.length > 0 && (
       <div className="pagination-block fixed bottom-0 left-0 w-full bg-black bg-opacity-20 backdrop-blur-sm py-4 flex justify-center items-center gap-3 z-50">
       <button
           className={`text-white ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
@@ -255,6 +267,7 @@ const ActivityPage = () => {
           Next &rarr;
         </button>
       </div>
+      )}
       </div>
   );
 };
