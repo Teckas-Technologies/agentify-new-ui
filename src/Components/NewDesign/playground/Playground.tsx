@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Zap, Layers, Code, MessageCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { AgentSelector } from "@/Components/NewDesign/playground/AgentSelector";
-// import { CommandInterface } from "@/Components/NewDesign/playground/CommandInterface";
+import { CommandInterface } from "@/Components/NewDesign/playground/CommandInterface";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
@@ -12,8 +12,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import Navbar from "../Dashboard/Navbar/Navbar";
-import dynamic from 'next/dynamic';
-import { Skeleton } from "@/Components/ui/skeleton";
+// import dynamic from 'next/dynamic';
+// import { Skeleton } from "@/Components/ui/skeleton";
 
 // const AgentSelector = dynamic(() => import('@/Components/NewDesign/playground/AgentSelector'), {
 //     ssr: false,
@@ -25,10 +25,10 @@ import { Skeleton } from "@/Components/ui/skeleton";
 //     </div>,
 // });
 
-const CommandInterface = dynamic(() => import('@/Components/NewDesign/playground/CommandInterface').then(mod => mod.CommandInterface), {
-    ssr: false,
-    loading: () => <p>Loading chat...</p>,
-});
+// const CommandInterface = dynamic(() => import('@/Components/NewDesign/playground/CommandInterface').then(mod => mod.CommandInterface), {
+//     ssr: false,
+//     loading: () => <p>Loading chat...</p>,
+// });
 
 const PlaygroundFeatures = [
     {
@@ -60,6 +60,8 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
     useEffect(() => {
         if (address && user) {
             setIsWalletConnected(true);
+        } else {
+            setIsWalletConnected(false);
         }
     }, [address, user])
 

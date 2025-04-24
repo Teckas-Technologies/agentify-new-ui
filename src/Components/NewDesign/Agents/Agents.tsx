@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/Components/ui/dialog";
 import useFetchAgents from "@/hooks/useFetchAgents";
+import { Skeleton } from "@/Components/ui/skeleton";
 
 export interface AgentCategory {
   id: string;
@@ -93,6 +94,14 @@ const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
                 looking for.
               </p>
             </div>
+          )}
+
+          {agentsData.length === 0 && loading && (
+            <>
+              <Skeleton className="w-full bg-white/10 h-[230px]"></Skeleton>
+              <Skeleton className="w-full bg-white/10 h-[230px]"></Skeleton>
+              <Skeleton className="w-full bg-white/10 h-[230px]"></Skeleton>
+            </>
           )}
         </div>
 
