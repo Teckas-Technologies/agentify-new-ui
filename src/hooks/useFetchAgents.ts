@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
 
-const useFetchAgents = () => {
-  const [agentsData, setAgentsData] = useState<any[]>([]);
+const useFetchAgents = (initialData: any[] = []) => {
+  const [agentsData, setAgentsData] = useState<any[]>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
