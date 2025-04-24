@@ -2,26 +2,35 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  Terminal,
-  LayoutDashboard,
-  Command,
-  Code,
-  Layers,
-  Menu,
-  X,
-} from "lucide-react";
+import { LayoutDashboard, Command, Code, Layers, Menu, X } from "lucide-react";
 
 import NavLink from "./NavLink";
 import { Button } from "@/Components/ui/button";
+import { useWalletConnect } from "@/hooks/useWalletConnect";
+import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 
 const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { handleWalletConnect, disconnectAll } = useWalletConnect();
+  const { user } = usePrivy();
+  const { address } = useAccount();
+
+  console.log("Address", address);
+  console.log("User", user);
+
+  const handleClick = () => {
+    if (!address && !user) {
+      handleWalletConnect();
+    } else {
+      disconnectAll();
+    }
+  };
 
   return (
     <header className="px-4 sm:px-6 py-4 border-b border-white/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="flex justify-between items-center w-full">
-        {/* Left aligned items - hamburger and logo */}
+        {/* Hamburger + Logo */}
         <div className="flex items-center gap-2 flex-1 md:flex-none">
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -34,17 +43,15 @@ const Navbar: React.FC = () => {
             )}
           </button>
 
-          <Link href="/" className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
-              <Terminal className="h-5 w-5 text-primary" />
-            </div>
+          <Link href="/" className="flex items-center gap-1">
+            <img src="images/logo.png" className="h-8 w-8" alt="logo" />
             <h1 className="text-xl font-bold bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">
               Agentify
             </h1>
           </Link>
         </div>
 
-        {/* Desktop Navigation - centered */}
+        {/* Center Nav */}
         <nav className="hidden md:flex items-center gap-6 mx-4">
           <NavLink to="/" icon={LayoutDashboard}>
             Dashboard
@@ -60,18 +67,19 @@ const Navbar: React.FC = () => {
           </NavLink>
         </nav>
 
-        {/* Right aligned button */}
+        {/* Connect/Disconnect Button */}
         <div className="flex justify-end flex-1 md:flex-none">
           <Button
             variant="outline"
             className="neumorphic-sm hover:bg-primary/5"
+            onClick={handleClick}
           >
-            Connect Wallet
+            {address && user ? "Disconnect Wallet" : "Connect Wallet"}
           </Button>
         </div>
       </div>
 
-      {/* Mobile Dropdown */}
+      {/* Mobile Nav */}
       {isMobileMenuOpen && (
         <div className="md:hidden mt-4 px-2 space-y-2">
           <NavLink to="/" icon={LayoutDashboard}>
