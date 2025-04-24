@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { StatusBadge } from "../../StatusBadge/StatusBadge";
+import { StatusBadge } from "../StatusBadge/StatusBadge";
 
 type ActivityStatus = "success" | "pending" | "failed";
 

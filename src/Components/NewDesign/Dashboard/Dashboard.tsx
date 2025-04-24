@@ -1,6 +1,6 @@
 "use client";
-import React from "react";
-
+import React, { useCallback, useEffect, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import {
   Activity,
   ArrowRight,
@@ -11,22 +11,32 @@ import {
   Terminal,
   Lightbulb,
   Bell,
+  MessageSquareOff,
+  Hourglass,
+  PieChart,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import Navbar from "./Navbar/Navbar";
 import { Button } from "@/Components/ui/button";
-import { StatCard } from "../StatCard/StatCard";
+import { StatCard } from "./StatCard/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "./Card/Card";
 import { Tabs } from "@radix-ui/react-tabs";
-import { TabsContent, TabsList, TabsTrigger } from "../Tabs/Tabs";
+import { TabsContent, TabsList, TabsTrigger } from "./Tabs/Tabs";
 import { ActivityItem } from "./ActivityItem/ActivityItem";
 import { ChainBadge } from "./ChainBadge/ChainBadge";
-import { SavedCommand } from "../SavedCommand/SavedCommand";
+import { SavedCommand } from "./SavedCommand/SavedCommand";
 import { BarChartComponent } from "./BarChart/BharChartComponent";
 import { AgentUsageChart } from "./AgentUsageChart/AgentUsageChart";
 import { TransactionLogs } from "./TransactionLogs/TransactionLogs";
+import { useAccount } from "wagmi";
+import useFetchDashboardHeader from "@/hooks/useFetchDashboardHeader";
+import useFetchChainActivity from "@/hooks/useFetchChainActivity";
+import { EmptyState } from "./EmptyState/EmptyState";
+import useFetchGasDetails from "@/hooks/useFetchGasDetails";
+import useFetchAgentChart from "@/hooks/useFetchAgentChart";
+import useFetchTransactions from "@/hooks/useFetchTransactions";
 
 export const agentUsageData = [
   { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
@@ -34,13 +44,13 @@ export const agentUsageData = [
   { name: "Lend/Borrow", value: 12, color: "hsl(142, 76.2%, 36.3%)" },
 ];
 
-export const chainActivityData = [
-  { name: "Arbitrum", count: 58 },
-  { name: "Polygon", count: 42 },
-  { name: "Optimism", count: 37 },
-  { name: "Ethereum", count: 26 },
-  { name: "Base", count: 15 },
-];
+// export const chainActivityData = [
+//   { name: "Arbitrum", count: 58 },
+//   { name: "Polygon", count: 42 },
+//   { name: "Optimism", count: 37 },
+//   { name: "Ethereum", count: 26 },
+//   { name: "Base", count: 15 },
+// ];
 
 export const gasUsageData = {
   totalGas: "0.138 ETH",
@@ -48,13 +58,13 @@ export const gasUsageData = {
 };
 
 export const gasHistoryData = [
-  { name: "Mon", value: 0.0004 },
-  { name: "Tue", value: 0.0007 },
-  { name: "Wed", value: 0.0009 },
-  { name: "Thu", value: 0.0005 },
-  { name: "Fri", value: 0.0006 },
-  { name: "Sat", value: 0.0008 },
-  { name: "Sun", value: 0.0004 },
+  { day: "Mon", value: 0 },
+  { day: "Tue", value: 0 },
+  { day: "Wed", value: 0 },
+  { day: "Thu", value: 0 },
+  { day: "Fri", value: 0 },
+  { day: "Sat", value: 0 },
+  { day: "Sun", value: 0 },
 ];
 
 const quickActions = [
@@ -94,9 +104,161 @@ const savedCommandsData = [
     command: "lend 500 USDC on Arbitrum Aave",
   },
 ];
-const Dashboard = () => {
-  const router = useRouter();
+interface DashboardPageProps {
+  stats?: any[];
+  chainActivity?: any[];
+  gasDetails?: any[];
+  agentUsage?: any[];
+}
 
+const Dashboard = ({
+  stats: initialStats = [],
+  chainActivity: initialChainActivity = [],
+  gasDetails: initialGasDetails = [],
+  agentUsage: initialAgentUsage = [],
+}: DashboardPageProps) => {
+  const router = useRouter();
+  const { address } = useAccount();
+  const { dashboardStats, loading, error, fetchDashboardStats } =
+    useFetchDashboardHeader();
+  useEffect(() => {
+    if (address) {
+      fetchDashboardStats("user123");
+    }
+  }, [address]);
+  const stats = {
+    commandsExecuted: dashboardStats?.totalTransaction ?? 0,
+    mostUsedAgent:
+      dashboardStats?.mostUsedAgent === "N/A"
+        ? "None"
+        : dashboardStats?.mostUsedAgent ?? "None",
+    tokensSwapped: dashboardStats?.transactionVolume
+      ? `$${dashboardStats.transactionVolume}`
+      : "$0",
+    chainsInteracted: dashboardStats?.chainsInteracted ?? 0,
+    transactionDifference: dashboardStats?.transactionDifference ?? 0,
+    volumeDifference: dashboardStats?.volumeDifference ?? 0,
+    chainsDifference: dashboardStats?.chainsDifference ?? 0,
+  };
+  const { chainActivity, fetchChainActivity } = useFetchChainActivity();
+
+  useEffect(() => {
+    if (address) {
+      fetchChainActivity(address);
+    }
+  }, [address]);
+  const { gasDetails, fetchGasDetails } = useFetchGasDetails();
+  const [localData, setLocalData] = useState({
+    totalGas: 0,
+    avgGas: 0,
+    history: [],
+  });
+
+  const loadGasData = useCallback(async () => {
+    if (!address) return;
+    const data = await fetchGasDetails("user123");
+    if (data) {
+      console.log("Gas Usage History:", data.data);
+      setLocalData({
+        totalGas: data.totalGas || 0,
+        avgGas: data.average || 0,
+        history: data.data || [],
+      });
+    }
+  }, [address]);
+
+  useEffect(() => {
+    loadGasData();
+  }, [address]);
+
+  const isEmpty =
+    !address || !gasDetails || !gasDetails.data || gasDetails.data.length === 0;
+
+  const { fetchAgentChart } = useFetchAgentChart();
+  const [agentUsageData, setAgentUsageData] = useState([]);
+
+  const loadAgentData = useCallback(async () => {
+    if (!address) return; // early return if no address
+    const data = await fetchAgentChart("user123");
+    if (data) {
+      console.log("Agent Usage Data:", data);
+      setAgentUsageData(data);
+    }
+  }, [address]); // make sure to include `address` in dependencies
+
+  useEffect(() => {
+    loadAgentData();
+  }, [address]);
+  // For Recent Activity — always fetch without agentId
+  const {
+    transactions: recentTransactions,
+    fetchTransactions: fetchRecentTransactions,
+    isLoading: recentLoading,
+  } = useFetchTransactions();
+
+  // For Transaction Logs — filtered by tab (swap, bridge, lend)
+  const {
+    transactions: tabbedTransactions,
+    fetchTransactions: fetchTabbedTransactions,
+    isLoading: tabbedLoading,
+  } = useFetchTransactions();
+
+  const [tab, setTab] = useState("all");
+  // Always load 4 recent transactions regardless of tab
+  const loadRecentTransactions = useCallback(() => {
+    if (address) {
+      fetchRecentTransactions({
+        userId: "user123",
+        limit: 4,
+      });
+    }
+  }, [address, fetchRecentTransactions]);
+
+  // 🔁 useCallback for fetching tab-specific transactions (with agentId)
+  const loadTabbedTransactions = useCallback(() => {
+    if (address) {
+      const agentMap: Record<string, string> = {
+        swap: "swapAgent",
+        bridge: "bridgeAgent",
+        lend: "lendAgent",
+      };
+
+      const params: { userId: string; agentId?: string; limit: number } = {
+        userId: "user123",
+        limit: 4,
+      };
+
+      if (tab !== "all") {
+        params.agentId = agentMap[tab];
+      }
+
+      fetchTabbedTransactions(params);
+    }
+  }, [address, tab, fetchTabbedTransactions]);
+
+  // 👇 useEffect to trigger memoized fetches
+  useEffect(() => {
+    loadRecentTransactions();
+  }, [address]);
+
+  useEffect(() => {
+    loadTabbedTransactions();
+  }, [address, tab]);
+
+  const normalizeStatus = (
+    status: string
+  ): "success" | "failed" | "pending" => {
+    switch (status.toLowerCase()) {
+      case "success":
+        return "success";
+      case "failed":
+        return "failed";
+      case "pending":
+        return "pending";
+      default:
+        return "pending"; // fallback for unknown statuses
+    }
+  };
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -119,31 +281,44 @@ const Dashboard = () => {
         </div>
 
         {/* Execution Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Commands Executed"
-            value="142"
-            icon={<Terminal className="h-5 w-5" />}
-            trend={{ value: 12, isPositive: true }}
-          />
-          <StatCard
-            title="Most Used Agent"
-            value="Swap Agent"
-            icon={<Repeat2 className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Tokens Swapped"
-            value="$24,589"
-            icon={<CircleDollarSign className="h-5 w-5" />}
-            trend={{ value: 8, isPositive: true }}
-          />
-          <StatCard
-            title="Chains Interacted"
-            value="5"
-            icon={<Globe className="h-5 w-5" />}
-            trend={{ value: 2, isPositive: true }}
-          />
-        </div>
+        {loading ? (
+          <p>Loading dashboard data...</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Transaction Executed"
+              value={stats.commandsExecuted.toString()}
+              icon={<Terminal className="h-5 w-5" />}
+              trend={{
+                value: stats.transactionDifference,
+                isPositive: stats.transactionDifference >= 0,
+              }}
+            />
+            <StatCard
+              title="Most Used Agent"
+              value={stats.mostUsedAgent}
+              icon={<Repeat2 className="h-5 w-5" />}
+            />
+            <StatCard
+              title="Transaction Volume"
+              value={stats.tokensSwapped}
+              icon={<CircleDollarSign className="h-5 w-5" />}
+              trend={{
+                value: stats.volumeDifference,
+                isPositive: stats.volumeDifference >= 0,
+              }}
+            />
+            <StatCard
+              title="Chains Interacted"
+              value={stats.chainsInteracted.toString()}
+              icon={<Globe className="h-5 w-5" />}
+              trend={{
+                value: stats.chainsDifference,
+                isPositive: stats.chainsDifference >= 0,
+              }}
+            />
+          </div>
+        )}
 
         {/* Main Dashboard Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -166,36 +341,30 @@ const Dashboard = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-0">
-                  <ActivityItem
-                    title="ETH to DAI Swap"
-                    description="Swapped 0.5 ETH for 1250 DAI on Uniswap"
-                    timestamp="10 minutes ago"
-                    status="success"
-                    icon={<Activity className="h-4 w-4" />}
+                {!address || recentTransactions.length === 0 ? (
+                  <EmptyState
+                    title="No Recent Activity"
+                    description="Your recent transactions and activities will appear here once you start using the platform."
+                    icon={
+                      <Activity className="h-12 w-12 text-muted-foreground/50" />
+                    }
                   />
-                  <ActivityItem
-                    title="USDC Bridge to Arbitrum"
-                    description="Bridged 500 USDC to Arbitrum"
-                    timestamp="25 minutes ago"
-                    status="success"
-                    icon={<Activity className="h-4 w-4" />}
-                  />
-                  <ActivityItem
-                    title="AAVE Deposit"
-                    description="Deposited 1.2 ETH to AAVE"
-                    timestamp="2 hours ago"
-                    status="success"
-                    icon={<Activity className="h-4 w-4" />}
-                  />
-                  <ActivityItem
-                    title="Failed Swap"
-                    description="ETH to MATIC swap reverted"
-                    timestamp="4 hours ago"
-                    status="failed"
-                    icon={<Activity className="h-4 w-4" />}
-                  />
-                </div>
+                ) : (
+                  <div className="space-y-0">
+                    {recentTransactions.map((tx) => (
+                      <ActivityItem
+                        key={tx._id}
+                        title={tx.transaction_type}
+                        description={tx.description}
+                        timestamp={`${formatDistanceToNow(new Date(tx.time), {
+                          addSuffix: true,
+                        })}`}
+                        status={normalizeStatus(tx.status)}
+                        icon={<Activity className="h-4 w-4" />}
+                      />
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -209,7 +378,17 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <AgentUsageChart data={agentUsageData} />
+                  {!address || agentUsageData.length === 0 ? (
+                    <EmptyState
+                      title="No Agent Usage"
+                      description="Agent usage statistics will appear here once you start using agents."
+                      icon={
+                        <PieChart className="h-12 w-12 text-muted-foreground/50" />
+                      }
+                    />
+                  ) : (
+                    <AgentUsageChart data={agentUsageData} />
+                  )}
                 </CardContent>
               </Card>
 
@@ -219,24 +398,40 @@ const Dashboard = () => {
                   <CardTitle className="text-lg font-bold">Gas Usage</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-between mb-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Gas</p>
-                      <p className="text-xl font-bold">
-                        {gasUsageData.totalGas}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Avg per Tx
-                      </p>
-                      <p className="text-xl font-bold">{gasUsageData.avgGas}</p>
-                    </div>
-                  </div>
-                  <BarChartComponent
-                    data={gasHistoryData}
-                    barColor="hsl(var(--primary))"
-                  />
+                  {isEmpty ? (
+                    <EmptyState
+                      title="No Chain Activity Yet"
+                      description="Once on-chain activity is detected for this address, it will be displayed here."
+                      icon={
+                        <Hourglass className="h-12 w-12 text-muted-foreground/50" />
+                      }
+                    />
+                  ) : (
+                    <>
+                      <div className="flex justify-between mb-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Total Gas
+                          </p>
+                          <p className="text-xl font-bold">
+                            {localData.totalGas}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Avg per Tx
+                          </p>
+                          <p className="text-xl font-bold">
+                            {localData.avgGas}
+                          </p>
+                        </div>
+                      </div>
+                      <BarChartComponent
+                        data={localData.history}
+                        barColor="hsl(var(--primary))"
+                      />
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -282,24 +477,34 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {chainActivityData.map((chain, index) => (
-                      <ChainBadge
-                        key={chain.name}
-                        name={chain.name}
-                        count={chain.count}
-                        color={
-                          index === 0
-                            ? "bg-primary/20"
-                            : index === 1
-                            ? "bg-accent/20"
-                            : index === 2
-                            ? "bg-success/20"
-                            : "bg-secondary"
-                        }
-                      />
-                    ))}
-                  </div>
+                  {chainActivity?.length === 0 || chainActivity === null ? (
+                    <EmptyState
+                      title="No Chain Activity Yet"
+                      description="Once on-chain activity is detected for this address, it will be displayed here."
+                      icon={
+                        <Hourglass className="h-12 w-12 text-muted-foreground/50" />
+                      }
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {chainActivity.map((chain, index) => (
+                        <ChainBadge
+                          key={chain.chainName}
+                          name={chain.chainName}
+                          count={chain.count}
+                          color={
+                            index === 0
+                              ? "bg-primary/20"
+                              : index === 1
+                              ? "bg-accent/20"
+                              : index === 2
+                              ? "bg-success/20"
+                              : "bg-secondary"
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -344,7 +549,7 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="all">
+                <Tabs defaultValue={tab} onValueChange={setTab}>
                   <TabsList className="neumorphic-inset p-1 mb-4">
                     <TabsTrigger value="all" className="text-xs">
                       All
@@ -359,9 +564,11 @@ const Dashboard = () => {
                       Lending
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="all" className="m-0">
+                  <TabsContent value={tab} className="m-0">
                     <div className="space-y-4">
-                      <TransactionLogs limit={3} />
+                      <TransactionLogs
+                        transactions={tabbedTransactions.slice(0, 3)}
+                      />
                       <Button
                         className="glow w-full"
                         onClick={() => router.push("/transactions")}
@@ -370,7 +577,6 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </TabsContent>
-                  {/* Other tab contents would be similar */}
                 </Tabs>
               </CardContent>
             </Card>

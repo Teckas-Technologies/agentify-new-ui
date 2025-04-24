@@ -1,17 +1,60 @@
-
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from "recharts";
 
 interface AgentUsageData {
-  name: string;
-  value: number;
-  color: string;
+  agentName: string;
+  percentage: number;
 }
 
 interface AgentUsageChartProps {
   data: AgentUsageData[];
 }
 
+const COLORS = [
+  "hsl(262, 83.3%, 57.8%)", // Swap
+  "hsl(12, 76.4%, 64.7%)", // Bridge
+  "hsl(142, 76.2%, 36.3%)", // Lend/Borrow
+];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const { agentName, percentage } = payload[0].payload;
+    return (
+      <div className="bg-white text-black text-sm px-3 py-1 rounded shadow border border-gray-200">
+        {`${agentName}: ${percentage}%`}
+      </div>
+    );
+  }
+  return null;
+};
+const renderLegend = (props: any) => {
+  const { payload } = props;
+  return (
+    <ul className="flex justify-center gap-4 mt-2">
+      {payload.map((entry: any, index: number) => (
+        <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span>{entry.payload.agentName}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
 export const AgentUsageChart = ({ data }: AgentUsageChartProps) => {
+   const formattedData = data.map((entry) => ({
+    ...entry,
+    name: entry.agentName, // used by Legend
+  }));
+
   return (
     <div className="h-[240px] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -24,26 +67,19 @@ export const AgentUsageChart = ({ data }: AgentUsageChartProps) => {
             outerRadius={80}
             innerRadius={50}
             fill="#8884d8"
-            dataKey="value"
+            dataKey="percentage"
             paddingAngle={3}
           >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+            {formattedData.map((entry, index) => ( // ✅ use formattedData here too
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS[index % COLORS.length]}
+              />
             ))}
           </Pie>
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'hsl(240 10% 3.9%)', 
-              borderColor: 'hsl(240 3.7% 15.9%)',
-              borderRadius: '0.5rem',
-              color: 'white'
-            }} 
-          />
-          <Legend 
-            verticalAlign="bottom" 
-            height={36} 
-            formatter={(value) => <span className="text-sm text-foreground">{value}</span>}
-          />
+          <Tooltip content={<CustomTooltip />} />
+
+          <Legend content={renderLegend} />
         </PieChart>
       </ResponsiveContainer>
     </div>
