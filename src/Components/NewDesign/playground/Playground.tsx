@@ -1,17 +1,34 @@
 
-import { useCallback, useEffect, useState } from "react";
+"use client"
+import { useEffect, useState } from "react";
 import { ArrowLeft, Zap, Layers, Code, MessageCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { AgentSelector } from "@/Components/NewDesign/playground/AgentSelector";
-import { CommandInterface } from "@/Components/NewDesign/playground/CommandInterface";
-
+// import { CommandInterface } from "@/Components/NewDesign/playground/CommandInterface";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { useRouter } from "next/navigation";
-import { useAccount, useDisconnect } from "wagmi";
+import { useAccount } from "wagmi";
 import { usePrivy } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import Navbar from "../Dashboard/Navbar/Navbar";
+import dynamic from 'next/dynamic';
+import { Skeleton } from "@/Components/ui/skeleton";
+
+// const AgentSelector = dynamic(() => import('@/Components/NewDesign/playground/AgentSelector'), {
+//     ssr: false,
+//     loading: () => <div className="w-full h-auto flex flex-col gap-2">
+//         <Skeleton className="w-full bg-white/10 h-[42px]"></Skeleton>
+//         <Skeleton className="w-full bg-white/10 h-[86px]"></Skeleton>
+//         <Skeleton className="w-full bg-white/10 h-[86px]"></Skeleton>
+//         <Skeleton className="w-full bg-white/10 h-[86px]"></Skeleton>
+//     </div>,
+// });
+
+const CommandInterface = dynamic(() => import('@/Components/NewDesign/playground/CommandInterface').then(mod => mod.CommandInterface), {
+    ssr: false,
+    loading: () => <p>Loading chat...</p>,
+});
 
 const PlaygroundFeatures = [
     {
@@ -31,13 +48,13 @@ const PlaygroundFeatures = [
     }
 ];
 
-const Playground = () => {
+const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
+    const [agents, setAgents] = useState<Agent[]>(initialAgentsData || []);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [isWalletConnected, setIsWalletConnected] = useState(false);
     const router = useRouter();
-    const { address, isConnected } = useAccount();
-    const { disconnect } = useDisconnect();
-    const { user, login, logout, connectWallet } = usePrivy();
+    const { address } = useAccount();
+    const { user } = usePrivy();
     const { handleWalletConnect, disconnectAll } = useWalletConnect();
 
     useEffect(() => {
@@ -46,16 +63,8 @@ const Playground = () => {
         }
     }, [address, user])
 
-    // const handleWalletConnect = useCallback(() => {
-    //     if (!user) {
-    //         login();
-    //     } else {
-    //         connectWallet();
-    //     }
-    // }, [user, login, connectWallet]);
-
     return (
-        <div className="min-h-screen bg-gradient-to-b from-background to-background/95 xl:px-6 xl:py-4">
+        <div className="min-h-screen bg-gradient-to-b from-background to-background/95 ">
             <Navbar />
 
             <main className="container relative mx-auto px-3 py-6 md:px-4 md:py-8">
@@ -83,6 +92,7 @@ const Playground = () => {
                             <AgentSelector
                                 selectedAgent={selectedAgent}
                                 onSelectAgent={setSelectedAgent}
+                                initialAgents={agents}
                             />
                         </div>
 

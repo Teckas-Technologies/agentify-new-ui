@@ -1,5 +1,5 @@
 
-import { Send, Wallet, MessageCircle, Zap, Delete, DeleteIcon, Trash, Trash2, Trash2Icon } from "lucide-react";
+import { Send, Wallet, MessageCircle, Zap, Trash2 } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { Badge } from "@/Components/ui/badge";
@@ -114,7 +114,7 @@ export const CommandInterface = ({
             selectedAgent?.agentId
         );
         const filteredMessages = history?.threads?.filter(
-            (msg: Message) => msg.message.trim() !== ""
+            (msg: Message) => msg.message.trim() !== "" && (msg.role === "ai" || msg.role === "human")
         );
 
         setMessages(filteredMessages);

@@ -20,7 +20,7 @@ const Navbar: React.FC = () => {
   console.log("User", user);
 
   const handleClick = () => {
-    if (!address && !user) {
+    if (!address || !user) {
       handleWalletConnect();
     } else {
       disconnectAll();
