@@ -220,5 +220,39 @@ export const useChat = (initialAgents: any[] = []) => {
         }
     };
 
-    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage, sendAgentCommand };
+    const getAgentCommands = async (
+        userId: string,
+        skip: number = 0,
+        limit: number = 10
+    ) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(
+                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&skip=${skip}&limit=${limit}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return { success: true, data: result };
+        } catch (err: any) {
+            setError(err.message || 'An error occurred');
+            return { success: false, message: err.message || 'An error occurred' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage, sendAgentCommand, getAgentCommands };
 };
