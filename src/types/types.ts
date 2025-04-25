@@ -1,3 +1,5 @@
+import { NavigationMenuViewportProps } from "@radix-ui/react-navigation-menu";
+
 export enum MarketType {
     EthereumCore = "EthereumCore",
     // EthereumPrime = "EthereumPrime",
@@ -52,4 +54,24 @@ export interface RequestFields {
     amountUSD: number;
     gasUSD: number;
     agent_name: string;
+}
+
+
+export interface RequestFieldsv2 {
+    user_id: string;
+    agent_id: string;
+    transaction_type: TransactionType;
+    description: string;
+    chain: string;
+    time: Date;
+    crypto: string;
+    amount: number;
+    transaction_hash: string;
+    explorer_url: string;
+    status: TransactionStatus;
+    rpcUrl:string;
+    symbol:string;
+    decimal:number;
+    agent_name: string;
+    token_symbol:string;
 }
