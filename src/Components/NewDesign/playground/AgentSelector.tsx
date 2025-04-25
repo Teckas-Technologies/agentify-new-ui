@@ -4,7 +4,6 @@ import { ArrowLeftRight, Layers, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import { useChat } from "@/hooks/useChatHook";
-import { useAccount } from "wagmi";
 import { Agent } from "@/types/types";
 import { Input } from "@/Components/ui/input";
 import { Skeleton } from "@/Components/ui/skeleton";
@@ -46,16 +45,22 @@ export const AgentSelector = ({
     initialAgents?: Agent[];
 }) => {
     const [search, setSearch] = useState("");
-    const [newAgents, setAgents] = useState<Agent[]>(initialAgents || []);
+    const [hasInitialAgentsLoaded, setHasInitialAgentsLoaded] = useState(false);
+    const [agents, setAgents] = useState<Agent[]>(initialAgents || []);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(false);
-    const { fetchAgents, agents } = useChat();
-    const { address, isConnected } = useAccount();
+    const { fetchAgents } = useChat();
     const [queryAgent, setQueryAgent] = useState<string>();
 
     useEffect(() => {
-        fetchAllAgents();
+        if (!hasInitialAgentsLoaded) {
+            setHasInitialAgentsLoaded(true);
+            return;
+        }
+        if (search.trim() !== "") {
+            fetchAllAgents();
+        }
     }, [search, queryAgent]);
 
     useEffect(() => {
