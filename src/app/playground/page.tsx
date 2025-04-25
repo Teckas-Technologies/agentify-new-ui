@@ -11,16 +11,24 @@ async function fetchInitialAgents() {
     search_query: "",
   });
 
-  const res = await fetch(`${PYTHON_SERVER_URL}/api/v1/agents/?${query.toString()}`, {
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(
+      `${PYTHON_SERVER_URL}/api/v1/agents/?${query.toString()}`,
+      { cache: "no-store" }
+    );
 
-  if (!res.ok) {
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Failed to fetch agents. Server response:", errorText);
+      return [];
+    }
+
+    const data = await res.json();
+    return data?.data || [];
+  } catch (error) {
+    console.error("Error while fetching agents:", error);
     return [];
   }
-
-  const data = await res.json();
-  return data?.data || [];
 }
 
 export default async function ChatPage() {

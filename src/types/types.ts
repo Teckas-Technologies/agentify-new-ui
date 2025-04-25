@@ -31,7 +31,7 @@ export type Agent = {
 };
 
 export type Message = {
-    role: "ai" | "human";
+    role: "ai" | "human" | "tool";
     message: string;
     txHash?: string;
 }
