@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   title: string;
-  value: string | number;
-  icon?: ReactNode;
+  icon: ReactNode;
+  value: ReactNode; // <-- changed from string | number to ReactNode
   trend?: {
-    value: number;
+    value: ReactNode; // <-- also allow JSX here for skeleton
     isPositive: boolean;
   };
   className?: string;
@@ -28,7 +28,7 @@ export const StatCard = ({ title, value, icon, trend, className }: StatCardProps
                 trend.isPositive ? "text-success" : "text-destructive"
               )}
             >
-              {trend.isPositive ? "↑" : "↓"} {trend.value}%
+               {trend.value}
             </p>
           )}
         </div>

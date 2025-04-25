@@ -1,16 +1,19 @@
+import { PYTHON_SERVER_URL } from "@/config/constants";
 import { useState } from "react";
-
-const GAS_DETAILS_API_URL = "https://agentify-lifi-g9f2ghedephpgkeg.canadacentral-01.azurewebsites.net/api/dashboard/gasDetails";
 
 const useFetchGasDetails = () => {
   const [gasDetails, setGasDetails] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false); // ✅ Added loading
 
   const fetchGasDetails = async (userId: string) => {
     try {
+      setLoading(true); // ✅ Start loading
       setError(null);
       const query = new URLSearchParams({ user_id: userId });
-      const response = await fetch(`${GAS_DETAILS_API_URL}?${query.toString()}`);
+      const response = await fetch(
+        `${PYTHON_SERVER_URL}/api/dashboard/gasDetails?${query.toString()}`
+      );
 
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);
@@ -24,12 +27,15 @@ const useFetchGasDetails = () => {
       console.error("Error fetching gas details:", err);
       setError(err.message || "Something went wrong");
       return null;
+    } finally {
+      setLoading(false); // ✅ Stop loading
     }
   };
 
   return {
     gasDetails,
     error,
+    loading, // ✅ Expose loading
     fetchGasDetails,
   };
 };

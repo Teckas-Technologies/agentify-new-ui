@@ -21,18 +21,27 @@ const COLORS = [
   "hsl(12, 76.4%, 64.7%)", // Bridge
   "hsl(142, 76.2%, 36.3%)", // Lend/Borrow
 ];
+const formatAgentLabel = (agentName: string) => {
+  const mapping: Record<string, string> = {
+    "Swap Agent": "Swap",
+    "BRIDGE Agent": "Bridge",
+    "lend Agent": "Lend",
+  };
+  return mapping[agentName] || agentName;
+};
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const { agentName, percentage } = payload[0].payload;
     return (
-      <div className="bg-white text-black text-sm px-3 py-1 rounded shadow border border-gray-200">
-        {`${agentName}: ${percentage}%`}
+      <div className="bg-black text-white text-sm px-3 py-1 rounded shadow border border-[#26262a]">
+        {`${formatAgentLabel(agentName)}: ${percentage}%`}
       </div>
     );
   }
   return null;
 };
+
 const renderLegend = (props: any) => {
   const { payload } = props;
   return (
@@ -43,12 +52,15 @@ const renderLegend = (props: any) => {
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: entry.color }}
           />
-          <span>{entry.payload.agentName}</span>
+          <span style={{ color: entry.color }}>
+            {formatAgentLabel(entry.payload.agentName)}
+          </span>
         </li>
       ))}
     </ul>
   );
 };
+
 export const AgentUsageChart = ({ data }: AgentUsageChartProps) => {
    const formattedData = data.map((entry) => ({
     ...entry,

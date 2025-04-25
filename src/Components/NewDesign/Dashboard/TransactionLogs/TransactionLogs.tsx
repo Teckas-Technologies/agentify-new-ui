@@ -56,12 +56,20 @@ const getTransactionIcon = (type: string) => {
       return <Clock className="h-4 w-4" />;
   }
 };
+const normalizeStatus = (status: string): "success" | "failed" | "pending" => {
+  switch (status.toLowerCase()) {
+    case "success":
+      return "success";
+    case "failed":
+      return "failed";
+    case "pending":
+      return "pending";
+    default:
+      return "pending"; // fallback
+  }
+};
 
 export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
-  const isValidStatus = (status: string): status is StatusType => {
-    return ["pending", "success", "failed"].includes(status);
-  };
-  
   return (
     <div className="space-y-4">
       {transactions.map((tx) => (
@@ -83,8 +91,10 @@ export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-sm font-medium">{tx.amount} {tx.crypto}</span>
-            <StatusBadge status={tx.status} />
+            <span className="text-sm font-medium">
+              {tx.amount} {tx.crypto}
+            </span>
+            <StatusBadge status={normalizeStatus(tx.status)} />
           </div>
         </div>
       ))}
