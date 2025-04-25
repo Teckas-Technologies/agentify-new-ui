@@ -146,8 +146,11 @@ const ActivityPage = () => {
 
   const handleFilterChange = (value: string) => {
     setFilterType(value);
-    fetchTransactionData((currentPage - 1) * limit, limit);
   };
+
+  useEffect(() => {
+    fetchTransactionData((currentPage - 1) * limit, limit);
+  }, [filterType]);
   
 
   return (
