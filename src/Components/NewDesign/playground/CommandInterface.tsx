@@ -385,7 +385,7 @@ export const CommandInterface = ({
                         console.log("Withdraw RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            
+
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
 
                             const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
@@ -472,7 +472,7 @@ export const CommandInterface = ({
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 await createTrans(response.txHash, address, address, agentId, agentId, "Successful", fromAmount, `${explorer}tx/${response?.txHash}`);
-                                
+
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
                                 // await updateMessage(
                                 //     address,
@@ -519,6 +519,13 @@ export const CommandInterface = ({
                     }
 
                     if (toolMessage?.error) {
+                        if (toolMessage?.error?.includes("No routes found")) {
+                            setMessages((prev) => [
+                                ...prev,
+                                { role: "ai", message: `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊` },
+                            ]);
+                            return;
+                        }
                         setMessages((prev) => [
                             ...prev,
                             { role: "ai", message: `${toolMessage?.error}` },
