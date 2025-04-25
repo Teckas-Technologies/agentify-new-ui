@@ -30,6 +30,8 @@ import { useTransactions } from "@/hooks/useTransactionsHook";
 import { useAccount } from "wagmi";
 import { LoadingSkeleton } from "@/Components/shared/LoadingSkeleton";
 import { EmptyState } from "@/Components/shared/EmptyState";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { isNull } from "util";
 
 const getTransactionIcon = (type: string) => {
   switch (type) {
@@ -72,6 +74,16 @@ export interface Transaction {
 
 type StatusType = "success" | "pending" | "failed";
 
+const filterOptions = [
+  { value: "", label: "All Activities" },
+  { value: "SWAP", label: "Swaps" },
+  { value: "BRIDGE", label: "Bridges" },
+  { value: "LEND", label: "Lending" },
+  { value: "REPAY", label: "Repay" },
+  { value: "BORROW", label: "Borrowing" },
+  { value: "WITHDRAW", label: "Withdrawals" }
+];
+
 const ActivityPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const {error,loading,fetchTransactions} = useTransactions();
@@ -79,6 +91,7 @@ const ActivityPage = () => {
   const [skip, setSkip] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [filterType, setFilterType] = useState("");
   const limit = 8;
   const {address} = useAccount();
   const fetchTransactionData = async(skip:any,limit:any)=>{
@@ -131,6 +144,12 @@ const ActivityPage = () => {
     }
   };
 
+  const handleFilterChange = (value: string) => {
+    setFilterType(value);
+    fetchTransactionData((currentPage - 1) * limit, limit);
+  };
+  
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -158,12 +177,32 @@ const ActivityPage = () => {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 bg-background/50 border-white/10">
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline-block">
+                      {filterOptions.find(f => f.value === filterType)?.label || "All Activities"}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-background/95 backdrop-blur-xl border-white/10">
+                  {filterOptions.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => handleFilterChange(option.value)}
+                      className={`cursor-pointer ${
+                        filterType === option.value ? "bg-primary/10 text-white" : ""
+                      }`}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-
+         
           {/* Transactions Table */}
           <Card className="neumorphic border-none mb-16">
             <CardContent>
