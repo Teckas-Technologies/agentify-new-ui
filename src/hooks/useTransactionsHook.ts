@@ -92,6 +92,7 @@ export const useTransactions = () => {
                         symbol:data.symbol,
                         decimal:data.decimal,
                         agent_name: data.agent_name,
+                        token_symbol:data.token_symbol
                     })
                 });
     

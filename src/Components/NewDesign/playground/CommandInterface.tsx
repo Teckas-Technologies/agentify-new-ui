@@ -147,6 +147,7 @@ export const CommandInterface = ({
         rpcUrl:string,
         symbol:string,
         decimal:number,
+        token_symbol:string,
         agent_name: string) => {
               const payload: RequestFieldsv2 = {
                   user_id,
@@ -163,7 +164,8 @@ export const CommandInterface = ({
                   rpcUrl,
                   symbol,
                   decimal,
-                  agent_name
+                  agent_name,
+                  token_symbol
               };
               const data =  await createTransactionsv2(payload);
               console.log("created transaction",data);
@@ -306,7 +308,7 @@ export const CommandInterface = ({
                             }
                             
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","LEND","lending",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,"Lending Borrowing agent");
+                            await createTransv2(address,"lendingBorrowingAgent","LEND","lending",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lending Borrowing agent");
                             setExecutingAave(false);
                             return;
                         } else {
@@ -366,7 +368,7 @@ export const CommandInterface = ({
                             }
                             
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","BORROW","borrowing",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,"Lending Borrowing agent");
+                            await createTransv2(address,"lendingBorrowingAgent","BORROW","borrowing",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lending Borrowing agent");
                             setExecutingAave(false);
                             return;
                         } else {
@@ -426,7 +428,7 @@ export const CommandInterface = ({
                             }
                             
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","WITHDRAW","withdrawing",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,"Lending Borrowing agent");
+                            await createTransv2(address,"lendingBorrowingAgent","WITHDRAW","withdrawing",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lending Borrowing agent");
                             setExecutingAave(false);
                             return;
                         } else {

@@ -73,4 +73,5 @@ export interface RequestFieldsv2 {
     symbol:string;
     decimal:number;
     agent_name: string;
+    token_symbol:string;
 }
