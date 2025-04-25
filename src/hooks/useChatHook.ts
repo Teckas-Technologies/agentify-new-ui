@@ -183,5 +183,5 @@ export const useChat = (initialAgents: any[] = []) => {
         }
     };
 
-    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents };
+    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage };
 };

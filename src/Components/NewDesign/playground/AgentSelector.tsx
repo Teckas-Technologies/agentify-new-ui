@@ -1,6 +1,6 @@
 
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/Components/ui/command";
-import { ArrowLeftRight, Layers, Zap } from "lucide-react";
+import { ArrowLeftRight, Layers, Search, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 import { useChat } from "@/hooks/useChatHook";
@@ -124,8 +124,11 @@ export const AgentSelector = ({
             />
             <CommandList>
                 {/* <CommandEmpty>No agents found.</CommandEmpty> */}
-                {agents?.length === 0 && !loading && <div className="py-2 pt-6">
-                    <h2 className="text-center text-white">No agents found.</h2>
+                {agents?.length === 0 && !loading && <div className="flex flex-col items-center py-2 pt-4 ">
+                    <div className="bg-muted/20 p-4 rounded-full mb-4">
+                        <Search className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h2 className="text-center font-semibold text-white text-lg">No agents found.</h2>
                 </div>}
                 {/* {agents?.length === 0 && loading && <div className="w-full flex items-center justify-center gap-3 py-2 pt-6">
                     <div role="status">

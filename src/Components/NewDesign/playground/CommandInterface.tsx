@@ -27,13 +27,15 @@ interface CommandInterfaceProps {
     isWalletConnected?: boolean;
     onConnect?: () => void;
     onSelectAgent: (id: Agent) => void;
+    initialAgents?: Agent[];
 }
 
 export const CommandInterface = ({
     selectedAgent,
     isWalletConnected = false,
     onConnect = () => { },
-    onSelectAgent
+    onSelectAgent,
+    initialAgents
 }: CommandInterfaceProps) => {
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +47,7 @@ export const CommandInterface = ({
     const modalRef = useRef<HTMLDivElement | null>(null);
     const { address } = useAccount();
     const { user } = usePrivy();
-    const { chat, fetchChatHistory, clearHistory } = useChat();
+    const { chat, fetchChatHistory, clearHistory, updateMessage } = useChat();
     const { executeLifi, validateTokenBalance } = useLifiHook();
     const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } = useAaveHook();
     const { createTransactions } = useTransactions();
@@ -53,7 +55,7 @@ export const CommandInterface = ({
     const wallet = wallets[0];
 
     useEffect(() => {
-        if (messages.length > 3) {
+        if (messages && messages.length > 3) {
             // Scroll to bottom when messages update
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }
@@ -107,15 +109,56 @@ export const CommandInterface = ({
         const data = await createTransactions(payload);
     }
 
+    // const fetchHistory = useCallback(async () => {
+    //     if (!address || !selectedAgent?.agentId) return;
+    //     const history = await fetchChatHistory(
+    //         address,
+    //         selectedAgent?.agentId
+    //     );
+    //     const filteredMessages = history?.threads?.filter(
+    //         (msg: Message) => msg.message.trim() !== "" && (msg.role === "ai" || msg.role === "human")
+    //     );
+
+    //     setMessages(filteredMessages);
+    //     console.log(filteredMessages);
+    // }, [address, selectedAgent, user]);
+
     const fetchHistory = useCallback(async () => {
         if (!address || !selectedAgent?.agentId) return;
-        const history = await fetchChatHistory(
-            address,
-            selectedAgent?.agentId
-        );
-        const filteredMessages = history?.threads?.filter(
-            (msg: Message) => msg.message.trim() !== "" && (msg.role === "ai" || msg.role === "human")
-        );
+
+        const history = await fetchChatHistory(address, selectedAgent?.agentId);
+
+        const filteredMessages = history?.threads
+            ?.filter((msg: Message) => {
+                if (msg.message.trim() === "") return false;
+
+                if (msg.role === "ai" || msg.role === "human") {
+                    return true;
+                }
+
+                if (msg.role === "tool") {
+                    try {
+                        const toolMessage = JSON.parse(msg.message);
+                        return toolMessage?.type === "tool" && !!toolMessage?.message;
+                    } catch (err) {
+                        console.error("Error parsing tool message:", err);
+                        return false;
+                    }
+                }
+
+                return false;
+            })
+            .map((msg: Message) => {
+                if (msg.role === "tool") {
+                    const toolMessage = JSON.parse(msg.message);
+                    return {
+                        role: "ai",
+                        message: toolMessage.message,
+                    };
+                }
+
+                return msg;
+            });
 
         setMessages(filteredMessages);
         console.log(filteredMessages);
@@ -127,15 +170,15 @@ export const CommandInterface = ({
         setMessages([]);
     }
 
-    const updateLastAiMessage = useCallback((newMessage: string) => {
+    const updateLastAiMessage = useCallback((newMessage: Message) => {
         setMessages((prev) => {
             const updatedMessages = [...prev];
             const lastIndex = updatedMessages.length - 1;
 
             if (updatedMessages[lastIndex]?.role === "ai") {
-                updatedMessages[lastIndex] = { role: "ai", message: newMessage };
+                updatedMessages[lastIndex] = newMessage;
             } else {
-                updatedMessages.push({ role: "ai", message: newMessage });
+                updatedMessages.push(newMessage);
             }
 
             return updatedMessages;
@@ -206,26 +249,60 @@ export const CommandInterface = ({
                         console.log("Lend RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Lending ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Lending ${amount} ${tokenSymbol} executed successfully!`,
+                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
+                            //     },
+                            // ]);
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "lending", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+
+                            const statusMessage = `Your lending of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "success",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Lending ${tokenSymbol} execution was failed!`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Lending ${tokenSymbol} execution was failed!`,
+                            //     },
+                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+
+                            const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "failed",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -255,26 +332,60 @@ export const CommandInterface = ({
                         console.log("Borrow RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Borrow ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Borrow ${amount} ${tokenSymbol} executed successfully! 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`,
+                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
+                            //     },
+                            // ]);
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "borrow", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+
+                            const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "success",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Borrow ${tokenSymbol} execution was failed!`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Borrow ${tokenSymbol} execution was failed!`,
+                            //     },
+                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+
+                            const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "failed",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -304,26 +415,61 @@ export const CommandInterface = ({
                         console.log("Withdraw RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`,
+                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
+                            //     },
+                            // ]);
+                            
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+
+                            const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "success",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Withdraw ${tokenSymbol} execution was failed!`,
-                                },
-                            ]);
+                            // setMessages((prev) => [
+                            //     ...prev,
+                            //     {
+                            //         role: "ai",
+                            //         message: `Withdraw ${tokenSymbol} execution was failed!`,
+                            //     },
+                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+
+                            const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
+                            await updateMessage(
+                                address,
+                                selectedAgent.agentId,
+                                JSON.stringify({
+                                    type: "tool",
+                                    status: "failed",
+                                    message: statusMessage,
+                                })
+                            );
+
+                            const newMessage = {
+                                role: "ai" as "ai" | "human" | "tool",
+                                message: statusMessage
+                            }
+                            updateLastAiMessage(newMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -367,38 +513,71 @@ export const CommandInterface = ({
                             const response: any = await executeLifi({ quote });
                             console.log("Res:", response);
                             if (response?.txHash) {
+                                // setMessages((prev) => [
+                                //     ...prev,
+                                //     {
+                                //         role: "ai",
+                                //         message: `${fromChainId.toString() === toChainId.toString()
+                                //             ? "Swap"
+                                //             : "Bridge"
+                                //             } executed successfully!`,
+                                //         txHash: `${explorer}tx/${response?.txHash}`,
+                                //     },
+                                // ]);
                                 const agentId = fromChainId.toString() === toChainId.toString()
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 await createTrans(response.txHash, address, address, agentId, agentId, "Successful", fromAmount, `${explorer}tx/${response?.txHash}`);
-                                setMessages((prev) => [
-                                    ...prev,
-                                    {
-                                        role: "ai",
-                                        message: `${fromChainId.toString() === toChainId.toString()
-                                            ? "Swap"
-                                            : "Bridge"
-                                            } executed successfully!`,
-                                        txHash: `${explorer}tx/${response?.txHash}`,
-                                    },
-                                ]);
+                                
+                                const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
+                                await updateMessage(
+                                    address,
+                                    selectedAgent.agentId,
+                                    JSON.stringify({
+                                        type: "tool",
+                                        status: "success",
+                                        message: statusMessage,
+                                    })
+                                );
+
+                                const newMessage = {
+                                    role: "ai" as "ai" | "human" | "tool",
+                                    message: statusMessage
+                                }
+                                updateLastAiMessage(newMessage)
                                 setExecutingLifi(false);
                                 return;
                             } else {
+                                // setMessages((prev) => [
+                                //     ...prev,
+                                //     {
+                                //         role: "ai",
+                                //         message: `${fromChainId.toString() === toChainId.toString()
+                                //             ? "Swap"
+                                //             : "Bridge"
+                                //             } execution was failed!`,
+                                //     },
+                                // ]);
                                 const agentId = fromChainId.toString() === toChainId.toString()
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
-                                setMessages((prev) => [
-                                    ...prev,
-                                    {
-                                        role: "ai",
-                                        message: `${fromChainId.toString() === toChainId.toString()
-                                            ? "Swap"
-                                            : "Bridge"
-                                            } execution was failed!`,
-                                    },
-                                ]);
+
+                                const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
+                                await updateMessage(
+                                    address,
+                                    selectedAgent.agentId,
+                                    JSON.stringify({
+                                        type: "tool",
+                                        status: "failed",
+                                        message: statusMessage,
+                                    })
+                                );
+                                const newMessage = {
+                                    role: "ai" as "ai" | "human" | "tool",
+                                    message: statusMessage
+                                }
+                                updateLastAiMessage(newMessage)
                                 setExecutingLifi(false);
                                 return;
                             }
@@ -523,6 +702,28 @@ export const CommandInterface = ({
                                                                             className: "border border-gray-300 p-2",
                                                                         },
                                                                     },
+                                                                    a: {
+                                                                        props: {
+                                                                            className: "text-blue-600 underline underline-offset-2",
+                                                                            target: "_blank",
+                                                                            rel: "noopener noreferrer",
+                                                                        },
+                                                                    },
+                                                                    ul: {
+                                                                        props: {
+                                                                            className: "list-disc pl-6",
+                                                                        },
+                                                                    },
+                                                                    ol: {
+                                                                        props: {
+                                                                            className: "list-decimal pl-6",
+                                                                        },
+                                                                    },
+                                                                    li: {
+                                                                        props: {
+                                                                            className: "mb-1",
+                                                                        },
+                                                                    },
                                                                 },
                                                             }}
                                                         >
@@ -530,7 +731,7 @@ export const CommandInterface = ({
                                                         </MarkdownToJSX>
                                                     </div>
 
-                                                    {msg?.txHash && msg.role === "ai" && (
+                                                    {/* {msg?.txHash && msg.role === "ai" && (
                                                         <>
                                                             <a
                                                                 href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx") ? "" : "tx/"}${msg?.txHash}`}`}
@@ -547,7 +748,7 @@ export const CommandInterface = ({
                                                                 />
                                                             </a>
                                                         </>
-                                                    )}
+                                                    )} */}
 
                                                 </div>
                                                 {isLoading && index === messages.length - 1 && (
@@ -635,6 +836,7 @@ export const CommandInterface = ({
                         selectedAgent={selectedAgent}
                         onSelectAgent={onSelectAgent}
                         setModelOpen={setModelOpen}
+                        initialAgents={initialAgents}
                     />
                 </div>
             </div>}

@@ -12,6 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import Navbar from "../Dashboard/Navbar/Navbar";
+import { useIdentityToken } from '@privy-io/react-auth';
 // import dynamic from 'next/dynamic';
 // import { Skeleton } from "@/Components/ui/skeleton";
 
@@ -54,8 +55,9 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
     const [isWalletConnected, setIsWalletConnected] = useState(false);
     const router = useRouter();
     const { address } = useAccount();
-    const { user } = usePrivy();
+    const { user, getAccessToken } = usePrivy();
     const { handleWalletConnect, disconnectAll } = useWalletConnect();
+    const { identityToken } = useIdentityToken();
 
     useEffect(() => {
         if (address && user) {
@@ -63,7 +65,15 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
         } else {
             setIsWalletConnected(false);
         }
+        getToken();
     }, [address, user])
+
+    console.log("ID Token:", identityToken)
+
+    const getToken = async () => {
+        const accessToken = await getAccessToken();
+        console.log("Access Token:", accessToken);
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-background/95 ">
@@ -127,6 +137,7 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
                             isWalletConnected={isWalletConnected}
                             onConnect={handleWalletConnect}
                             onSelectAgent={setSelectedAgent}
+                            initialAgents={agents}
                         />
                     </div>
                 </div>
