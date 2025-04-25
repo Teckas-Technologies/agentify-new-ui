@@ -95,7 +95,7 @@ const ActivityPage = () => {
   const limit = 8;
   const {address} = useAccount();
   const fetchTransactionData = async(skip:any,limit:any)=>{
-    const response = await fetchTransactions(address,searchQuery,skip,limit);
+    const response = await fetchTransactions(address,searchQuery,skip,limit,filterType);
     console.log("API Response:", response);
     setTransactionData(response.data.data);
     setCurrentPage(response.data.currentPage); 
