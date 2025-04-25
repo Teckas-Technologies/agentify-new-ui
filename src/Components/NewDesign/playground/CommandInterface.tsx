@@ -7,7 +7,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/Components/ui/card"
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { agentExampleCommands } from "@/utils/agentCommands";
-import { Agent, MarketType, Message, RequestFields } from "@/types/types";
+import { Agent, MarketType, Message, RequestFields,TransactionType,TransactionStatus } from "@/types/types";
 import { useAccount } from "wagmi";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useChat } from "@/hooks/useChatHook";
@@ -19,6 +19,8 @@ import { useTransactions } from "@/hooks/useTransactionsHook";
 import { v4 as uuidv4 } from 'uuid';
 import { switchNetwork } from "@/utils/switchNetwork";
 import AgentSelector from "./AgentSelector";
+import { formatUnits } from "ethers/lib/utils";
+import { ethers } from "ethers";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -93,18 +95,39 @@ export const CommandInterface = ({
         setInputValue(command);
     }, []);
 
-    const createTrans = async (transaction_id: string, user_id: string, wallet_address: string, agent_id: string, transaction_type: string, status: string, transaction_volume: string, explorer_link: string) => {
+    const createTrans = async (
+  user_id: string,
+  agent_id: string,
+  transaction_type: TransactionType,
+  description: string,
+  chain: string,
+  time: Date,
+  crypto: string,
+  amount: number,
+  transaction_hash: string,
+  explorer_url: string,
+  status: TransactionStatus,
+  amountUSD: number,
+  gasUSD: number,
+  agent_name: string) => {
         const payload: RequestFields = {
-            transaction_id,
             user_id,
-            wallet_address,
             agent_id,
             transaction_type,
+            description,
+            chain,
+            time,
+            crypto,
+            amount,
+            transaction_hash,
+            explorer_url,
             status,
-            transaction_volume,
-            explorer_link
+            amountUSD,
+            gasUSD,
+            agent_name
         };
-        const data = await createTransactions(payload);
+        const data =  await createTransactions(payload);
+        console.log("created transaction",data);
     }
 
     const fetchHistory = useCallback(async () => {
@@ -142,6 +165,42 @@ export const CommandInterface = ({
         });
     }, []);
 
+    
+   useEffect(()=>{
+    getGasFeeInETH("0x768fbd3f8a91216e50070eb364d0d8d0018a58cab7e69c6965f82a2e53670bdb");
+   },[])
+
+    const provider = new ethers.providers.JsonRpcProvider("https://mainnet.infura.io/v3/7bb6501ed7b74d1e91fdd69ddfe59ce8");
+
+    const getPrice = async (tokenSymbol:any) => {
+        const res = await fetch(`https://min-api.cryptocompare.com/data/price?tsyms=USD&fsym=${tokenSymbol}`);
+        const data = await res.json();
+        return data.USD;
+      };
+
+    const getGasFeeInETH = async (txHash: string) => {
+        const tx = await provider.getTransaction(txHash);
+        console.log(tx);
+        if(tx.gasPrice){
+        console.log(`Gas Price Used: ${ethers.utils.formatUnits(tx.gasPrice, 'gwei')} Gwei`);
+        }
+        const receipt = await provider.getTransactionReceipt(txHash);
+        const gasUsed = receipt.gasUsed;
+        const gasPrice = tx.gasPrice;
+        if(gasPrice){
+        const fee = gasUsed.mul(gasPrice);
+        const feeInEth = ethers.utils.formatEther(fee);
+        const usdPrice = await getPrice("ETH");
+        const feeInUSD = parseFloat(feeInEth) * usdPrice;
+
+        console.log("Gas Used:", gasUsed.toString());
+        console.log("Gas Price (wei):", gasPrice.toString());
+        console.log("Transaction Fee (wei):", fee.toString());
+        console.log("Transaction Fee (ETH):", ethers.utils.formatEther(fee));
+        console.log("in usd",feeInUSD);
+      };
+    }
+      
     const handleChat = async () => {
         console.log("Ip:", inputValue)
         if (!inputValue.trim()) {
@@ -214,7 +273,7 @@ export const CommandInterface = ({
                                     txHash: `${explorer}tx/${res?.txHashes[0]}`,
                                 },
                             ]);
-                            await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "lending", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+                            await createTrans(address,"lendingBorrowingAgent","LEND","lending",market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",12,23,"Lending Borrowing agent");
                             setExecutingAave(false);
                             return;
                         } else {
@@ -225,7 +284,7 @@ export const CommandInterface = ({
                                     message: `Lending ${tokenSymbol} execution was failed!`,
                                 },
                             ]);
-                            await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+                            // await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
                             setExecutingAave(false);
                             return;
                         }
@@ -263,7 +322,7 @@ export const CommandInterface = ({
                                     txHash: `${explorer}tx/${res?.txHashes[0]}`,
                                 },
                             ]);
-                            await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "borrow", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+                            // await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "borrow", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
                             setExecutingAave(false);
                             return;
                         } else {
@@ -274,7 +333,7 @@ export const CommandInterface = ({
                                     message: `Borrow ${tokenSymbol} execution was failed!`,
                                 },
                             ]);
-                            await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+                            // await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
                             setExecutingAave(false);
                             return;
                         }
@@ -312,7 +371,7 @@ export const CommandInterface = ({
                                     txHash: `${explorer}tx/${res?.txHashes[0]}`,
                                 },
                             ]);
-                            await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
+                            // await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
                             setExecutingAave(false);
                             return;
                         } else {
@@ -323,7 +382,7 @@ export const CommandInterface = ({
                                     message: `Withdraw ${tokenSymbol} execution was failed!`,
                                 },
                             ]);
-                            await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
+                            // await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
                             setExecutingAave(false);
                             return;
                         }
@@ -332,7 +391,7 @@ export const CommandInterface = ({
                         console.log("Quote:", quote);
 
                         if (quote) {
-                            const { fromChainId, fromToken, toChainId, toToken, fromAmount } = quote;
+                            const { fromChainId,fromAmountUSD, fromToken, toChainId, toToken, fromAmount,gasCostUSD } = quote;
                             if (wallet && fromChainId && parseInt(wallet.chainId.split(":")[1]) !== fromChainId) {
                                 await switchNetwork(fromChainId);
                             }
@@ -370,7 +429,16 @@ export const CommandInterface = ({
                                 const agentId = fromChainId.toString() === toChainId.toString()
                                     ? "swapAgent"
                                     : "bridgeAgent";
-                                await createTrans(response.txHash, address, address, agentId, agentId, "Successful", fromAmount, `${explorer}tx/${response?.txHash}`);
+                                const transaction_type = fromChainId.toString() === toChainId.toString()
+                                ? 'SWAP'
+                                : 'BRIDGE';
+                                const description = fromChainId.toString() === toChainId.toString()
+                                ? "swaping"
+                                : "bridging"
+
+                                const formatedAmount = formatUnits(fromAmount,fromToken.decimals);
+
+                                await createTrans(address,agentId,transaction_type,description,fromToken.name,new Date(),fromToken.symbol,Number(formatedAmount),response?.txHash,`${explorer}tx/${response.txHash}`,"SUCCESS",fromAmountUSD,gasCostUSD,"Swapping and Borrowing agent");
                                 setMessages((prev) => [
                                     ...prev,
                                     {
@@ -386,9 +454,18 @@ export const CommandInterface = ({
                                 return;
                             } else {
                                 const agentId = fromChainId.toString() === toChainId.toString()
-                                    ? "swapAgent"
-                                    : "bridgeAgent";
-                                await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
+                                ? "swapAgent"
+                                : "bridgeAgent";
+                                const transaction_type = fromChainId.toString() === toChainId.toString()
+                                ? 'SWAP'
+                                : 'BRIDGE';
+                                const description = fromChainId.toString() === toChainId.toString()
+                                ? "swaping"
+                                : "bridging"; 
+
+                                await createTrans(address,agentId,transaction_type,description,fromToken.name,new Date(),fromToken.symbol,fromAmount,response?.txHash,`${explorer}tx/${response?.txHash}`,"FAILED",fromAmountUSD,gasCostUSD,"Swapping and Borrowing agent");
+
+                                // await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
                                 setMessages((prev) => [
                                     ...prev,
                                     {

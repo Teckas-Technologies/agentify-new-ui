@@ -1,17 +1,6 @@
 import { PYTHON_SERVER_URL } from '@/config/constants';
 import { useState } from 'react';
-
-export interface RequestFields {
-     transaction_id: string;
-     user_id: string;
-     wallet_address:string;
-     agent_id: string;
-     transaction_type: string;
-     status: string;
-     transaction_volume:string;
-     explorer_link:string;
-
-}
+import {RequestFields } from "@/types/types";
 
 export const useTransactions = () => {
     const [loading, setLoading] = useState<boolean>(false);
@@ -47,13 +36,20 @@ export const useTransactions = () => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    transaction_id: data.transaction_id,
                     user_id: data.user_id,
-                    wallet_address:data.wallet_address,
                     agent_id: data.agent_id,
                     transaction_type: data.transaction_type,
+                    description: data.description,
+                    chain: data.chain,
+                    time: data.time,
+                    crypto: data.crypto,
+                    amount: data.amount,
+                    transaction_hash: data.transaction_hash,
+                    explorer_url: data.explorer_url,
                     status: data.status,
-                    transaction_volume: data.transaction_volume
+                    amountUSD: data.amountUSD,
+                    gasUSD: data.gasUSD,
+                    agent_name: data.agent_name,
                 })
             });
 
