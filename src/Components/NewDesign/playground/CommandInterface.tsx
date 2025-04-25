@@ -249,26 +249,18 @@ export const CommandInterface = ({
                         console.log("Lend RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Lending ${amount} ${tokenSymbol} executed successfully!`,
-                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                            //     },
-                            // ]);
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "lending", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
 
                             const statusMessage = `Your lending of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "success",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "success",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -278,25 +270,18 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Lending ${tokenSymbol} execution was failed!`,
-                            //     },
-                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "failed",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "failed",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -332,26 +317,18 @@ export const CommandInterface = ({
                         console.log("Borrow RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Borrow ${amount} ${tokenSymbol} executed successfully! 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`,
-                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                            //     },
-                            // ]);
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "borrow", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
 
                             const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "success",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "success",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -361,25 +338,18 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Borrow ${tokenSymbol} execution was failed!`,
-                            //     },
-                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
 
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "failed",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "failed",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -415,27 +385,19 @@ export const CommandInterface = ({
                         console.log("Withdraw RES:", res);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`,
-                            //         txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                            //     },
-                            // ]);
                             
                             await createTrans(res.txHashes[0], address, address, "lendingBorrowingAgent", "withdraw", "Successful", amount, `${explorer}tx/${res?.txHashes[0]}`);
 
                             const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "success",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "success",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -445,25 +407,18 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            // setMessages((prev) => [
-                            //     ...prev,
-                            //     {
-                            //         role: "ai",
-                            //         message: `Withdraw ${tokenSymbol} execution was failed!`,
-                            //     },
-                            // ]);
                             await createTrans(`failed_${uuidv4()}`, address, address, "swapAgent", "lending", "Failed", amount, `${explorer}tx/failed`);
 
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
-                            await updateMessage(
-                                address,
-                                selectedAgent.agentId,
-                                JSON.stringify({
-                                    type: "tool",
-                                    status: "failed",
-                                    message: statusMessage,
-                                })
-                            );
+                            // await updateMessage(
+                            //     address,
+                            //     selectedAgent.agentId,
+                            //     JSON.stringify({
+                            //         type: "tool",
+                            //         status: "failed",
+                            //         message: statusMessage,
+                            //     })
+                            // );
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -513,32 +468,21 @@ export const CommandInterface = ({
                             const response: any = await executeLifi({ quote });
                             console.log("Res:", response);
                             if (response?.txHash) {
-                                // setMessages((prev) => [
-                                //     ...prev,
-                                //     {
-                                //         role: "ai",
-                                //         message: `${fromChainId.toString() === toChainId.toString()
-                                //             ? "Swap"
-                                //             : "Bridge"
-                                //             } executed successfully!`,
-                                //         txHash: `${explorer}tx/${response?.txHash}`,
-                                //     },
-                                // ]);
                                 const agentId = fromChainId.toString() === toChainId.toString()
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 await createTrans(response.txHash, address, address, agentId, agentId, "Successful", fromAmount, `${explorer}tx/${response?.txHash}`);
                                 
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
-                                await updateMessage(
-                                    address,
-                                    selectedAgent.agentId,
-                                    JSON.stringify({
-                                        type: "tool",
-                                        status: "success",
-                                        message: statusMessage,
-                                    })
-                                );
+                                // await updateMessage(
+                                //     address,
+                                //     selectedAgent.agentId,
+                                //     JSON.stringify({
+                                //         type: "tool",
+                                //         status: "success",
+                                //         message: statusMessage,
+                                //     })
+                                // );
 
                                 const newMessage = {
                                     role: "ai" as "ai" | "human" | "tool",
@@ -548,31 +492,21 @@ export const CommandInterface = ({
                                 setExecutingLifi(false);
                                 return;
                             } else {
-                                // setMessages((prev) => [
-                                //     ...prev,
-                                //     {
-                                //         role: "ai",
-                                //         message: `${fromChainId.toString() === toChainId.toString()
-                                //             ? "Swap"
-                                //             : "Bridge"
-                                //             } execution was failed!`,
-                                //     },
-                                // ]);
                                 const agentId = fromChainId.toString() === toChainId.toString()
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
 
                                 const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
-                                await updateMessage(
-                                    address,
-                                    selectedAgent.agentId,
-                                    JSON.stringify({
-                                        type: "tool",
-                                        status: "failed",
-                                        message: statusMessage,
-                                    })
-                                );
+                                // await updateMessage(
+                                //     address,
+                                //     selectedAgent.agentId,
+                                //     JSON.stringify({
+                                //         type: "tool",
+                                //         status: "failed",
+                                //         message: statusMessage,
+                                //     })
+                                // );
                                 const newMessage = {
                                     role: "ai" as "ai" | "human" | "tool",
                                     message: statusMessage
