@@ -348,8 +348,8 @@ export const CommandInterface = ({
                             }
 
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address, "lendingBorrowingAgent", "LEND", "lending", market, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lending Borrowing agent");
-
+                            await createTransv2(address,"lendingBorrowingAgent","LEND",`Lending ${amount} ${tokenSymbol} executed successfully!`,market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
+                            
 
                             const statusMessage = `Your lending of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             // await updateMessage(
@@ -370,8 +370,8 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address, "lendingBorrowingAgent", "LEND", "lending", market, new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lending Borrowing agent");
-
+                            await createTrans(address,"lendingBorrowingAgent","LEND",`Lending ${tokenSymbol} execution was failed!`,market,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                            
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
                             // await updateMessage(
@@ -428,8 +428,8 @@ export const CommandInterface = ({
                             }
 
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address, "lendingBorrowingAgent", "BORROW", "borrowing", market, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lending Borrowing agent");
-
+                            await createTransv2(address,"lendingBorrowingAgent","BORROW",`Borrow ${amount} ${tokenSymbol} executed successfully!`,market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
+                            
 
                             const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             // await updateMessage(
@@ -450,8 +450,8 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address, "lendingBorrowingAgent", "BORROW", "borrowing", market, new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lending Borrowing agent");
-
+                            await createTrans(address,"lendingBorrowingAgent","BORROW",`Borrow ${tokenSymbol} execution was failed!`,market,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                            
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
                             // await updateMessage(
                             //     address,
@@ -468,7 +468,6 @@ export const CommandInterface = ({
                                 message: statusMessage
                             }
                             updateLastAiMessage(newMessage)
-
                             setExecutingAave(false);
                             return;
                         }
@@ -508,8 +507,8 @@ export const CommandInterface = ({
                             }
 
                             const { nativeTokenSymbol, rpcUrl, decimals } = chainInfo;
-                            await createTransv2(address, "lendingBorrowingAgent", "WITHDRAW", "withdrawing", market, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lending Borrowing agent");
-
+                            await createTransv2(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} executed successfully`,market,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
+                            
 
                             const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             // await updateMessage(
@@ -530,8 +529,7 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address, "lendingBorrowingAgent", "WITHDRAW", "withdrawing", market, new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lending Borrowing agent");
-
+                            await createTrans(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} was failed!`,market,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
                             // await updateMessage(
                             //     address,
@@ -603,8 +601,8 @@ export const CommandInterface = ({
 
                                 const formatedAmount = formatUnits(fromAmount, fromToken.decimals);
 
-                                await createTrans(address, agentId, transaction_type, description, fromToken.name, new Date(), fromToken.symbol, Number(formatedAmount), response?.txHash, `${explorer}tx/${response.txHash}`, "SUCCESS", fromAmountUSD, gasCostUSD, "Swapping and Borrowing agent");
-
+                                await createTrans(address,agentId,transaction_type,`${fromChainId.toString() === toChainId.toString()    ? "Swap"    : "Bridge"    } executed successfully!`,fromToken.name,new Date(),fromToken.symbol,Number(formatedAmount),response?.txHash,`${explorer}tx/${response.txHash}`,"SUCCESS",fromAmountUSD,gasCostUSD,agentName);
+                                
 
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
                                 // await updateMessage(
@@ -635,7 +633,7 @@ export const CommandInterface = ({
                                     ? "swaping"
                                     : "bridging";
 
-                                await createTrans(address, agentId, transaction_type, description, fromToken.name, new Date(), fromToken.symbol, fromAmount, response?.txHash, `${explorer}tx/${response?.txHash}`, "FAILED", fromAmountUSD, gasCostUSD, "Swapping and Borrowing agent");
+                                await createTrans(address,agentId,transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap": "Bridge"} execution was failed!`,fromToken.name,new Date(),fromToken.symbol,fromAmount,response?.txHash,`${explorer}tx/${response?.txHash}`,"FAILED",fromAmountUSD,gasCostUSD,agentName);
 
                                 const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
                                 // await updateMessage(
