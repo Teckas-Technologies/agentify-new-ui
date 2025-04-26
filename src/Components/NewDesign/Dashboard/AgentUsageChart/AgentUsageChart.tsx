@@ -24,8 +24,8 @@ const COLORS = [
 const formatAgentLabel = (agentName: string) => {
   const mapping: Record<string, string> = {
     "Swap Agent": "Swap",
-    "BRIDGE Agent": "Bridge",
-    "lend Agent": "Lend",
+    "Bridge Agent": "Bridge",
+    "Lend and Borrow agent": "Lend",
   };
   return mapping[agentName] || agentName;
 };
@@ -35,7 +35,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     const { agentName, percentage } = payload[0].payload;
     return (
       <div className="bg-black text-white text-sm px-3 py-1 rounded shadow border border-[#26262a]">
-        {`${formatAgentLabel(agentName)}: ${percentage}%`}
+         {`${formatAgentLabel(agentName)}: ${percentage.toFixed(2)}%`}
       </div>
     );
   }

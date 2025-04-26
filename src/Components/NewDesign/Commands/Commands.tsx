@@ -3,6 +3,7 @@
 import { CardContent } from "@/Components/ui/card";
 import { FileText, PlayCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   Pagination,
   PaginationContent,
@@ -10,6 +11,7 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationEllipsis,
 } from "@/Components/ui/pagination";
 import { SavedCommand } from "../Dashboard/SavedCommand/SavedCommand";
 import useFetchSavedCommands from "@/hooks/useFetchSavedCommands";
@@ -19,6 +21,7 @@ import { Skeleton } from "@/Components/ui/skeleton";
 import { EmptyState } from "../Dashboard/EmptyState/EmptyState";
 
 const CommandsPage = () => {
+  const router = useRouter();
   const { address } = useAccount();
   const {
     savedCommands,
@@ -61,13 +64,116 @@ const CommandsPage = () => {
     }
   };
 
+  const renderPaginationItems = () => {
+    if (!savedCommands?.totalPages) return null;
+
+    const totalPages = savedCommands.totalPages;
+    const items = [];
+    const maxVisiblePages = 5; // Show up to 5 page numbers at once
+
+    // Always show first page
+    items.push(
+      <PaginationItem key={1}>
+        <PaginationLink
+          href="#"
+          isActive={currentPage === 1}
+          onClick={() => goToPage(1)}
+          className="min-w-[40px]"
+        >
+          1
+        </PaginationLink>
+      </PaginationItem>
+    );
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is 5 or less
+      for (let i = 2; i <= totalPages; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              href="#"
+              isActive={currentPage === i}
+              onClick={() => goToPage(i)}
+              className="min-w-[40px]"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+    } else {
+      // Determine range of pages to show
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+      // Adjust if we're near the start or end
+      if (currentPage <= 3) {
+        startPage = 2;
+        endPage = 4;
+      } else if (currentPage >= totalPages - 2) {
+        startPage = totalPages - 3;
+        endPage = totalPages - 1;
+      }
+
+      // Add first ellipsis if needed
+      if (startPage > 2) {
+        items.push(
+          <PaginationItem key="ellipsis-start">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              href="#"
+              isActive={currentPage === i}
+              onClick={() => goToPage(i)}
+              className="min-w-[40px]"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+
+      // Add second ellipsis if needed
+      if (endPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="ellipsis-end">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Always show last page
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink
+            href="#"
+            isActive={currentPage === totalPages}
+            onClick={() => goToPage(totalPages)}
+            className="min-w-[40px]"
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    return items;
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Saved Commands</h1>
-          <Button variant="outline" onClick={() => window.history.back()}>
+          <Button variant="outline" onClick={() => router.push('/')}>
             Back to Dashboard
           </Button>
         </div>
@@ -103,36 +209,36 @@ const CommandsPage = () => {
           )}
         </CardContent>
 
-        {/* Pagination - Only show if data exists and more than 1 page */}
+        {/* Enhanced Pagination */}
         {savedCommandsData.length > 0 && savedCommands && savedCommands?.totalPages > 1 && (
-          <div className="mt-6">
+          <div className="mt-6 flex justify-center">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
                     onClick={() => goToPage(currentPage - 1)}
-                    className={isFirstPage ? "cursor-not-allowed opacity-50" : ""}
+                    className={
+                      isFirstPage
+                        ? "cursor-not-allowed opacity-50"
+                        : "hover:bg-accent/80"
+                    }
+                    size="sm"
                   />
                 </PaginationItem>
 
-                {[...Array(savedCommands?.totalPages)].map((_, index) => (
-                  <PaginationItem key={index}>
-                    <PaginationLink
-                      href="#"
-                      isActive={currentPage === index + 1}
-                      onClick={() => goToPage(index + 1)}
-                    >
-                      {index + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
+                {renderPaginationItems()}
 
                 <PaginationItem>
                   <PaginationNext
                     href="#"
                     onClick={() => goToPage(currentPage + 1)}
-                    className={isLastPage ? "cursor-not-allowed opacity-50" : ""}
+                    className={
+                      isLastPage
+                        ? "cursor-not-allowed opacity-50"
+                        : "hover:bg-accent/80"
+                    }
+                    size="sm"
                   />
                 </PaginationItem>
               </PaginationContent>
