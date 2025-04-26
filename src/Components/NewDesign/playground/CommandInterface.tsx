@@ -548,7 +548,7 @@ export const CommandInterface = ({
                                 : "Bridge Agent";
 
 
-                                await createTrans(address,agentId,transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap": "Bridge"} ${fromAmount} ${fromToken.symbol} execution was failed!`,fromToken.name,new Date(),fromToken.symbol,fromAmount,response?.txHash,`${explorer}tx/${response?.txHash}`,"FAILED",fromAmountUSD,gasCostUSD,agentName);
+                                await createTrans(address,agentId,transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap": "Bridge"} ${fromAmount} ${fromToken.symbol} execution was failed!`,chainInfo.chainName,new Date(),fromToken.symbol,fromAmount,response?.txHash,`${explorer}tx/${response?.txHash}`,"FAILED",fromAmountUSD,gasCostUSD,agentName);
 
                                 // await createTrans(`failed_${uuidv4()}`, address, address, agentId, agentId, "Failed", fromAmount, `${explorer}tx/failed`);
                                 setMessages((prev) => [
