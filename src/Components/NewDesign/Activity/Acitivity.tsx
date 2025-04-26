@@ -30,7 +30,12 @@ import { useTransactions } from "@/hooks/useTransactionsHook";
 import { useAccount } from "wagmi";
 import { LoadingSkeleton } from "@/Components/shared/LoadingSkeleton";
 import { EmptyState } from "@/Components/shared/EmptyState";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
 import { isNull } from "util";
 
 const getTransactionIcon = (type: string) => {
@@ -189,8 +194,11 @@ const ActivityPage = () => {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-black bg-background/95 backdrop-blur-xl border-white/10">
-                  {filterOptions.map((option) => (
+                <DropdownMenuContent
+                  align="end"
+                  className="w-48 bg-black/80 text-white backdrop-blur-md border border-white/10"
+                >
+                     {filterOptions.map((option) => (
                     <DropdownMenuItem
                       key={option.value}
                       onClick={() => handleFilterChange(option.value)}
