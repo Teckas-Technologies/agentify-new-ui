@@ -251,7 +251,7 @@ const Dashboard = () => {
       const agentMap: Record<string, string> = {
         swap: "swapAgent",
         bridge: "bridgeAgent",
-        lend: "lendAgent",
+        lend: "lendingBorrowingAgent",
       };
 
       const params: { userId: string; agentId?: string; limit: number } = {
@@ -491,7 +491,7 @@ const Dashboard = () => {
                       />
                     ) : (
                       <div className="space-y-0">
-                        {recentTransactions.map((tx) => (
+                         {[...recentTransactions].reverse().slice(0, 4).map((tx) => (
                           <ActivityItem
                             key={tx._id}
                             title={formatTransactionType(tx.transaction_type)}
@@ -578,7 +578,7 @@ const Dashboard = () => {
                                 Total Gas
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.totalGas.toFixed(4)}
+                                {localData.totalGas.toFixed(2)}
                               </p>
                             </div>
                             <div>
@@ -586,7 +586,7 @@ const Dashboard = () => {
                                 Avg per Tx
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.avgGas.toFixed(4)}
+                                {localData.avgGas.toFixed(2)}
                               </p>
                             </div>
                           </div>
@@ -798,7 +798,7 @@ const Dashboard = () => {
                           value="lend"
                           className="text-xs data-[state=active]:bg-[#f0f0f0] data-[state=active]:font-semibold data-[state=active]:text-black rounded-md px-3 py-1"
                         >
-                          Lending
+                          Lending & Borrow
                         </TabsTrigger>
                       </TabsList>
 
