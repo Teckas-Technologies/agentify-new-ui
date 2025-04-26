@@ -6,7 +6,7 @@ Sonic SVM AI Agents is a decentralized application (dApp) built on **Next.js** a
  
 [![Demo](https://img.shields.io/badge/Demo-Visit%20Demo-brightgreen)](https://sonic-agents-ui.vercel.app/)
 [![Deploy](https://img.shields.io/badge/Deploy-on%20Vercel-blue)](https://vercel.com/new/clone?repository-url=https://github.com/Teckas-Technologies/sonic-agents)
-
+ 
 **Key Assistants:**
 
 1. **Bridge Assistant** – Enables cross-chain token bridging between **Solana** and **Sonic SVM** using natural language.

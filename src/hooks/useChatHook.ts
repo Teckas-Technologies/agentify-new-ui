@@ -1,4 +1,5 @@
 import { PYTHON_SERVER_URL } from '@/config/constants';
+import { Agent } from '@/types/types';
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 
@@ -8,10 +9,11 @@ interface RequestFields {
     userId: string;
 }
 
-export const useChat = () => {
+export const useChat = (initialAgents: any[] = []) => {
     const { address } = useAccount();
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [agents, setAgents] = useState<Agent[]>(initialAgents || []);
 
     const chat = async (data: RequestFields) => {
         if (!address) {
@@ -88,6 +90,7 @@ export const useChat = () => {
             }
 
             const result = await response.json();
+            setAgents(result.data || []);
             return result;
         } catch (err: any) {
             console.error("Error occurred:", err);
@@ -150,5 +153,106 @@ export const useChat = () => {
         }
     }
 
-    return { loading, error, chat, fetchChatHistory, clearHistory, fetchAgents };
+    const updateMessage = async (userId: string, agentId: string, newMessage: string) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(
+                `${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ newMessage }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return { success: true, data: result };
+        } catch (err: any) {
+            setError(err.message || "An error occurred");
+            return { success: false, message: err.message || "An error occurred" };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const sendAgentCommand = async (
+        userId: string,
+        agentId: string,
+        agentName: string,
+        command: string
+    ) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/agentCommands/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    agent_id: agentId,
+                    agent_name: agentName,
+                    command,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return { success: true, data: result };
+        } catch (err: any) {
+            setError(err.message || 'An error occurred');
+            return { success: false, message: err.message || 'An error occurred' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getAgentCommands = async (
+        userId: string,
+        skip: number = 0,
+        limit: number = 10
+    ) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(
+                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&skip=${skip}&limit=${limit}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return { success: true, data: result };
+        } catch (err: any) {
+            setError(err.message || 'An error occurred');
+            return { success: false, message: err.message || 'An error occurred' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage, sendAgentCommand, getAgentCommands };
 };
