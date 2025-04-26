@@ -222,6 +222,7 @@ export const useChat = (initialAgents: any[] = []) => {
 
     const getAgentCommands = async (
         userId: string,
+        agentId: string,
         skip: number = 0,
         limit: number = 10
     ) => {
@@ -230,7 +231,7 @@ export const useChat = (initialAgents: any[] = []) => {
 
         try {
             const response = await fetch(
-                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&skip=${skip}&limit=${limit}`,
+                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&agent_id=${agentId}&skip=${skip}&limit=${limit}`,
                 {
                     method: 'GET',
                     headers: {

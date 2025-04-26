@@ -47,12 +47,14 @@ export const CommandInterface = ({
     const [isExecutingLifi, setExecutingLifi] = useState(false);
     const [isExecutingAave, setExecutingAave] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
+    const [savedCommands, setSavedCommands] = useState<string[]>([]);
+
     const [favoritedIndexes, setFavoritedIndexes] = useState<Record<string, number[]>>({});
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const modalRef = useRef<HTMLDivElement | null>(null);
     const { address } = useAccount();
     const { user } = usePrivy();
-    const { chat, fetchChatHistory, clearHistory, updateMessage, sendAgentCommand } = useChat();
+    const { chat, fetchChatHistory, clearHistory, updateMessage, sendAgentCommand, getAgentCommands } = useChat();
     const { executeLifi, validateTokenBalance } = useLifiHook();
     const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } = useAaveHook();
     const { createTransactions, createTransactionsv2 } = useTransactions();
@@ -105,17 +107,23 @@ export const CommandInterface = ({
         const res = await sendAgentCommand(address, selectedAgent?.agentId, selectedAgent?.name, command);
         console.log("RES:", res)
 
-        setFavoritedIndexes((prev) => {
-            const currentAgentId = selectedAgent.agentId;
-            const agentFavorites = prev[currentAgentId] || [];
+        setSavedCommands((prev) => [...prev, command]);
+        // setFavoritedIndexes((prev) => {
+        //     const currentAgentId = selectedAgent.agentId;
+        //     const agentFavorites = prev[currentAgentId] || [];
 
-            return {
-                ...prev,
-                [currentAgentId]: agentFavorites.includes(index)
-                    ? agentFavorites // already favorited, no duplicate
-                    : [...agentFavorites, index], // add new
-            };
-        });
+        //     return {
+        //         ...prev,
+        //         [currentAgentId]: agentFavorites.includes(index)
+        //             ? agentFavorites // already favorited, no duplicate
+        //             : [...agentFavorites, index], // add new
+        //     };
+        // });
+    }
+
+    const getCmdsByUserIdandAgentId = async () => {
+        if (!address || !selectedAgent) return;
+        const res = await getAgentCommands(address, selectedAgent?.agentId)
     }
 
     const createTrans = async (
@@ -230,7 +238,15 @@ export const CommandInterface = ({
             });
 
         setMessages(filteredMessages);
-        console.log(filteredMessages);
+
+        const cmds = await getAgentCommands(address, selectedAgent.agentId);
+        if (cmds && Array.isArray(cmds)) {
+            const cmdTexts = cmds.map((cmd: any) => cmd.command); // assuming response structure
+            setSavedCommands(cmdTexts);
+        }
+
+        console.log("filteredMessages", filteredMessages);
+        console.log("savedCommands", cmds);
     }, [address, selectedAgent, user]);
 
     const clearChatHistory = async () => {
@@ -762,7 +778,7 @@ export const CommandInterface = ({
                                             <>
                                                 <div key={index} className={`message w-full h-auto flex ${index === messages.length - 1 && msg.role === "ai" && "md:flex-row flex-col"} gap-1 md:gap-2 lg:gap-3 my-2 ${msg.role === "ai" ? "justify-start" : "justify-end"}`}>
                                                     {msg?.role === "human" && <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 self-center cursor-pointer" onClick={() => { saveCommand(msg?.message, index); }}>
-                                                        <Heart className={`h-5 w-5 ${favoritedIndexes[selectedAgent?.agentId || ""]?.includes(index) ? 'fill-current text-primary' : 'text-primary'}`} />
+                                                        <Heart className={`h-5 w-5 ${savedCommands.includes(msg.message) ? 'fill-current text-primary' : 'text-primary'}`} />
                                                     </div>}
                                                     <div className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai" ? "bg-white/5 hover:bg-primary/10 border border-white/10" : "user-msg agent-name bg-primary/50 border border-white/10"}`}>
                                                         <MarkdownToJSX

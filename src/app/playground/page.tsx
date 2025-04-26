@@ -1,8 +1,27 @@
 import Playground from '@/Components/NewDesign/playground/Playground';
 import { PYTHON_SERVER_URL } from '@/config/constants';
 import React from 'react';
+import { getAccessToken } from "@privy-io/react-auth";
+import { PrivyClient } from "@privy-io/server-auth";
 
 async function fetchInitialAgents() {
+
+  // const privy = new PrivyClient({ appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || "" });
+
+  // const getToken = async () => {
+  //   if (!privy) return;
+  //   const accessToken = await getAccessToken();
+  //   console.log("Access Token:", accessToken);
+
+  //   try {
+  //     const verifiedClaims = await privy.verifyAuthToken(accessToken);
+  //   } catch (error) {
+  //     console.log(`Token verification failed with error ${error}.`);
+  //   }
+
+
+  // }
+
   const query = new URLSearchParams({
     user_id: "demo_user", // or dynamic address
     skip: "0",
