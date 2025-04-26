@@ -189,7 +189,7 @@ const ActivityPage = () => {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-background/95 backdrop-blur-xl border-white/10">
+                <DropdownMenuContent align="end" className="w-48 bg-black bg-background/95 backdrop-blur-xl border-white/10">
                   {filterOptions.map((option) => (
                     <DropdownMenuItem
                       key={option.value}
