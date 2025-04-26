@@ -7,6 +7,7 @@ interface RequestFields {
     inputMessage: string;
     agentName: string;
     userId: string;
+    isTransaction: boolean;
 }
 
 export const useChat = (initialAgents: any[] = []) => {
@@ -35,6 +36,7 @@ export const useChat = (initialAgents: any[] = []) => {
                     threadId: data.agentName,  // "Swap Agent"
                     walletAddress: address,
                     userId: data.userId,
+                    isTransaction: data.isTransaction
                 })
             });
 

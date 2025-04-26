@@ -65,24 +65,15 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
         } else {
             setIsWalletConnected(false);
         }
-        // getToken();
+        getToken();
     }, [address, user])
 
     console.log("ID Token:", identityToken)
 
-    // const getToken = async () => {
-    //     if(!privy) return;
-    //     const accessToken = await getAccessToken();
-    //     console.log("Access Token:", accessToken);
-
-    //     try {
-    //         const verifiedClaims = await privy.verifyAuthToken(accessToken);
-    //     } catch (error) {
-    //         console.log(`Token verification failed with error ${error}.`);
-    //     }
-
-
-    // }
+    const getToken = async () => {
+        const accessToken = await getAccessToken();
+        console.log("Access Token:", accessToken);
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-background/95 ">

@@ -26,6 +26,9 @@ export type Agent = {
     name: string;
     description: string;
     tags: string[];
+    sample_commands: string[];
+    security_notes: string;
+    supported_chains: string[];
     is_favourite: boolean;
     is_hidden: boolean;
 };

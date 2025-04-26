@@ -1,27 +1,9 @@
 import Playground from '@/Components/NewDesign/playground/Playground';
 import { PYTHON_SERVER_URL } from '@/config/constants';
 import React from 'react';
-import { getAccessToken } from "@privy-io/react-auth";
-import { PrivyClient } from "@privy-io/server-auth";
+// import { PrivyClient } from "@privy-io/server-auth";
 
 async function fetchInitialAgents() {
-
-  // const privy = new PrivyClient({ appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || "" });
-
-  // const getToken = async () => {
-  //   if (!privy) return;
-  //   const accessToken = await getAccessToken();
-  //   console.log("Access Token:", accessToken);
-
-  //   try {
-  //     const verifiedClaims = await privy.verifyAuthToken(accessToken);
-  //   } catch (error) {
-  //     console.log(`Token verification failed with error ${error}.`);
-  //   }
-
-
-  // }
-
   const query = new URLSearchParams({
     user_id: "demo_user", // or dynamic address
     skip: "0",
@@ -52,6 +34,21 @@ async function fetchInitialAgents() {
 
 export default async function ChatPage() {
   const initialAgentsData = await fetchInitialAgents();
+
+  // const privy = new PrivyClient(process.env.NEXT_PUBLIC_PRIVY_APP_ID || "", process.env.NEXT_PUBLIC_PRIVY_SECRET || "");
+
+  // const getToken = async () => {
+  //   if (!privy) return;
+  //   const accessToken = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkYxcFVUM1ppMTJLWUhrZDJvOGdEdUZNTEpBWVBnOWIzUTZDNVFGdmtMVEEifQ.eyJzaWQiOiJjbTl3aTByNGcwMHhrbDcwbnZueWxubm50IiwiaXNzIjoicHJpdnkuaW8iLCJpYXQiOjE3NDU2NDc1ODUsImF1ZCI6ImNtOWs2NWYzNjAycGxsMTBtYThuajJwbzciLCJzdWIiOiJkaWQ6cHJpdnk6Y205azY3cWF3MDEzeGw1MG02NGNyMzlhbiIsImV4cCI6MTc0NTY1MTE4NX0.LUnwt0FlRoenLosWNyFG6lK-hfGi7KLAysPEW10NS4gdIaQTI5LIaWueAHb3PDshwdB14H4kMp0vh-xeUOazDw"
+  //   try {
+  //     const verifiedClaims = await privy.verifyAuthToken(accessToken);
+  //     console.log("Claims:", verifiedClaims)
+  //   } catch (error) {
+  //     console.log(`Token verification failed with error ${error}.`);
+  //   }
+  // }
+
+  // getToken()
 
   return (
     <main className="min-h-screen bg-[var(--bg-dark)] text-white">

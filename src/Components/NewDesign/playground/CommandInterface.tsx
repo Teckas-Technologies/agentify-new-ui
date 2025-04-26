@@ -97,6 +97,16 @@ export const CommandInterface = ({
         }
     }, [address, selectedAgent, user]);
 
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const message = params.get("message");
+            if (message) {
+                setInputValue(message);
+            }
+        }
+    }, []);
+
 
     const handleQuickCommand = useCallback((command: string) => {
         setInputValue(command);
@@ -240,13 +250,12 @@ export const CommandInterface = ({
         setMessages(filteredMessages);
 
         const cmds = await getAgentCommands(address, selectedAgent.agentId);
-        if (cmds && Array.isArray(cmds)) {
-            const cmdTexts = cmds.map((cmd: any) => cmd.command); // assuming response structure
-            setSavedCommands(cmdTexts);
+        if (cmds && Array.isArray(cmds?.data?.data)) {
+            setSavedCommands(cmds?.data?.data?.map((cmd: any) => cmd.command));
         }
 
         console.log("filteredMessages", filteredMessages);
-        console.log("savedCommands", cmds);
+        console.log("savedCommands", cmds.data);
     }, [address, selectedAgent, user]);
 
     const clearChatHistory = async () => {
@@ -322,6 +331,7 @@ export const CommandInterface = ({
                 inputMessage: inputValue,
                 agentName: selectedAgent?.agentId,
                 userId: address,
+                isTransaction: false
             });
             console.log("RES:", response);
             if (response?.success) {
@@ -377,6 +387,12 @@ export const CommandInterface = ({
                             //         message: statusMessage,
                             //     })
                             // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -390,15 +406,12 @@ export const CommandInterface = ({
 
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
-                            // await updateMessage(
-                            //     address,
-                            //     selectedAgent.agentId,
-                            //     JSON.stringify({
-                            //         type: "tool",
-                            //         status: "failed",
-                            //         message: statusMessage,
-                            //     })
-                            // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -448,15 +461,12 @@ export const CommandInterface = ({
 
 
                             const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
-                            // await updateMessage(
-                            //     address,
-                            //     selectedAgent.agentId,
-                            //     JSON.stringify({
-                            //         type: "tool",
-                            //         status: "success",
-                            //         message: statusMessage,
-                            //     })
-                            // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -469,15 +479,12 @@ export const CommandInterface = ({
                             await createTrans(address, "lendingBorrowingAgent", "BORROW", "borrowing", market, new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lending Borrowing agent");
 
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
-                            // await updateMessage(
-                            //     address,
-                            //     selectedAgent.agentId,
-                            //     JSON.stringify({
-                            //         type: "tool",
-                            //         status: "failed",
-                            //         message: statusMessage,
-                            //     })
-                            // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -528,15 +535,12 @@ export const CommandInterface = ({
 
 
                             const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
-                            // await updateMessage(
-                            //     address,
-                            //     selectedAgent.agentId,
-                            //     JSON.stringify({
-                            //         type: "tool",
-                            //         status: "success",
-                            //         message: statusMessage,
-                            //     })
-                            // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -549,15 +553,12 @@ export const CommandInterface = ({
                             await createTrans(address, "lendingBorrowingAgent", "WITHDRAW", "withdrawing", market, new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lending Borrowing agent");
 
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
-                            // await updateMessage(
-                            //     address,
-                            //     selectedAgent.agentId,
-                            //     JSON.stringify({
-                            //         type: "tool",
-                            //         status: "failed",
-                            //         message: statusMessage,
-                            //     })
-                            // );
+                            await chat({
+                                inputMessage: statusMessage,
+                                agentName: selectedAgent?.agentId,
+                                userId: address,
+                                isTransaction: true
+                            });
 
                             const newMessage = {
                                 role: "ai" as "ai" | "human" | "tool",
@@ -623,15 +624,12 @@ export const CommandInterface = ({
 
 
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
-                                // await updateMessage(
-                                //     address,
-                                //     selectedAgent.agentId,
-                                //     JSON.stringify({
-                                //         type: "tool",
-                                //         status: "success",
-                                //         message: statusMessage,
-                                //     })
-                                // );
+                                await chat({
+                                    inputMessage: statusMessage,
+                                    agentName: selectedAgent?.agentId,
+                                    userId: address,
+                                    isTransaction: true
+                                });
 
                                 const newMessage = {
                                     role: "ai" as "ai" | "human" | "tool",
@@ -654,15 +652,12 @@ export const CommandInterface = ({
                                 await createTrans(address, agentId, transaction_type, description, fromToken.name, new Date(), fromToken.symbol, fromAmount, response?.txHash, `${explorer}tx/${response?.txHash}`, "FAILED", fromAmountUSD, gasCostUSD, "Swapping and Borrowing agent");
 
                                 const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
-                                // await updateMessage(
-                                //     address,
-                                //     selectedAgent.agentId,
-                                //     JSON.stringify({
-                                //         type: "tool",
-                                //         status: "failed",
-                                //         message: statusMessage,
-                                //     })
-                                // );
+                                await chat({
+                                    inputMessage: statusMessage,
+                                    agentName: selectedAgent?.agentId,
+                                    userId: address,
+                                    isTransaction: true
+                                });
                                 const newMessage = {
                                     role: "ai" as "ai" | "human" | "tool",
                                     message: statusMessage
@@ -871,7 +866,7 @@ export const CommandInterface = ({
                                             <h3 className="text-sm font-medium">Quick Commands</h3>
                                         </div>
                                         <div className="grid gap-2">
-                                            {agentExampleCommands[selectedAgent?.agentId || "swap"]?.map((command, index) => (
+                                            {selectedAgent?.sample_commands?.map((command, index) => (
                                                 <Button
                                                     key={index}
                                                     variant="outline"
@@ -890,7 +885,7 @@ export const CommandInterface = ({
                     </ScrollArea>
                 </CardContent>
 
-                <CardFooter className="border-t border-white/5 p-4 sticky bottom-0 bg-background z-10">
+                <CardFooter className="border-t border-white/5 p-4 sticky bottom-0 bg-background z-10 bg-black z-40">
                     <div className="flex w-full gap-3 md:items-center md:flex-row flex-col">
                         <div className="first flex justify-between gap-2 items-center">
                             <Badge
