@@ -1,12 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Search, ArrowRight, Construction } from "lucide-react";
+import { Search, ArrowRight, Construction, X } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import Navbar from "../Dashboard/Navbar/Navbar";
 import SearchAndFilter from "./SearchAndFilter/SearchAndFilter";
 import AgentCard from "./AgentCard/AgentCard";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -80,6 +81,9 @@ const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
               description={agent.description}
               categories={[selectedCategory]} // or derive categories based on your logic
               tags={agent.tags}
+              sample_commands={agent.sample_commands}
+              security_notes={agent.security_notes}
+              supported_chains={agent.supported_chains}
             />
           ))}
 
@@ -130,16 +134,24 @@ const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Construction className="h-6 w-6 text-primary" />
-                    Coming Soon
-                  </DialogTitle>
+                  <div className="w-full flex justify-between">
+                    <DialogTitle className="flex items-center gap-2 text-white">
+                      <Construction className="h-6 w-6 text-primary" />
+                      Coming Soon
+                    </DialogTitle>
+                    <DialogClose asChild>
+                      <div className="w-6 h-6 border border-primary rounded-full flex justify-center items-center absolute right-3 top-3 rounded-sm opacity-100 z-50 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none cursor-pointer">
+                        <X className="h-4 w-4 text-primary" />
+                      </div>
+                    </DialogClose>
+                  </div>
                   <DialogDescription>
                     We're working hard to bring the Agentify Developer Framework
                     to life. Stay tuned for an exciting update that will empower
                     you to create custom AI agents!
                   </DialogDescription>
                 </DialogHeader>
+
               </DialogContent>
             </Dialog>
           </div>

@@ -1,5 +1,3 @@
-// Updated TransactionLogs.tsx
-
 import React from "react";
 import {
   ArrowLeftRight,
@@ -11,9 +9,9 @@ import {
   ArrowRightLeft,
   Clock,
 } from "lucide-react";
-import { format } from "date-fns";
 import { StatusBadge } from "../StatusBadge/StatusBadge";
-
+import { parseISO } from 'date-fns'; // from date-fns
+import { formatInTimeZone } from 'date-fns-tz'; // from date-fns-tz
 interface Transaction {
   _id: string;
   user_id: string;
@@ -56,6 +54,7 @@ const getTransactionIcon = (type: string) => {
       return <Clock className="h-4 w-4" />;
   }
 };
+
 const normalizeStatus = (status: string): "success" | "failed" | "pending" => {
   switch (status.toLowerCase()) {
     case "success":
@@ -70,6 +69,28 @@ const normalizeStatus = (status: string): "success" | "failed" | "pending" => {
 };
 
 export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
+
+
+  const inputTime = "2025-04-26T05:59:05.235000";
+  const timeIST = formatInTimeZone(new Date(inputTime), 'Asia/Kolkata', 'yyyy-MM-dd HH:mm:ssXXX');
+  
+  console.log(timeIST);
+  
+  console.log("Converted IST Time  --------------------------", timeIST);
+
+  // Utility function to convert UTC to IST
+  const convertToIST = (time: string) => {
+    const utcDate = new Date(time.endsWith("Z") ? time : `${time}Z`);
+    return utcDate.toLocaleString("en-US", {
+      timeZone: "Asia/Kolkata",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+      day: "numeric",
+      month: "short",
+    });
+  };
+
   return (
     <div className="space-y-4">
       {transactions.map((tx) => (
@@ -86,7 +107,7 @@ export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{tx.chain}</span>
                 <span>•</span>
-                <span>{format(new Date(tx.time), "MMM d, h:mm a")}</span>
+                {convertToIST(tx.time)}
               </div>
             </div>
           </div>

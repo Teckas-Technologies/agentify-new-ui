@@ -221,6 +221,7 @@ export default function Dashboard({
         inputMessage: message,
         agentName: activeAgent,
         userId: address,
+        isTransaction: false
       });
       console.log("RES:", response);
       if (response?.success) {

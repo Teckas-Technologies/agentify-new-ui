@@ -7,6 +7,7 @@ interface RequestFields {
     inputMessage: string;
     agentName: string;
     userId: string;
+    isTransaction: boolean;
 }
 
 export const useChat = (initialAgents: any[] = []) => {
@@ -35,6 +36,7 @@ export const useChat = (initialAgents: any[] = []) => {
                     threadId: data.agentName,  // "Swap Agent"
                     walletAddress: address,
                     userId: data.userId,
+                    isTransaction: data.isTransaction
                 })
             });
 
@@ -222,6 +224,7 @@ export const useChat = (initialAgents: any[] = []) => {
 
     const getAgentCommands = async (
         userId: string,
+        agentId: string,
         skip: number = 0,
         limit: number = 10
     ) => {
@@ -230,7 +233,7 @@ export const useChat = (initialAgents: any[] = []) => {
 
         try {
             const response = await fetch(
-                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&skip=${skip}&limit=${limit}`,
+                `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&agent_id=${agentId}&skip=${skip}&limit=${limit}`,
                 {
                     method: 'GET',
                     headers: {
