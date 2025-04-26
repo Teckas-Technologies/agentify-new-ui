@@ -1,5 +1,5 @@
 
-import { Send, Wallet, MessageCircle, Zap, Delete, DeleteIcon, Trash, Trash2, Trash2Icon } from "lucide-react";
+import { Send, Wallet, MessageCircle, Zap, Delete, DeleteIcon, Trash, Trash2, Trash2Icon, Heart } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { Badge } from "@/Components/ui/badge";
@@ -31,13 +31,15 @@ interface CommandInterfaceProps {
     isWalletConnected?: boolean;
     onConnect?: () => void;
     onSelectAgent: (id: Agent) => void;
+    initialAgents?: Agent[]
 }
 
 export const CommandInterface = ({
     selectedAgent,
     isWalletConnected = false,
     onConnect = () => { },
-    onSelectAgent
+    onSelectAgent,
+    initialAgents
 }: CommandInterfaceProps) => {
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +48,6 @@ export const CommandInterface = ({
     const [isExecutingAave, setExecutingAave] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
     const [savedCommands, setSavedCommands] = useState<string[]>([]);
-
     const [favoritedIndexes, setFavoritedIndexes] = useState<Record<string, number[]>>({});
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const modalRef = useRef<HTMLDivElement | null>(null);
@@ -373,15 +374,11 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address,"lendingBorrowingAgent","LEND",`Lending ${tokenSymbol} execution was failed`,chainInfo.chainName,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                            await createTrans(address,"lendingBorrowingAgent","LEND",`Lending ${tokenSymbol} execution was failed`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
                             
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
@@ -392,11 +389,7 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -456,15 +449,11 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                             await createTrans(address,"lendingBorrowingAgent","BORROW",`Borrow ${tokenSymbol} execution was failed`,chainInfo.chainName,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                             await createTrans(address,"lendingBorrowingAgent","BORROW",`Borrow ${tokenSymbol} execution was failed`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
                             
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
                             await chat({
@@ -474,11 +463,7 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -536,15 +521,11 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} was failed!`,chainInfo.chainName,new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                            await createTrans(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} was failed!`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
                             await chat({
                                 inputMessage: statusMessage,
@@ -553,11 +534,7 @@ export const CommandInterface = ({
                                 isTransaction: true
                             });
 
-                            const newMessage = {
-                                role: "ai" as "ai" | "human" | "tool",
-                                message: statusMessage
-                            }
-                            updateLastAiMessage(newMessage)
+                            updateLastAiMessage(statusMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -623,8 +600,6 @@ export const CommandInterface = ({
                                 ? "Swap Agent"
                                 : "Bridge Agent";
 
-                                const formatedAmount = formatUnits(fromAmount,fromToken.decimals);
-
                                 await createTrans(address,agentId,transaction_type,`${fromChainId.toString() === toChainId.toString()    ? "Swap"    : "Bridge"    } ${fromAmount} ${fromToken.symbol} executed successfully!`,chainInfo.chainName,new Date(),fromToken.symbol,Number(formatedAmount),response?.txHash,`${explorer}tx/${response.txHash}`,"SUCCESS",fromAmountUSD,gasCostUSD,agentName);
                                 
 
@@ -636,11 +611,7 @@ export const CommandInterface = ({
                                     isTransaction: true
                                 });
 
-                                const newMessage = {
-                                    role: "ai" as "ai" | "human" | "tool",
-                                    message: statusMessage
-                                }
-                                updateLastAiMessage(newMessage)
+                                updateLastAiMessage(statusMessage)
                                 setExecutingLifi(false);
                                 return;
                             } else {
@@ -668,11 +639,7 @@ export const CommandInterface = ({
                                     userId: address,
                                     isTransaction: true
                                 });
-                                const newMessage = {
-                                    role: "ai" as "ai" | "human" | "tool",
-                                    message: statusMessage
-                                }
-                                updateLastAiMessage(newMessage)
+                                updateLastAiMessage(statusMessage)
                                 setExecutingLifi(false);
                                 return;
                             }
@@ -866,7 +833,7 @@ export const CommandInterface = ({
                     </ScrollArea>
                 </CardContent>
 
-                <CardFooter className="border-t border-white/5 p-4 sticky bottom-0 bg-background z-10 bg-black z-40">
+                <CardFooter className="border-t border-white/5 p-4 sticky bottom-0 bg-background z-10 bg-[#101014] z-40">
                     <div className="flex w-full gap-3 md:items-center md:flex-row flex-col">
                         <div className="first flex justify-between gap-2 items-center">
                             <Badge
@@ -912,6 +879,7 @@ export const CommandInterface = ({
                         selectedAgent={selectedAgent}
                         onSelectAgent={onSelectAgent}
                         setModelOpen={setModelOpen}
+                        initialAgents={initialAgents}
                     />
                 </div>
             </div>}
