@@ -767,6 +767,28 @@ export const CommandInterface = ({
                                                                             className: "border border-gray-300 p-2",
                                                                         },
                                                                     },
+                                                                    a: {
+                                                                        props: {
+                                                                            className: "text-blue-600 underline underline-offset-2",
+                                                                            target: "_blank",
+                                                                            rel: "noopener noreferrer",
+                                                                        },
+                                                                    },
+                                                                    ul: {
+                                                                        props: {
+                                                                            className: "list-disc pl-6",
+                                                                        },
+                                                                    },
+                                                                    ol: {
+                                                                        props: {
+                                                                            className: "list-decimal pl-6",
+                                                                        },
+                                                                    },
+                                                                    li: {
+                                                                        props: {
+                                                                            className: "mb-1",
+                                                                        },
+                                                                    },
                                                                 },
                                                             }}
                                                         >
@@ -774,7 +796,7 @@ export const CommandInterface = ({
                                                         </MarkdownToJSX>
                                                     </div>
 
-                                                    {msg?.txHash && msg.role === "ai" && (
+                                                    {/* {msg?.txHash && msg.role === "ai" && (
                                                         <>
                                                             <a
                                                                 href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx") ? "" : "tx/"}${msg?.txHash}`}`}
@@ -791,7 +813,7 @@ export const CommandInterface = ({
                                                                 />
                                                             </a>
                                                         </>
-                                                    )}
+                                                    )} */}
 
                                                 </div>
                                                 {isLoading && index === messages.length - 1 && (
