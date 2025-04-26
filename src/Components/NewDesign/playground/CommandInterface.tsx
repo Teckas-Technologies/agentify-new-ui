@@ -339,14 +339,6 @@ export const CommandInterface = ({
                         console.log("Lend RES:", res);
                         const chainInfo = await getChainInfoById(selectedMarket.chainId);
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Lending ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
 
                             if (!chainInfo) {
                                 console.error("Chain info not found for chainId:", selectedMarket.chainId);
@@ -422,14 +414,6 @@ export const CommandInterface = ({
                         const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Borrow ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
                             const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
                             if (!chainInfo) {
@@ -495,14 +479,6 @@ export const CommandInterface = ({
                         console.log("Withdraw RES:", res);
                         const chainInfo = await getChainInfoById(selectedMarket.chainId);
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    role: "ai",
-                                    message: `Withdraw ${amount} ${tokenSymbol} executed successfully!`,
-                                    txHash: `${explorer}tx/${res?.txHashes[0]}`,
-                                },
-                            ]);
 
                             if (!chainInfo) {
                                 console.error("Chain info not found for chainId:", selectedMarket.chainId);
@@ -600,7 +576,7 @@ export const CommandInterface = ({
                                     ? "Swap Agent"
                                     : "Bridge Agent";
 
-                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${fromAmount} ${fromToken.symbol} executed successfully!`, chainInfo.chainName, new Date(), fromToken.symbol, Number(formatedAmount), response?.txHash, `${explorer}tx/${response.txHash}`, "SUCCESS", fromAmountUSD, gasCostUSD, agentName);
+                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${formatedAmount} ${fromToken.symbol} executed successfully!`, chainInfo.chainName, new Date(), fromToken.symbol, Number(formatedAmount), response?.txHash, `${explorer}tx/${response.txHash}`, "SUCCESS", fromAmountUSD, gasCostUSD, agentName);
 
 
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
@@ -629,8 +605,9 @@ export const CommandInterface = ({
                                     ? "Swap Agent"
                                     : "Bridge Agent";
 
+                                const formatedAmount = formatUnits(fromAmount, fromToken.decimals);
 
-                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${fromAmount} ${fromToken.symbol} execution was failed!`, chainInfo.chainName, new Date(), fromToken.symbol, fromAmount, response?.txHash, `${explorer}tx/${response?.txHash}`, "FAILED", fromAmountUSD, gasCostUSD, agentName);
+                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${formatedAmount} ${fromToken.symbol} execution was failed!`, chainInfo.chainName, new Date(), fromToken.symbol, fromAmount, response?.txHash, `${explorer}tx/${response?.txHash}`, "FAILED", fromAmountUSD, gasCostUSD, agentName);
 
                                 const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
                                 await chat({
