@@ -7,7 +7,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/Components/ui/card"
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { agentExampleCommands } from "@/utils/agentCommands";
-import { Agent, MarketType, Message, RequestFields,TransactionType,TransactionStatus, RequestFieldsv2 } from "@/types/types";
+import { Agent, MarketType, Message, RequestFields, TransactionType, TransactionStatus, RequestFieldsv2 } from "@/types/types";
 import { useAccount } from "wagmi";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useChat } from "@/hooks/useChatHook";
@@ -56,7 +56,7 @@ export const CommandInterface = ({
     const { chat, fetchChatHistory, clearHistory, updateMessage, sendAgentCommand, getAgentCommands } = useChat();
     const { executeLifi, validateTokenBalance } = useLifiHook();
     const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } = useAaveHook();
-    const { createTransactions,createTransactionsv2 } = useTransactions();
+    const { createTransactions, createTransactionsv2 } = useTransactions();
     const { wallets } = useWallets();
     const wallet = wallets[0];
 
@@ -136,20 +136,20 @@ export const CommandInterface = ({
     }
 
     const createTrans = async (
-  user_id: string,
-  agent_id: string,
-  transaction_type: TransactionType,
-  description: string,
-  chain: string,
-  time: Date,
-  crypto: string,
-  amount: number,
-  transaction_hash: string,
-  explorer_url: string,
-  status: TransactionStatus,
-  amountUSD: number,
-  gasUSD: number,
-  agent_name: string) => {
+        user_id: string,
+        agent_id: string,
+        transaction_type: TransactionType,
+        description: string,
+        chain: string,
+        time: Date,
+        crypto: string,
+        amount: number,
+        transaction_hash: string,
+        explorer_url: string,
+        status: TransactionStatus,
+        amountUSD: number,
+        gasUSD: number,
+        agent_name: string) => {
         const payload: RequestFields = {
             user_id,
             agent_id,
@@ -166,8 +166,8 @@ export const CommandInterface = ({
             gasUSD,
             agent_name
         };
-        const data =  await createTransactions(payload);
-        console.log("created transaction",data);
+        const data = await createTransactions(payload);
+        console.log("created transaction", data);
     }
 
     const createTransv2 = async (
@@ -182,32 +182,32 @@ export const CommandInterface = ({
         transaction_hash: string,
         explorer_url: string,
         status: TransactionStatus,
-        rpcUrl:string,
-        symbol:string,
-        decimal:number,
-        token_symbol:string,
+        rpcUrl: string,
+        symbol: string,
+        decimal: number,
+        token_symbol: string,
         agent_name: string) => {
-              const payload: RequestFieldsv2 = {
-                  user_id,
-                  agent_id,
-                  transaction_type,
-                  description,
-                  chain,
-                  time,
-                  crypto,
-                  amount,
-                  transaction_hash,
-                  explorer_url,
-                  status,
-                  rpcUrl,
-                  symbol,
-                  decimal,
-                  agent_name,
-                  token_symbol
-              };
-              const data =  await createTransactionsv2(payload);
-              console.log("created transaction",data);
-          }
+        const payload: RequestFieldsv2 = {
+            user_id,
+            agent_id,
+            transaction_type,
+            description,
+            chain,
+            time,
+            crypto,
+            amount,
+            transaction_hash,
+            explorer_url,
+            status,
+            rpcUrl,
+            symbol,
+            decimal,
+            agent_name,
+            token_symbol
+        };
+        const data = await createTransactionsv2(payload);
+        console.log("created transaction", data);
+    }
 
     const fetchHistory = useCallback(async () => {
         if (!address || !selectedAgent?.agentId) return;
@@ -216,7 +216,7 @@ export const CommandInterface = ({
             selectedAgent?.agentId
         );
         const filteredMessages = history?.threads?.filter(
-            (msg: Message) => msg.message.trim() !== ""
+            (msg: Message) => msg.message.trim() !== "" && msg.role !== "tool"
         );
 
         setMessages(filteredMessages);
@@ -251,27 +251,27 @@ export const CommandInterface = ({
         });
     }, []);
 
-    async function getChainInfoById(chainId: number){
+    async function getChainInfoById(chainId: number) {
         try {
-          const chains = await getChains({ chainTypes: [ChainType.EVM] });
-      
-          const matched = chains.find(chain => chain.id === chainId);
-      
-          if (!matched || !matched.metamask || !matched.nativeToken) return null;
-      
-          return {
-            nativeTokenSymbol: matched.nativeToken.symbol,
-            rpcUrl: matched.metamask.rpcUrls?.[0] || "",
-            decimals: matched.nativeToken.decimals,
-            chainName: matched.metamask.chainName,
-          };
+            const chains = await getChains({ chainTypes: [ChainType.EVM] });
+
+            const matched = chains.find(chain => chain.id === chainId);
+
+            if (!matched || !matched.metamask || !matched.nativeToken) return null;
+
+            return {
+                nativeTokenSymbol: matched.nativeToken.symbol,
+                rpcUrl: matched.metamask.rpcUrls?.[0] || "",
+                decimals: matched.nativeToken.decimals,
+                chainName: matched.metamask.chainName,
+            };
         } catch (error) {
-          console.error("Error fetching chain info:", error);
-          return null;
+            console.error("Error fetching chain info:", error);
+            return null;
         }
-      }
-      
-      
+    }
+
+
     const handleChat = async () => {
         console.log("Ip:", inputValue)
         if (!inputValue.trim()) {
@@ -316,8 +316,8 @@ export const CommandInterface = ({
                         if (!market || !tokenSymbol || !amount) {
                             console.log("Err missing fields");
                         }
-                        const marketType:MarketType = market; 
-                        const selectedMarket = marketConfigs[marketType];      
+                        const marketType: MarketType = market;
+                        const selectedMarket = marketConfigs[marketType];
                         setMessages((prev) => [
                             ...prev,
                             {
@@ -349,13 +349,13 @@ export const CommandInterface = ({
                             ]);
 
                             if (!chainInfo) {
-                              console.error("Chain info not found for chainId:", selectedMarket.chainId);
-                              return;
+                                console.error("Chain info not found for chainId:", selectedMarket.chainId);
+                                return;
                             }
 
-                            const { nativeTokenSymbol, rpcUrl, decimals,chainName } = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","LEND",`Lending ${amount} ${tokenSymbol} executed successfully`,chainName,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
-                            
+                            const { nativeTokenSymbol, rpcUrl, decimals, chainName } = chainInfo;
+                            await createTransv2(address, "lendingBorrowingAgent", "LEND", `Lending ${amount} ${tokenSymbol} executed successfully`, chainName, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lend and Borrow agent");
+
 
                             const statusMessage = `Your lending of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             // await updateMessage(
@@ -378,8 +378,8 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address,"lendingBorrowingAgent","LEND",`Lending ${tokenSymbol} execution was failed`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
-                            
+                            await createTrans(address, "lendingBorrowingAgent", "LEND", `Lending ${tokenSymbol} execution was failed`, chainInfo?.chainName || "", new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lend and Borrow agent");
+
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
                             await chat({
@@ -417,8 +417,8 @@ export const CommandInterface = ({
                             amount: amount.toString(),
                         });
                         console.log("Borrow RES:", res);
-                        const marketType:MarketType = market; 
-                        const selectedMarket = marketConfigs[marketType];      
+                        const marketType: MarketType = market;
+                        const selectedMarket = marketConfigs[marketType];
                         const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
                         if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
@@ -433,13 +433,13 @@ export const CommandInterface = ({
                             const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
                             if (!chainInfo) {
-                              console.error("Chain info not found for chainId:", selectedMarket.chainId);
-                              return;
+                                console.error("Chain info not found for chainId:", selectedMarket.chainId);
+                                return;
                             }
 
-                            const { nativeTokenSymbol, rpcUrl, decimals ,chainName} = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","BORROW",`Borrow ${amount} ${tokenSymbol} executed successfully`,chainName,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
-                            
+                            const { nativeTokenSymbol, rpcUrl, decimals, chainName } = chainInfo;
+                            await createTransv2(address, "lendingBorrowingAgent", "BORROW", `Borrow ${amount} ${tokenSymbol} executed successfully`, chainName, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lend and Borrow agent");
+
 
                             const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             await chat({
@@ -453,8 +453,8 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                             await createTrans(address,"lendingBorrowingAgent","BORROW",`Borrow ${tokenSymbol} execution was failed`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
-                            
+                            await createTrans(address, "lendingBorrowingAgent", "BORROW", `Borrow ${tokenSymbol} execution was failed`, chainInfo?.chainName || "", new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lend and Borrow agent");
+
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
                             await chat({
                                 inputMessage: statusMessage,
@@ -472,8 +472,8 @@ export const CommandInterface = ({
                         if (!market || !tokenSymbol || !amount) {
                             console.log("Err missing fields");
                         }
-                        const marketType:MarketType = market; 
-                        const selectedMarket = marketConfigs[marketType];      
+                        const marketType: MarketType = market;
+                        const selectedMarket = marketConfigs[marketType];
                         setMessages((prev) => [
                             ...prev,
                             {
@@ -505,13 +505,13 @@ export const CommandInterface = ({
                             ]);
 
                             if (!chainInfo) {
-                              console.error("Chain info not found for chainId:", selectedMarket.chainId);
-                              return;
+                                console.error("Chain info not found for chainId:", selectedMarket.chainId);
+                                return;
                             }
 
-                            const { nativeTokenSymbol, rpcUrl, decimals,chainName} = chainInfo;
-                            await createTransv2(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} executed successfully`,chainName,new Date(),tokenSymbol,amount,res?.txHashes[0],`${explorer}tx/${res?.txHashes[0]}`,"SUCCESS",rpcUrl,nativeTokenSymbol,decimals,tokenSymbol,"Lend and Borrow agent");
-                            
+                            const { nativeTokenSymbol, rpcUrl, decimals, chainName } = chainInfo;
+                            await createTransv2(address, "lendingBorrowingAgent", "WITHDRAW", `Withdraw ${amount} ${tokenSymbol} executed successfully`, chainName, new Date(), tokenSymbol, amount, res?.txHashes[0], `${explorer}tx/${res?.txHashes[0]}`, "SUCCESS", rpcUrl, nativeTokenSymbol, decimals, tokenSymbol, "Lend and Borrow agent");
+
 
                             const statusMessage = `You’ve withdrawn ${amount} ${tokenSymbol} from your lending. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
                             await chat({
@@ -525,7 +525,7 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         } else {
-                            await createTrans(address,"lendingBorrowingAgent","WITHDRAW",`Withdraw ${amount} ${tokenSymbol} was failed!`,chainInfo?.chainName || "",new Date(),tokenSymbol,amount,`failed_${uuidv4()}`,`${explorer}tx/failed`,"FAILED",0,0,"Lend and Borrow agent");
+                            await createTrans(address, "lendingBorrowingAgent", "WITHDRAW", `Withdraw ${amount} ${tokenSymbol} was failed!`, chainInfo?.chainName || "", new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lend and Borrow agent");
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
                             await chat({
                                 inputMessage: statusMessage,
@@ -543,7 +543,7 @@ export const CommandInterface = ({
                         console.log("Quote:", quote);
 
                         if (quote) {
-                            const { fromChainId,fromAmountUSD, fromToken, toChainId, toToken, fromAmount,gasCostUSD } = quote;
+                            const { fromChainId, fromAmountUSD, fromToken, toChainId, toToken, fromAmount, gasCostUSD } = quote;
                             if (wallet && fromChainId && parseInt(wallet.chainId.split(":")[1]) !== fromChainId) {
                                 await switchNetwork(fromChainId);
                             }
@@ -555,8 +555,8 @@ export const CommandInterface = ({
                             const chainInfo = await getChainInfoById(fromChainId);
 
                             if (!chainInfo) {
-                              console.error("Chain info not found for chainId:",fromChainId);
-                              return;
+                                console.error("Chain info not found for chainId:", fromChainId);
+                                return;
                             }
 
                             if (!isEnoughBalance) {
@@ -588,8 +588,8 @@ export const CommandInterface = ({
                                     ? "swapAgent"
                                     : "bridgeAgent";
                                 const transaction_type = fromChainId.toString() === toChainId.toString()
-                                ? 'SWAP'
-                                : 'BRIDGE';
+                                    ? 'SWAP'
+                                    : 'BRIDGE';
                                 const description = fromChainId.toString() === toChainId.toString()
                                     ? "swaping"
                                     : "bridging"
@@ -597,11 +597,11 @@ export const CommandInterface = ({
                                 const formatedAmount = formatUnits(fromAmount, fromToken.decimals);
 
                                 const agentName = fromChainId.toString() === toChainId.toString()
-                                ? "Swap Agent"
-                                : "Bridge Agent";
+                                    ? "Swap Agent"
+                                    : "Bridge Agent";
 
-                                await createTrans(address,agentId,transaction_type,`${fromChainId.toString() === toChainId.toString()    ? "Swap"    : "Bridge"    } ${fromAmount} ${fromToken.symbol} executed successfully!`,chainInfo.chainName,new Date(),fromToken.symbol,Number(formatedAmount),response?.txHash,`${explorer}tx/${response.txHash}`,"SUCCESS",fromAmountUSD,gasCostUSD,agentName);
-                                
+                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${fromAmount} ${fromToken.symbol} executed successfully!`, chainInfo.chainName, new Date(), fromToken.symbol, Number(formatedAmount), response?.txHash, `${explorer}tx/${response.txHash}`, "SUCCESS", fromAmountUSD, gasCostUSD, agentName);
+
 
                                 const statusMessage = `Your ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash}).`;
                                 await chat({
@@ -616,21 +616,21 @@ export const CommandInterface = ({
                                 return;
                             } else {
                                 const agentId = fromChainId.toString() === toChainId.toString()
-                                ? "swapAgent"
-                                : "bridgeAgent";
+                                    ? "swapAgent"
+                                    : "bridgeAgent";
                                 const transaction_type = fromChainId.toString() === toChainId.toString()
                                     ? 'SWAP'
                                     : 'BRIDGE';
                                 const description = fromChainId.toString() === toChainId.toString()
-                                ? "swaping token"
-                                : "bridging token"; 
+                                    ? "swaping token"
+                                    : "bridging token";
 
                                 const agentName = fromChainId.toString() === toChainId.toString()
-                                ? "Swap Agent"
-                                : "Bridge Agent";
+                                    ? "Swap Agent"
+                                    : "Bridge Agent";
 
 
-                                await createTrans(address,agentId,transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap": "Bridge"} ${fromAmount} ${fromToken.symbol} execution was failed!`,chainInfo.chainName,new Date(),fromToken.symbol,fromAmount,response?.txHash,`${explorer}tx/${response?.txHash}`,"FAILED",fromAmountUSD,gasCostUSD,agentName);
+                                await createTrans(address, agentId, transaction_type, `${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} ${fromAmount} ${fromToken.symbol} execution was failed!`, chainInfo.chainName, new Date(), fromToken.symbol, fromAmount, response?.txHash, `${explorer}tx/${response?.txHash}`, "FAILED", fromAmountUSD, gasCostUSD, agentName);
 
                                 const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString() ? "Swap" : "Bridge"} execution was failed!.`;
                                 await chat({

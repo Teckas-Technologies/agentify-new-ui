@@ -132,7 +132,7 @@ const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-[#0A0A0A]">
                 <DialogHeader>
                   <div className="w-full flex justify-between">
                     <DialogTitle className="flex items-center gap-2 text-white">
