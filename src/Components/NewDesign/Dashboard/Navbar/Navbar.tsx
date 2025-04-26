@@ -43,17 +43,19 @@ const Navbar: React.FC = () => {
             )}
           </button>
 
-          <Link href="/" className="flex items-center gap-1">
-            <div className="logo flex w-[10rem] h-[2.5rem]">
-              <img
-                src="images/agentify-logo-sample.png"
-                alt="Agentify Logo"
-                className="w-full h-full object-contain"
-              />
+          <Link href="/" className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
+              <div className="logo flex w-[1.7rem] h-[1.7rem] ">
+                <img
+                  src="images/icon.png"
+                  alt="Agentify Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
-            {/* <h1 className="text-xl font-bold bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent">
               Agentify
-            </h1> */}
+            </h1>
           </Link>
         </div>
 
