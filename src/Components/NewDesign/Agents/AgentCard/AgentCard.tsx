@@ -19,6 +19,9 @@ interface AgentCardProps {
   description: string;
   categories: string[];
   tags: string[];
+  supported_chains: string[];
+  sample_commands: string[];
+  security_notes: string;
 }
 
 const AgentCard = ({
@@ -27,6 +30,9 @@ const AgentCard = ({
   description,
   categories,
   tags,
+  supported_chains,
+  sample_commands,
+  security_notes
 }: AgentCardProps) => {
   const router = useRouter();
 
@@ -193,7 +199,7 @@ const AgentCard = ({
         <DynamicIcon name={agentDetails.icon} />
         <div>
           <h3 className="text-xl font-semibold">{name}</h3>
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+          <p className="text-sm text-muted-foreground mt-1 truncate-1-lines">
             {description}
           </p>
         </div>
@@ -232,7 +238,7 @@ const AgentCard = ({
                 Supported Chains
               </h4>
               <div className="flex flex-wrap gap-2">
-                {agentDetails.supportedChains.map((chain) => (
+                {supported_chains.map((chain) => (
                   <Badge
                     key={chain}
                     className="bg-secondary text-white/90 hover:bg-secondary/80"
@@ -248,7 +254,7 @@ const AgentCard = ({
                 Sample Commands
               </h4>
               <ul className="space-y-2">
-                {agentDetails.sampleCommands.map((command, idx) => (
+                {sample_commands?.map((command, idx) => (
                   <li
                     key={idx}
                     className="text-muted-foreground bg-white/10 hover:bg-white/20 px-3 py-2 rounded-md font-mono text-xs transition-colors"
@@ -265,7 +271,7 @@ const AgentCard = ({
                 Security Notes
               </h4>
               <p className="text-muted-foreground text-sm">
-                {agentDetails.securityNotes}
+                {security_notes}
               </p>
             </div>
 

@@ -10,9 +10,11 @@ interface NavLinkProps {
   to: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  className1?: string;
+  className2?: string;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon: Icon, children }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon: Icon, children, className1, className2 }) => {
   const pathname = usePathname(); // ✅ get current path
   const isActive = pathname === to;
 
@@ -21,12 +23,13 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon: Icon, children }) => {
       href={to} 
       className={cn(
         "text-sm font-medium transition-colors flex items-center gap-1.5",
+        `${className1}`,
         isActive 
           ? "text-white" 
           : "text-muted-foreground hover:text-white"
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={`${className2}`} />
       {children}
     </Link>
   );

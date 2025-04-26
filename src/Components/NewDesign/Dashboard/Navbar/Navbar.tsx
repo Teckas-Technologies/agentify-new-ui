@@ -59,16 +59,16 @@ const Navbar: React.FC = () => {
 
         {/* Center Nav */}
         <nav className="hidden md:flex items-center gap-6 mx-4">
-          <NavLink to="/" icon={LayoutDashboard}>
+          <NavLink to="/" icon={LayoutDashboard} className2="h-4 w-4">
             Dashboard
           </NavLink>
-          <NavLink to="/playground" icon={Command}>
+          <NavLink to="/playground" icon={Command} className2="h-4 w-4">
             Playground
           </NavLink>
-          <NavLink to="/agents" icon={Code}>
+          <NavLink to="/agents" icon={Code} className2="h-4 w-4">
             Agents
           </NavLink>
-          <NavLink to="/activity" icon={Layers}>
+          <NavLink to="/activity" icon={Layers} className2="h-4 w-4">
             Activity
           </NavLink>
         </nav>
@@ -87,17 +87,17 @@ const Navbar: React.FC = () => {
 
       {/* Mobile Nav */}
       {isMobileMenuOpen && (
-        <div className="md:hidden mt-4 px-2 space-y-2">
-          <NavLink to="/" icon={LayoutDashboard}>
+        <div className="md:hidden mt-4 px-2 space-y-4">
+          <NavLink to="/" icon={LayoutDashboard} className1="text-md" className2="h-5 w-5">
             Dashboard
           </NavLink>
-          <NavLink to="/playground" icon={Command}>
+          <NavLink to="/playground" icon={Command} className1="text-md" className2="h-5 w-5">
             Playground
           </NavLink>
-          <NavLink to="/agents" icon={Code}>
+          <NavLink to="/agents" icon={Code} className1="text-md" className2="h-5 w-5">
             Agents
           </NavLink>
-          <NavLink to="/activity" icon={Layers}>
+          <NavLink to="/activity" icon={Layers} className1="text-md" className2="h-5 w-5">
             Activity
           </NavLink>
         </div>
