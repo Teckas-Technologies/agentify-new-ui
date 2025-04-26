@@ -226,7 +226,7 @@ const AgentCard = ({
             <Info className="h-4 w-4" /> More details
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl bg-[#0a0a0a] text-white border border-white/10 shadow-lg rounded-xl animate-in fade-in zoom-in-95">
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-scroll scroll-d bg-[#0a0a0a] text-white border border-white/10 shadow-lg rounded-xl animate-in fade-in zoom-in-95">
           <DialogHeader>
             <DialogTitle>{name} - Details</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
