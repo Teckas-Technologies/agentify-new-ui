@@ -168,7 +168,7 @@ export default function Dashboard({
       transaction_volume,
       explorer_link
     };
-    const data = await createTransactions(payload);
+    // const data = await createTransactions(payload);
   }
 
   const clearChatHistory = async () => {

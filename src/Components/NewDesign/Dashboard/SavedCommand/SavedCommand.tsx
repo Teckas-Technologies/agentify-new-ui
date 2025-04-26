@@ -2,15 +2,20 @@
 
 import { ReactNode } from "react";
 import { Button } from "@/Components/ui/button";
-
+import { useRouter } from "next/navigation"; 
 interface SavedCommandProps {
   title: string;
   command: string;
+  agentId: string;
   icon?: ReactNode;
-  onRun?: () => void;
 }
 
-export const SavedCommand = ({ title, command, icon, onRun }: SavedCommandProps) => {
+export const SavedCommand = ({ title, command, icon,agentId }: SavedCommandProps) => {
+  const router = useRouter();
+  const handleRunAgain = () => {
+    // Redirect to the Playground page with the agentId and command as URL parameters
+    router.push(`/playground?agent=${encodeURIComponent(agentId)}&message=${encodeURIComponent(command)}`);
+  };
   return (
     <div className="neumorphic-sm rounded-lg p-3 flex justify-between items-center">
       <div className="flex gap-2 items-center">
@@ -24,7 +29,7 @@ export const SavedCommand = ({ title, command, icon, onRun }: SavedCommandProps)
         variant="secondary" 
         size="sm" 
         className="glow" 
-        onClick={onRun}
+        onClick={handleRunAgain}
       >
         Run Again
       </Button>
