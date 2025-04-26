@@ -28,14 +28,14 @@ const CommandsPage = () => {
   const [savedCommandsData, setSavedCommandsData] = useState<any[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const commandsPerPage = 2;
+  const commandsPerPage = 3;
 
   const skip = (currentPage - 1) * commandsPerPage;
   const limit = commandsPerPage;
 
   const loadSavedCommands = useCallback(async () => {
     if (address) {
-      const res = await fetchSavedCommands("1", skip, limit);
+      const res = await fetchSavedCommands(address, skip, limit);
       if (res?.data) {
         setSavedCommandsData(res.data);
       }

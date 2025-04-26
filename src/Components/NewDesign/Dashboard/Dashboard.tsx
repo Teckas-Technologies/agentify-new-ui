@@ -164,7 +164,7 @@ const Dashboard = () => {
 
   const fetchChainActivityMemoized = useCallback(async () => {
     if (address) {
-      await fetchChainActivity("user123");
+      await fetchChainActivity(address);
     }
   }, [address]);
 
@@ -243,6 +243,7 @@ const Dashboard = () => {
       });
     }
   }, [address, fetchRecentTransactions]);
+  console.log("...........................................",Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   // 🔁 useCallback for fetching tab-specific transactions (with agentId)
   const loadTabbedTransactions = useCallback(() => {
@@ -290,7 +291,17 @@ const Dashboard = () => {
       }
     }
   }, [address]);
+  const lastCommand = savedCommandsData.length > 0 ? savedCommandsData[0] : null;
 
+  // Generate the action URL for the last command
+  const getLastCommandUrl = () => {
+    if (lastCommand) {
+      const agentId = lastCommand.agent_id; // Assuming the last command has the 'agentId' field
+      const command = encodeURIComponent(lastCommand.command); // Assuming the last command has the 'command' field
+      return `/playground?agent=${agentId}&message=${command}`;
+    }
+    return "/playground"; // Fallback URL
+  };
   useEffect(() => {
     loadSavedCommands();
   }, [address]);
@@ -316,6 +327,15 @@ const Dashboard = () => {
     };
     return mapping[type] || type;
   };
+  const convertToISTDate = (time: string): Date => {
+    const utcDate = new Date(time.endsWith("Z") ? time : `${time}Z`);
+    // toLocaleString to convert to IST and parse back to Date
+    const istString = utcDate.toLocaleString("en-US", {
+      timeZone: "Asia/Kolkata",
+    });
+    return new Date(istString);
+  };
+  
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -476,12 +496,9 @@ const Dashboard = () => {
                             key={tx._id}
                             title={formatTransactionType(tx.transaction_type)}
                             description={tx.description}
-                            timestamp={`${formatDistanceToNow(
-                              new Date(tx.time),
-                              {
-                                addSuffix: true,
-                              }
-                            )}`}
+                            timestamp={`${formatDistanceToNow(convertToISTDate(tx.time), {
+                              addSuffix: true,
+                            })}`}
                             status={normalizeStatus(tx.status)}
                             icon={<Activity className="h-4 w-4" />}
                           />
@@ -561,7 +578,7 @@ const Dashboard = () => {
                                 Total Gas
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.totalGas}
+                                {localData.totalGas.toFixed(4)}
                               </p>
                             </div>
                             <div>
@@ -569,7 +586,7 @@ const Dashboard = () => {
                                 Avg per Tx
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.avgGas}
+                                {localData.avgGas.toFixed(4)}
                               </p>
                             </div>
                           </div>
@@ -593,34 +610,55 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid gap-3">
-                        {!address ? (
-                          <>
-                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-                          </>
-                        ) : (
-                          quickActions.map((action, index) => (
-                            <Button
-                              key={index}
-                              variant="outline"
-                              className="w-full justify-start gap-3 h-auto p-3"
-                              onClick={() => router.push(action.action)}
-                            >
-                              <div className="p-2 rounded-full bg-primary/10">
-                                <action.icon className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="text-left">
-                                <h4 className="font-medium">{action.title}</h4>
-                                <p className="text-xs text-muted-foreground">
-                                  {action.description}
-                                </p>
-                              </div>
-                            </Button>
-                          ))
-                        )}
-                      </div>
+                    <div className="grid gap-3">
+      {!address ? (
+        <>
+          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+        </>
+      ) : (
+        quickActions.map((action, index) => {
+          if (action.title === "Run Last Command" && lastCommand) {
+            return (
+              <Button
+                key={index}
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto p-3"
+                onClick={() => router.push(getLastCommandUrl())} // Use the dynamic URL for last command
+              >
+                <div className="p-2 rounded-full bg-primary/10">
+                  <action.icon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-medium">{action.title}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {lastCommand.description || "Execute the most recent transaction"}
+                  </p>
+                </div>
+              </Button>
+            );
+          }
+
+          return (
+            <Button
+              key={index}
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto p-3"
+              onClick={() => router.push(action.action)} // Default action for other buttons
+            >
+              <div className="p-2 rounded-full bg-primary/10">
+                <action.icon className="h-4 w-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-medium">{action.title}</h4>
+                <p className="text-xs text-muted-foreground">{action.description}</p>
+              </div>
+            </Button>
+          );
+        })
+      )}
+    </div>
                     </CardContent>
                   </Card>
 
