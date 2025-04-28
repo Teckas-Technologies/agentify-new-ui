@@ -635,118 +635,33 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid gap-3">
-                        {!user || !address ? (
+                        {!address ? (
                           <>
                             <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
                             <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
                             <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
                           </>
                         ) : (
-                          quickActions.map((action, index) => {
-                            if (
-                              action.title === "Run Last Command" &&
-                              lastCommand
-                            ) {
-                              return (
-                                <Button
-                                  key={index}
-                                  variant="outline"
-                                  className="w-full justify-start gap-3 h-auto p-3"
-                                  onClick={() =>
-                                    router.push(getLastCommandUrl())
-                                  } // Use the dynamic URL for last command
-                                >
-                                  <div className="p-2 rounded-full bg-primary/10">
-                                    <action.icon className="h-4 w-4 text-primary" />
-                                  </div>
-                                  <div className="text-left">
-                                    <h4 className="font-medium">
-                                      {action.title}
-                                    </h4>
-                                    <p className="text-xs text-muted-foreground">
-                                      {lastCommand.description ||
-                                        "Execute the most recent transaction"}
-                                    </p>
-                                  </div>
-                                </Button>
-                              );
-                            }
-
-                            return (
-                              <Button
-                                key={index}
-                                variant="outline"
-                                className="w-full justify-start gap-3 h-auto p-3"
-                                onClick={() => router.push(action.action)} // Default action for other buttons
-                              >
-                                <div className="p-2 rounded-full bg-primary/10">
-                                  <action.icon className="h-4 w-4 text-primary" />
-                                </div>
-                                <div className="text-left">
-                                  <h4 className="font-medium">
-                                    {action.title}
-                                  </h4>
-                                  <p className="text-xs text-muted-foreground">
-                                    {action.description}
-                                  </p>
-                                </div>
-                              </Button>
-                            );
-                          })
+                          quickActions.map((action, index) => (
+                            <Button
+                              key={index}
+                              variant="outline"
+                              className="w-full justify-start gap-3 h-auto p-3"
+                              onClick={() => router.push(action.action)}
+                            >
+                              <div className="p-2 rounded-full bg-primary/10">
+                                <action.icon className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="text-left">
+                                <h4 className="font-medium">{action.title}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {action.description}
+                                </p>
+                              </div>
+                            </Button>
+                          ))
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Chain Activity */}
-                  <Card className="neumorphic border-none">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-bold">
-                        Chain Activity
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {!user || !address || chainLoading ? (
-                        <div className="flex flex-wrap gap-2">
-                          <div className="h-[25px] w-[100px]">
-                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
-                          </div>
-                          <div className="h-[25px] w-[100px]">
-                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
-                          </div>
-                          <div className="h-[25px] w-[100px]">
-                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
-                          </div>
-                        </div>
-                      ) : chainActivity?.length === 0 ||
-                        chainActivity === null ? (
-                        <EmptyState
-                          title="No Chain Activity Yet"
-                          description="Once on-chain activity is detected for this address, it will be displayed here."
-                          icon={
-                            <Hourglass className="h-12 w-12 text-muted-foreground/50" />
-                          }
-                        />
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {chainActivity.map((chain, index) => (
-                            <ChainBadge
-                              key={chain.chainName}
-                              name={chain.chainName}
-                              count={chain.count}
-                              color={
-                                index === 0
-                                  ? "bg-primary/20"
-                                  : index === 1
-                                  ? "bg-accent/20"
-                                  : index === 2
-                                  ? "bg-success/20"
-                                  : "bg-secondary"
-                              }
-                            />
-                          ))}
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 </div>
