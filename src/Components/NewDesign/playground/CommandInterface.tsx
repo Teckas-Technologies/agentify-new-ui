@@ -1,18 +1,16 @@
 
-import { Send, Wallet, MessageCircle, Zap, Delete, DeleteIcon, Trash, Trash2, Trash2Icon, Heart } from "lucide-react";
+import { Send, Wallet, MessageCircle, Zap, Trash2, Heart } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { Badge } from "@/Components/ui/badge";
 import { Card, CardHeader, CardContent, CardFooter } from "@/Components/ui/card";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { agentExampleCommands } from "@/utils/agentCommands";
 import { Agent, MarketType, Message, RequestFields, TransactionType, TransactionStatus, RequestFieldsv2 } from "@/types/types";
 import { useAccount } from "wagmi";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useChat } from "@/hooks/useChatHook";
 import dynamic from "next/dynamic";
-import InlineSVG from "react-inlinesvg";
 import useAaveHook from "@/hooks/useAaveHook";
 import useLifiHook from "@/hooks/useLifiHook";
 import { useTransactions } from "@/hooks/useTransactionsHook";
@@ -20,7 +18,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { switchNetwork } from "@/utils/switchNetwork";
 import AgentSelector from "./AgentSelector";
 import { formatUnits } from "ethers/lib/utils";
-import { ethers } from "ethers";
 import { marketConfigs } from "@/utils/markets";
 import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
 
@@ -48,12 +45,11 @@ export const CommandInterface = ({
     const [isExecutingAave, setExecutingAave] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
     const [savedCommands, setSavedCommands] = useState<string[]>([]);
-    const [favoritedIndexes, setFavoritedIndexes] = useState<Record<string, number[]>>({});
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const modalRef = useRef<HTMLDivElement | null>(null);
     const { address } = useAccount();
     const { user } = usePrivy();
-    const { chat, fetchChatHistory, clearHistory, updateMessage, sendAgentCommand, getAgentCommands } = useChat();
+    const { chat, fetchChatHistory, clearHistory, updateMessage, sendAgentCommand, getAgentCommands, deleteAgentCommand } = useChat();
     const { executeLifi, validateTokenBalance } = useLifiHook();
     const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } = useAaveHook();
     const { createTransactions, createTransactionsv2 } = useTransactions();
@@ -112,27 +108,40 @@ export const CommandInterface = ({
     }, []);
 
     const saveCommand = async (command: string, index: number) => {
-        if (!address || !selectedAgent) return;
-        const res = await sendAgentCommand(address, selectedAgent?.agentId, selectedAgent?.name, command);
-        console.log("RES:", res)
+        try {
+            if (!address || !selectedAgent) return;
+            const res = await sendAgentCommand(address, selectedAgent?.agentId, selectedAgent?.name, command);
+            console.log("RES:", res)
 
-        setSavedCommands((prev) => [...prev, command]);
-        // setFavoritedIndexes((prev) => {
-        //     const currentAgentId = selectedAgent.agentId;
-        //     const agentFavorites = prev[currentAgentId] || [];
+            setSavedCommands((prev) => [...prev, command]);
+            // setFavoritedIndexes((prev) => {
+            //     const currentAgentId = selectedAgent.agentId;
+            //     const agentFavorites = prev[currentAgentId] || [];
 
-        //     return {
-        //         ...prev,
-        //         [currentAgentId]: agentFavorites.includes(index)
-        //             ? agentFavorites // already favorited, no duplicate
-        //             : [...agentFavorites, index], // add new
-        //     };
-        // });
+            //     return {
+            //         ...prev,
+            //         [currentAgentId]: agentFavorites.includes(index)
+            //             ? agentFavorites // already favorited, no duplicate
+            //             : [...agentFavorites, index], // add new
+            //     };
+            // });
+        } catch (error) {
+            console.error("Error saving command:", error);
+        }
     }
 
-    const getCmdsByUserIdandAgentId = async () => {
-        if (!address || !selectedAgent) return;
-        const res = await getAgentCommands(address, selectedAgent?.agentId)
+    const deleteCommand = async (command: string) => {
+        try {
+            if (!address || !selectedAgent) return;
+            const res = await deleteAgentCommand({ userId: address, agentId: selectedAgent?.agentId, command });
+            console.log("RES:", res);
+            setSavedCommands((prevCommands) =>
+                prevCommands.filter((cmd) => cmd !== command)
+            );
+        } catch (error) {
+            console.error("Error deleting command:", error);
+            // Optionally, you can show an error message to the user
+        }
     }
 
     const createTrans = async (
@@ -210,30 +219,38 @@ export const CommandInterface = ({
     }
 
     const fetchHistory = useCallback(async () => {
-        if (!address || !selectedAgent?.agentId) return;
-        const history = await fetchChatHistory(
-            address,
-            selectedAgent?.agentId
-        );
-        const filteredMessages = history?.threads?.filter(
-            (msg: Message) => msg.message.trim() !== "" && msg.role !== "tool"
-        );
+        try {
+            if (!address || !selectedAgent?.agentId) return;
+            const history = await fetchChatHistory(
+                address,
+                selectedAgent?.agentId
+            );
+            const filteredMessages = history?.threads?.filter(
+                (msg: Message) => msg.message.trim() !== "" && msg.role !== "tool"
+            );
 
-        setMessages(filteredMessages);
+            setMessages(filteredMessages);
 
-        const cmds = await getAgentCommands(address, selectedAgent.agentId);
-        if (cmds && Array.isArray(cmds?.data?.data)) {
-            setSavedCommands(cmds?.data?.data?.map((cmd: any) => cmd.command));
+            const cmds = await getAgentCommands(address, selectedAgent.agentId);
+            if (cmds && Array.isArray(cmds?.data?.data)) {
+                setSavedCommands(cmds?.data?.data?.map((cmd: any) => cmd.command));
+            }
+
+            console.log("filteredMessages", filteredMessages);
+            console.log("savedCommands", cmds.data);
+        } catch (error) {
+            console.error("Error fetching history or commands:", error);
         }
-
-        console.log("filteredMessages", filteredMessages);
-        console.log("savedCommands", cmds.data);
     }, [address, selectedAgent, user]);
 
     const clearChatHistory = async () => {
-        if (!address || !selectedAgent?.agentId) return;
-        await clearHistory(address, selectedAgent?.agentId);
-        setMessages([]);
+        try {
+            if (!address || !selectedAgent?.agentId) return;
+            await clearHistory(address, selectedAgent?.agentId);
+            setMessages([]);
+        } catch (error) {
+            console.error("Error clearing chat history:", error);
+        }
     }
 
     const updateLastAiMessage = useCallback((newMessage: string) => {
@@ -375,13 +392,13 @@ export const CommandInterface = ({
 
                             const statusMessage = `Oops! Your lending ${amount} ${tokenSymbol} execution was failed!`;
                             await chat({
-                                inputMessage: statusMessage,
+                                inputMessage: res?.message || statusMessage,
                                 agentName: selectedAgent?.agentId,
                                 userId: address,
                                 isTransaction: true
                             });
 
-                            updateLastAiMessage(statusMessage)
+                            updateLastAiMessage(res?.message || statusMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -719,8 +736,8 @@ export const CommandInterface = ({
                                         {messages?.map((msg, index) => (
                                             <>
                                                 <div key={index} className={`message w-full h-auto flex ${index === messages.length - 1 && msg.role === "ai" && "md:flex-row flex-col"} gap-1 md:gap-2 lg:gap-3 my-2 ${msg.role === "ai" ? "justify-start" : "justify-end"}`}>
-                                                    {msg?.role === "human" && <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 self-center cursor-pointer" onClick={() => { saveCommand(msg?.message, index); }}>
-                                                        <Heart className={`h-5 w-5 ${savedCommands.includes(msg.message) ? 'fill-current text-primary' : 'text-primary'}`} />
+                                                    {msg?.role === "human" && <div className="p-1 md:p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 self-center cursor-pointer" onClick={() => { savedCommands.includes(msg?.message) ? deleteCommand(msg.message) : saveCommand(msg?.message, index) }}>
+                                                        <Heart className={`h-4 w-4 md:h-5 md:w-5 ${savedCommands.includes(msg.message) ? 'fill-current text-primary' : 'text-primary'}`} />
                                                     </div>}
                                                     <div className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai" ? "bg-white/5 hover:bg-primary/10 border border-white/10" : "user-msg agent-name bg-primary/50 border border-white/10"}`}>
                                                         <MarkdownToJSX
