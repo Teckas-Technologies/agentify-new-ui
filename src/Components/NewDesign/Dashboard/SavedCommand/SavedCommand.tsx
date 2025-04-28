@@ -39,7 +39,7 @@ export const SavedCommand = ({
       <Button
         variant="secondary"
         size="sm"
-        className="glow"
+        className="glow text-xs px-3 py-2 md:text-sm md:px-3 md:py-2"
         onClick={handleRunAgain}
       >
         Run Again
