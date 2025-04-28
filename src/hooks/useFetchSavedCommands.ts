@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
@@ -19,9 +20,15 @@ const useFetchSavedCommands = () => {
         skip: skip !== undefined ? skip.toString() : '0', // Default to 0 if skip is not provided
         limit: limit !== undefined ? limit.toString() : '10', // Default to 10 if limit is not provided
       });
-
+      const accessToken = await getAccessToken();
+      console.log("Access ...................",accessToken);
+      
       const response = await fetch(`${AGENTIFY_API_URL}/api/agentCommands/?${query.toString()}`, {
         method: "GET",
+        headers: {
+        
+          Authorization: `Bearer ${accessToken}`, 
+        },
       });
 
       if (!response.ok) {

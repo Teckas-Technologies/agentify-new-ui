@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 
 const useFetchDashboardStats = () => {
   const [dashboardStats, setDashboardStats] = useState<any | null>(null);
@@ -16,13 +17,13 @@ const useFetchDashboardStats = () => {
         agent_id: agentId,
         user_id: userId,
       });
-
+const accessToken = await getAccessToken();
       const response = await fetch(`${AGENTIFY_AI}/api/dashboard/stats?${query.toString()}`, {
         method: "GET",
-        // headers: {
-        //   "Content-Type": "application/json",
-        //   Authorization: `Bearer ${token}`,
-        // },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`, // ✅ added Authorization header
+        },
       });
 
       if (!response.ok) {

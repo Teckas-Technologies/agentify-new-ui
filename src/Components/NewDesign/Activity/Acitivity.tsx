@@ -266,7 +266,7 @@ const ActivityPage = () => {
                   </div>
                 </TableCell>
                 <TableCell className="w-[250px]">{tx.description}</TableCell>
-                <TableCell className="w-[120px]"> {getShortenedChainName(tx.chain)}</TableCell>
+                <TableCell className="w-[120px]"> {tx.chain}</TableCell>
                 <TableCell className="w-[200px]">{format(new Date(tx.time), "MMM d, h:mm a")}</TableCell>
                 <TableCell className="w-[150px]">{tx.amount}</TableCell>
                 <TableCell className="w-[150px]">{tx.gasUSD}</TableCell>

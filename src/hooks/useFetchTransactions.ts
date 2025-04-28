@@ -1,4 +1,5 @@
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 import { useState } from "react";
 
 const TRANSACTIONS_API_URL =
@@ -63,8 +64,14 @@ const useFetchTransactions = () => {
       if (agentId) params.append("agent_id", agentId);
       if (searchQuery) params.append("search_query", searchQuery);
       if (filter) params.append("filter", filter);
-
-      const response = await fetch(`${AGENTIFY_API_URL}/api/transactions/?${params.toString()}`);
+      const accessToken = await getAccessToken();
+      const response = await fetch(`${AGENTIFY_API_URL}/api/transactions/?${params.toString()}`, {
+        method: "GET",
+        headers: {
+        
+          Authorization: `Bearer ${accessToken}`, 
+        },
+      });
       console.log("Url >>>", response.url);
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);

@@ -1,5 +1,6 @@
 import { PYTHON_SERVER_URL } from '@/config/constants';
 import { Agent } from '@/types/types';
+import { getAccessToken } from '@privy-io/react-auth';
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 
@@ -23,12 +24,13 @@ export const useChat = (initialAgents: any[] = []) => {
         }
         setLoading(true);
         setError(null);
-
+        const accessToken = await getAccessToken();
         try {
             const response = await fetch(`${PYTHON_SERVER_URL}/api/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({
                     agentName: data.agentName, // "Swap Agent"

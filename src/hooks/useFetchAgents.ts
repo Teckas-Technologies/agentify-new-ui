@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 
 const useFetchAgents = (initialData: any[] = []) => {
   const [agentsData, setAgentsData] = useState<any[]>(initialData);
@@ -42,8 +43,16 @@ const useFetchAgents = (initialData: any[] = []) => {
         query.append("filter", filter); // ✅ only if filter has a value
       }
       const url = `${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`;
-    console.log("Fetching agents from URL:", url); // 👈 your URL log
-      const response = await fetch(`${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`);
+    console.log("Fetching agents from URL:", url); 
+    const accessToken = await getAccessToken();
+    const response = await fetch(`${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`, 
+      },
+    });
+    
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
       const result = await response.json();

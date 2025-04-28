@@ -1,4 +1,5 @@
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 import { useState, useCallback } from "react";
 
 const useFetchGraphData = (userId: string, agentId: string, year: number) => {
@@ -10,15 +11,15 @@ const useFetchGraphData = (userId: string, agentId: string, year: number) => {
     try {
       setLoading(true);
       setError(null);
-
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${AGENTIFY_AI}/api/transactions/graph/?user_id=${userId}&agent_id=${agentId}&year=${year}`,
         {
           method: "GET",
-          // headers: {
-          //   "Content-Type": "application/json",
-          //   Authorization: `Bearer ${token}`,
-          // },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
         }
       );
 

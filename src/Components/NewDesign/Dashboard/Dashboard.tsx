@@ -126,6 +126,7 @@ const quickActions = [
 // }
 
 const Dashboard = () => {
+  
   const router = useRouter();
   const { address } = useAccount();
   const { user } = usePrivy();

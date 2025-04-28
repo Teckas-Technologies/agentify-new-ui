@@ -263,14 +263,13 @@ export const CommandInterface = ({
                 nativeTokenSymbol: matched.nativeToken.symbol,
                 rpcUrl: matched.metamask.rpcUrls?.[0] || "",
                 decimals: matched.nativeToken.decimals,
-                chainName: matched.metamask.chainName,
+                chainName: matched.name,
             };
         } catch (error) {
             console.error("Error fetching chain info:", error);
             return null;
         }
     }
-
 
     const handleChat = async () => {
         console.log("Ip:", inputValue)
