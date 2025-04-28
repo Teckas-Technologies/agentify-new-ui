@@ -10,8 +10,9 @@ import {
   Clock,
 } from "lucide-react";
 import { StatusBadge } from "../StatusBadge/StatusBadge";
-import { parseISO } from 'date-fns'; // from date-fns
-import { formatInTimeZone } from 'date-fns-tz'; // from date-fns-tz
+import { format } from "date-fns";
+import { parseISO } from "date-fns"; // from date-fns
+import { formatInTimeZone } from "date-fns-tz"; // from date-fns-tz
 interface Transaction {
   _id: string;
   user_id: string;
@@ -69,50 +70,60 @@ const normalizeStatus = (status: string): "success" | "failed" | "pending" => {
 };
 
 export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
-
-
-  const inputTime = "2025-04-26T05:59:05.235000";
-  const timeIST = formatInTimeZone(new Date(inputTime), 'Asia/Kolkata', 'yyyy-MM-dd HH:mm:ssXXX');
-  
-  console.log(timeIST);
-  
-  console.log("Converted IST Time  --------------------------", timeIST);
-
   // Utility function to convert UTC to IST
-  const convertToIST = (time: string) => {
-    const utcDate = new Date(time.endsWith("Z") ? time : `${time}Z`);
-    return utcDate.toLocaleString("en-US", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-      day: "numeric",
-      month: "short",
-    });
-  };
+  // const convertToIST = (time: string) => {
+  //   const utcDate = new Date(time.endsWith("Z") ? time : `${time}Z`);
+  //   return utcDate.toLocaleString("en-US", {
+  //     timeZone: "Asia/Kolkata",
+  //     hour: "numeric",
+  //     minute: "numeric",
+  //     hour12: true,
+  //     day: "numeric",
+  //     month: "short",
+  //   });
+  // };
 
+    const getShortenedChainName = (chain: string) => {
+      if (chain === "Ethereum Mainnet" || chain === "EthereumCore") {
+        return "Ethereum";
+      }
+      return chain; // return the original name for other chains
+    };
   return (
     <div className="space-y-4">
       {[...transactions].reverse().map((tx) => (
         <div
           key={tx._id}
-          className="flex items-center justify-between p-3 bg-card hover:bg-accent/10 rounded-md transition-colors"
+          className="flex items-center justify-between md:p-3 md:pb-3 pb-2 bg-card hover:bg-accent/10 rounded-md transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 text-primary">
               {getTransactionIcon(tx.transaction_type)}
             </div>
             <div>
-              <h4 className="text-sm font-medium">{tx.description}</h4>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{tx.chain}</span>
+              {/* For mobile (smaller screens) */}
+              <h4 className="text-sm font-medium max-w-[180px] truncate block md:hidden">
+                {tx.description.length > 15
+                  ? `${tx.description.slice(0, 15)}...`
+                  : tx.description}
+              </h4>
+
+              {/* For md and larger screens */}
+              <h4 className="text-sm font-medium max-w-[180px] truncate hidden md:block">
+                {tx.description.length > 20
+                  ? `${tx.description.slice(0, 20)}...`
+                  : tx.description}
+              </h4>
+
+              <div className="flex items-center md:gap-2 gap-1 text-xs text-muted-foreground">
+              <span>{getShortenedChainName(tx.chain)}</span>
                 <span>•</span>
-                {convertToIST(tx.time)}
+                <span>{format(new Date(tx.time), "MMM d, h:mm a")}</span>
               </div>
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-sm font-medium">
+            <span className="text-xs font-medium">
               {tx.amount} {tx.crypto}
             </span>
             <StatusBadge status={normalizeStatus(tx.status)} />

@@ -43,6 +43,7 @@ import { Skeleton } from "@/Components/ui/skeleton";
 import { PreConnectState } from "./PreConnectState/PreConnectState";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import useFetchSavedCommands from "@/hooks/useFetchSavedCommands";
+import { usePrivy } from "@privy-io/react-auth";
 
 // export const agentUsageData = [
 //   { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
@@ -127,6 +128,7 @@ const quickActions = [
 const Dashboard = () => {
   const router = useRouter();
   const { address } = useAccount();
+  const { user } = usePrivy();
   const { handleWalletConnect } = useWalletConnect();
   const { dashboardStats, loading, error, fetchDashboardStats } =
     useFetchDashboardHeader();
@@ -148,7 +150,7 @@ const Dashboard = () => {
       dashboardStats?.mostUsedAgent === "N/A"
         ? "None"
         : dashboardStats?.mostUsedAgent ?? "None",
-    tokensSwapped: dashboardStats?.transactionVolume
+        transactionVolume: dashboardStats?.transactionVolume
       ? `$${dashboardStats.transactionVolume}`
       : "$0",
     chainsInteracted: dashboardStats?.chainsInteracted ?? 0,
@@ -173,7 +175,11 @@ const Dashboard = () => {
       fetchChainActivityMemoized();
     }
   }, [address]);
-  const { gasDetails, fetchGasDetails,loading:gasDetailsLoading } = useFetchGasDetails();
+  const {
+    gasDetails,
+    fetchGasDetails,
+    loading: gasDetailsLoading,
+  } = useFetchGasDetails();
   const [localData, setLocalData] = useState<{
     totalGas: number;
     avgGas: number;
@@ -243,7 +249,10 @@ const Dashboard = () => {
       });
     }
   }, [address, fetchRecentTransactions]);
-  console.log("...........................................",Intl.DateTimeFormat().resolvedOptions().timeZone);
+  console.log(
+    "...........................................",
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
 
   // 🔁 useCallback for fetching tab-specific transactions (with agentId)
   const loadTabbedTransactions = useCallback(() => {
@@ -291,7 +300,8 @@ const Dashboard = () => {
       }
     }
   }, [address]);
-  const lastCommand = savedCommandsData.length > 0 ? savedCommandsData[0] : null;
+  const lastCommand =
+    savedCommandsData.length > 0 ? savedCommandsData[0] : null;
 
   // Generate the action URL for the last command
   const getLastCommandUrl = () => {
@@ -335,7 +345,7 @@ const Dashboard = () => {
     });
     return new Date(istString);
   };
-  
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -358,14 +368,14 @@ const Dashboard = () => {
         </div>
 
         {/* Execution Summary */}
-        {address ? (
+        {address && user ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Transaction Executed"
                 icon={<Terminal className="h-5 w-5" />}
                 value={
-                  !address || loading ? (
+                  !user || !address || loading ? (
                     <Skeleton className="w-16 h-5 bg-white/10 rounded" />
                   ) : (
                     stats.commandsExecuted.toString()
@@ -373,7 +383,7 @@ const Dashboard = () => {
                 }
                 trend={{
                   value:
-                    !address || loading ? (
+                    !user || !address || loading ? (
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <>
@@ -404,7 +414,9 @@ const Dashboard = () => {
                   !address || loading ? (
                     <Skeleton className="w-20 h-5 bg-white/10 rounded" />
                   ) : (
-                    stats.tokensSwapped
+                    `$${Number(
+                      stats.transactionVolume.toString().replace("$", "") || 0
+                    ).toFixed(4)}`
                   )
                 }
                 trend={{
@@ -456,7 +468,7 @@ const Dashboard = () => {
                     <CardTitle className="text-lg font-bold">
                       Recent Activity
                     </CardTitle>
-                    {address && !recentLoading && (
+                    {user && address && !recentLoading && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -469,7 +481,7 @@ const Dashboard = () => {
                     )}
                   </CardHeader>
                   <CardContent>
-                    {!address || recentLoading ? (
+                    {!user || !address || recentLoading ? (
                       <div className="space-y-2">
                         <div className="h-[79px]">
                           <Skeleton className="w-full h-full bg-white/10 rounded-md" />
@@ -491,18 +503,24 @@ const Dashboard = () => {
                       />
                     ) : (
                       <div className="space-y-0">
-                         {[...recentTransactions].reverse().slice(0, 4).map((tx) => (
-                          <ActivityItem
-                            key={tx._id}
-                            title={formatTransactionType(tx.transaction_type)}
-                            description={tx.description}
-                            timestamp={`${formatDistanceToNow(convertToISTDate(tx.time), {
-                              addSuffix: true,
-                            })}`}
-                            status={normalizeStatus(tx.status)}
-                            icon={<Activity className="h-4 w-4" />}
-                          />
-                        ))}
+                        {[...recentTransactions]
+                          .reverse()
+                          .slice(0, 4)
+                          .map((tx) => (
+                            <ActivityItem
+                              key={tx._id}
+                              title={formatTransactionType(tx.transaction_type)}
+                              description={tx.description}
+                              timestamp={`${formatDistanceToNow(
+                                convertToISTDate(tx.time),
+                                {
+                                  addSuffix: true,
+                                }
+                              )}`}
+                              status={normalizeStatus(tx.status)}
+                              icon={<Activity className="h-4 w-4" />}
+                            />
+                          ))}
                       </div>
                     )}
                   </CardContent>
@@ -518,7 +536,7 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {chartLoading || !address ? (
+                      {!user || chartLoading || !address ? (
                         <Skeleton className="h-[250px] bg-white/10 rounded-md" />
                       ) : agentUsageData.length === 0 ? (
                         <EmptyState
@@ -542,7 +560,7 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {!address || gasDetailsLoading ? (
+                      {!user || !address || gasDetailsLoading ? (
                         <>
                           <div className="flex justify-between mb-4">
                             <div>
@@ -578,7 +596,7 @@ const Dashboard = () => {
                                 Total Gas
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.totalGas.toFixed(2)}
+                                {localData.totalGas.toFixed(2)} USD
                               </p>
                             </div>
                             <div>
@@ -586,7 +604,7 @@ const Dashboard = () => {
                                 Avg per Tx
                               </p>
                               <p className="text-xl font-bold">
-                                {localData.avgGas.toFixed(2)}
+                                {localData.avgGas.toFixed(2)} USD
                               </p>
                             </div>
                           </div>
@@ -610,55 +628,67 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <div className="grid gap-3">
-      {!address ? (
-        <>
-          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-          <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
-        </>
-      ) : (
-        quickActions.map((action, index) => {
-          if (action.title === "Run Last Command" && lastCommand) {
-            return (
-              <Button
-                key={index}
-                variant="outline"
-                className="w-full justify-start gap-3 h-auto p-3"
-                onClick={() => router.push(getLastCommandUrl())} // Use the dynamic URL for last command
-              >
-                <div className="p-2 rounded-full bg-primary/10">
-                  <action.icon className="h-4 w-4 text-primary" />
-                </div>
-                <div className="text-left">
-                  <h4 className="font-medium">{action.title}</h4>
-                  <p className="text-xs text-muted-foreground">
-                    {lastCommand.description || "Execute the most recent transaction"}
-                  </p>
-                </div>
-              </Button>
-            );
-          }
+                      <div className="grid gap-3">
+                        {!user || !address ? (
+                          <>
+                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+                            <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
+                          </>
+                        ) : (
+                          quickActions.map((action, index) => {
+                            if (
+                              action.title === "Run Last Command" &&
+                              lastCommand
+                            ) {
+                              return (
+                                <Button
+                                  key={index}
+                                  variant="outline"
+                                  className="w-full justify-start gap-3 h-auto p-3"
+                                  onClick={() =>
+                                    router.push(getLastCommandUrl())
+                                  } // Use the dynamic URL for last command
+                                >
+                                  <div className="p-2 rounded-full bg-primary/10">
+                                    <action.icon className="h-4 w-4 text-primary" />
+                                  </div>
+                                  <div className="text-left">
+                                    <h4 className="font-medium">
+                                      {action.title}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      {lastCommand.description ||
+                                        "Execute the most recent transaction"}
+                                    </p>
+                                  </div>
+                                </Button>
+                              );
+                            }
 
-          return (
-            <Button
-              key={index}
-              variant="outline"
-              className="w-full justify-start gap-3 h-auto p-3"
-              onClick={() => router.push(action.action)} // Default action for other buttons
-            >
-              <div className="p-2 rounded-full bg-primary/10">
-                <action.icon className="h-4 w-4 text-primary" />
-              </div>
-              <div className="text-left">
-                <h4 className="font-medium">{action.title}</h4>
-                <p className="text-xs text-muted-foreground">{action.description}</p>
-              </div>
-            </Button>
-          );
-        })
-      )}
-    </div>
+                            return (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                className="w-full justify-start gap-3 h-auto p-3"
+                                onClick={() => router.push(action.action)} // Default action for other buttons
+                              >
+                                <div className="p-2 rounded-full bg-primary/10">
+                                  <action.icon className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="text-left">
+                                  <h4 className="font-medium">
+                                    {action.title}
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {action.description}
+                                  </p>
+                                </div>
+                              </Button>
+                            );
+                          })
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
 
@@ -670,7 +700,7 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {!address || chainLoading ? (
+                      {!user || !address || chainLoading ? (
                         <div className="flex flex-wrap gap-2">
                           <div className="h-[25px] w-[100px]">
                             <Skeleton className="w-full h-full bg-white/10 rounded-md" />
@@ -727,7 +757,7 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     {/* Loading Skeleton */}
-                    {!address || savedCmdLoading ? (
+                    {!user || !address || savedCmdLoading ? (
                       <div className="flex flex-wrap gap-2">
                         <div className="h-[50px] w-full">
                           <Skeleton className="w-full h-full bg-white/10 rounded-md" />
@@ -804,7 +834,7 @@ const Dashboard = () => {
 
                       <TabsContent value={tab} className="m-0">
                         <div className="space-y-4">
-                          {!address || tabbedLoading ? (
+                          {!user || !address || tabbedLoading ? (
                             <>
                               <div className="h-[50px]">
                                 <Skeleton className="w-full h-full bg-white/10 rounded-md" />
