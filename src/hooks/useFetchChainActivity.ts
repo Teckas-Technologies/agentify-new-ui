@@ -16,13 +16,16 @@ const useFetchChainActivity = () => {
 
       const query = new URLSearchParams({ user_id: userId });
       const accessToken = await getAccessToken();
-      const response = await fetch(`${AGENTIFY_API_URL}/api/dashboard/chainActivity?${query.toString()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`, 
-        },
-      });
+      const response = await fetch(
+        `${AGENTIFY_API_URL}/api/dashboard/chainActivity?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);

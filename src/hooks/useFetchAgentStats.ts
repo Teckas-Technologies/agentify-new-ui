@@ -17,14 +17,17 @@ const useFetchDashboardStats = () => {
         agent_id: agentId,
         user_id: userId,
       });
-const accessToken = await getAccessToken();
-      const response = await fetch(`${AGENTIFY_AI}/api/dashboard/stats?${query.toString()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`, // ✅ added Authorization header
-        },
-      });
+      const accessToken = await getAccessToken();
+      const response = await fetch(
+        `${AGENTIFY_AI}/api/dashboard/stats?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`, // ✅ added Authorization header
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);

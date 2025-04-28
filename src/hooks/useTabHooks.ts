@@ -15,7 +15,7 @@ export const useTab = () => {
                 method: "GET",
                 headers: {
                   "Content-Type": "application/json",
-                  Authorization: `Bearer ${accessToken}`, // ✅ Added Authorization header
+                  Authorization: `Bearer ${accessToken}`, 
                 },
               });
             if (!response.ok) {
