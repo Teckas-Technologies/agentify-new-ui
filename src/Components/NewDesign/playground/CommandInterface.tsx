@@ -651,6 +651,13 @@ export const CommandInterface = ({
                     }
 
                     if (toolMessage?.error) {
+                        if (toolMessage?.error?.includes("No routes found")) {
+                            setMessages((prev) => [
+                                ...prev,
+                                { role: "ai", message: `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊` },
+                            ]);
+                            return;
+                        }
                         setMessages((prev) => [
                             ...prev,
                             { role: "ai", message: `${toolMessage?.error}` },
