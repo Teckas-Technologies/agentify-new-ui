@@ -458,13 +458,13 @@ export const CommandInterface = ({
 
                             const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
                             await chat({
-                                inputMessage: statusMessage,
+                                inputMessage: res?.message || statusMessage,
                                 agentName: selectedAgent?.agentId,
                                 userId: address,
                                 isTransaction: true
                             });
 
-                            updateLastAiMessage(statusMessage)
+                            updateLastAiMessage(res?.message || statusMessage)
                             setExecutingAave(false);
                             return;
                         }
@@ -521,13 +521,13 @@ export const CommandInterface = ({
                             await createTrans(address, "lendingBorrowingAgent", "WITHDRAW", `Withdraw ${amount} ${tokenSymbol} was failed!`, chainInfo?.chainName || "", new Date(), tokenSymbol, amount, `failed_${uuidv4()}`, `${explorer}tx/failed`, "FAILED", 0, 0, "Lend and Borrow agent");
                             const statusMessage = `Oops! The withdrawal of ${amount} ${tokenSymbol} failed.`;
                             await chat({
-                                inputMessage: statusMessage,
+                                inputMessage: res?.message || statusMessage,
                                 agentName: selectedAgent?.agentId,
                                 userId: address,
                                 isTransaction: true
                             });
 
-                            updateLastAiMessage(statusMessage)
+                            updateLastAiMessage(res?.message || statusMessage)
                             setExecutingAave(false);
                             return;
                         }
