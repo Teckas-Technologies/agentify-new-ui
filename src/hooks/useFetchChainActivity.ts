@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
@@ -14,13 +15,13 @@ const useFetchChainActivity = () => {
       setError(null);
 
       const query = new URLSearchParams({ user_id: userId });
-
+      const accessToken = await getAccessToken();
       const response = await fetch(`${AGENTIFY_API_URL}/api/dashboard/chainActivity?${query.toString()}`, {
         method: "GET",
-        // headers: {
-        //   "Content-Type": "application/json",
-        //   Authorization: `Bearer ${token}`, // Uncomment if needed
-        // },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`, 
+        },
       });
 
       if (!response.ok) {

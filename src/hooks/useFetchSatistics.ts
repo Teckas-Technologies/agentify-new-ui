@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
+import { getAccessToken } from "@privy-io/react-auth";
 
 const useFetchStatistics = () => {
   const [statisticsData, setStatisticsData] = useState<any | null>(null);
@@ -11,13 +12,13 @@ const useFetchStatistics = () => {
     try {
       setLoading(true);
       setError(null);
-
+      const accessToken = await getAccessToken();
       const response = await fetch(`${AGENTIFY_AI}/api/statistics/`, {
         method: "GET",
-        // headers: {
-        //   "Content-Type": "application/json",
-        //   Authorization: `Bearer ${token}`,
-        // },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`, 
+        },
       });
 
       if (!response.ok) {

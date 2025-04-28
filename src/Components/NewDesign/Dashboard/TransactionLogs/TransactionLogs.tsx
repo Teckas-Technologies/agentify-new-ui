@@ -116,7 +116,7 @@ export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
               </h4>
 
               <div className="flex items-center md:gap-2 gap-1 text-xs text-muted-foreground">
-              <span>{getShortenedChainName(tx.chain)}</span>
+              <span>{tx.chain}</span>
                 <span>•</span>
                 <span>{format(new Date(tx.time), "MMM d, h:mm a")}</span>
               </div>

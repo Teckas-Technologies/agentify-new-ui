@@ -1,4 +1,5 @@
 import { PYTHON_SERVER_URL } from '@/config/constants';
+import { getAccessToken } from '@privy-io/react-auth';
 import { useState } from 'react';
 
 export const useTab = () => {
@@ -8,9 +9,15 @@ export const useTab = () => {
     const getTabs = async () => {
         setLoading(true);
         setError(null);
+        const accessToken = await getAccessToken();
         try {
-            const response = await fetch(`${PYTHON_SERVER_URL}/api/list-agents`);
-
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/list-agents`, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`, // ✅ Added Authorization header
+                },
+              });
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
