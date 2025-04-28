@@ -509,7 +509,7 @@ const Dashboard = () => {
                             title={formatTransactionType(tx.transaction_type)}
                             description={tx.description}
                             timestamp={`${formatDistanceToNow(
-                              convertToISTDate(tx.time),
+                              new Date(tx.time),
                               {
                                 addSuffix: true,
                               }
