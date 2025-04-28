@@ -209,8 +209,9 @@ const CommandsPage = () => {
           )}
         </CardContent>
 
+
         {/* Enhanced Pagination */}
-        {savedCommandsData.length > 0 && savedCommands && savedCommands?.totalPages > 1 && (
+        {savedCommandsData.length > 0 && (
           <div className="mt-6 flex justify-center">
             <Pagination>
               <PaginationContent>
