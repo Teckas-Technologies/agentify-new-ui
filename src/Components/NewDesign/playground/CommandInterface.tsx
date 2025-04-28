@@ -531,6 +531,17 @@ export const CommandInterface = ({
                             setExecutingAave(false);
                             return;
                         }
+                    } else if (toolMessage?.type === "repay") {
+                        const statusMessage = `The repay option will be available soon. Stay tuned!`;
+                        await chat({
+                            inputMessage: statusMessage,
+                            agentName: selectedAgent?.agentId,
+                            userId: address,
+                            isTransaction: true
+                        });
+
+                        updateLastAiMessage(statusMessage);
+                        return;
                     } else if (toolMessage?.type === "swap" || toolMessage?.type === "bridge") {
                         const { quote, explorer } = toolMessage
                         console.log("Quote:", quote);
