@@ -256,6 +256,42 @@ export const useChat = (initialAgents: any[] = []) => {
         }
     };
 
+    const deleteAgentCommand = async ({
+        userId,
+        agentId,
+        command,
+    }: {
+        userId: string;
+        agentId: string;
+        command: string;
+    }) => {
+        setLoading(true);
+        setError(null);
 
-    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage, sendAgentCommand, getAgentCommands };
+        try {
+            const queryParams = new URLSearchParams({
+                user_id: userId,
+                agent_id: agentId,
+                command: command,
+            });
+
+            const response = await fetch(`${PYTHON_SERVER_URL}/api/agentCommands?${queryParams.toString()}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to delete agent command. Status: ${response.status}`);
+            }
+
+            return { success: true };
+        } catch (err: any) {
+            console.error("Error deleting agent command:", err);
+            setError(err.message || "Something went wrong during deletion");
+            return { success: false, message: err.message || "Something went wrong" };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return { loading, error, agents, chat, fetchChatHistory, clearHistory, fetchAgents, updateMessage, sendAgentCommand, getAgentCommands, deleteAgentCommand };
 };
