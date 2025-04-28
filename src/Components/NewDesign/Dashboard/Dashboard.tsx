@@ -664,6 +664,56 @@ const Dashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
+                  <Card className="neumorphic border-none">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-bold">
+                        Chain Activity
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {!address || chainLoading ? (
+                        <div className="flex flex-wrap gap-2">
+                          <div className="h-[25px] w-[100px]">
+                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
+                          </div>
+                          <div className="h-[25px] w-[100px]">
+                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
+                          </div>
+                          <div className="h-[25px] w-[100px]">
+                            <Skeleton className="w-full h-full bg-white/10 rounded-md" />
+                          </div>
+                        </div>
+                      ) : chainActivity?.length === 0 ||
+                        chainActivity === null ? (
+                        <EmptyState
+                          title="No Chain Activity Yet"
+                          description="Once on-chain activity is detected for this address, it will be displayed here."
+                          icon={
+                            <Hourglass className="h-12 w-12 text-muted-foreground/50" />
+                          }
+                        />
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {chainActivity.map((chain, index) => (
+                            <ChainBadge
+                              key={chain.chainName}
+                              name={chain.chainName}
+                              count={chain.count}
+                              color={
+                                index === 0
+                                  ? "bg-primary/20"
+                                  : index === 1
+                                  ? "bg-accent/20"
+                                  : index === 2
+                                  ? "bg-success/20"
+                                  : "bg-secondary"
+                              }
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
 
