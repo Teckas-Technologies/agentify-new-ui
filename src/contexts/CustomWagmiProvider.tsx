@@ -175,7 +175,7 @@ const privyConfig: PrivyClientConfig = {
     // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
     theme: "dark",
     accentColor: "#676FFF",
-    logo: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo.png",
+    logo: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-new-logo.png",
   },
 };
 // Create SDK config using Wagmi actions and configuration

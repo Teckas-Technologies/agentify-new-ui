@@ -175,8 +175,18 @@ const useAaveHook = () => {
 
             return { success: true, txHashes: txHashes };
         } catch (err: any) {
-            console.log("Err:", err)
-            if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
+            console.log("Err:", err);
+
+            const errorMessage = err.message?.toLowerCase() || "";
+            const errorCode = err.code || "";
+            const errorName = err.name || "";
+
+            if (
+                errorMessage.includes("user denied transaction signature") ||
+                errorMessage.includes("user rejected transaction") ||
+                errorCode === "ACTION_REJECTED" ||
+                errorName === "UserRejectedRequestError"
+            ) {
                 setError("Transaction rejected by the user.");
                 return { success: false, message: "You have rejected the transaction." };
             } else if (err.name === "TransactionExecutionError") {
@@ -514,7 +524,7 @@ const useAaveHook = () => {
 export default useAaveHook;
 
 async function generateSupplySignatureRequest(
-    user: string,
+    user: `0x${string}`,
     token: string,
     amount: string,
     deadline: string,
@@ -530,9 +540,13 @@ async function generateSupplySignatureRequest(
     const nonce = await tokenERC2612Service.getNonce({
         token,
         owner: user,
-    }) || 0;
+    });
 
     console.log("Token:", name, decimals, nonce, convertedAmount)
+
+    if (nonce === undefined || nonce === null) {
+        throw new Error('Failed to fetch token nonce. Token might not support permit.');
+    }
 
     const data = {
         types: {
