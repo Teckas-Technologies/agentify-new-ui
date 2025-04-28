@@ -126,7 +126,6 @@ const quickActions = [
 // }
 
 const Dashboard = () => {
-  
   const router = useRouter();
   const { address } = useAccount();
   const { user } = usePrivy();
@@ -214,34 +213,28 @@ const Dashboard = () => {
   const { fetchAgentChart, loading: chartLoading } = useFetchAgentChart();
   const [agentUsageData, setAgentUsageData] = useState<any[]>([]);
 
-
   const loadAgentData = useCallback(async () => {
-    if (!address) return; // early return if no address
+    if (!address) return;
     const data = await fetchAgentChart(address);
-  
+
     if (data) {
       console.log("Agent Usage Data:", data);
-  
       if (Array.isArray(data)) {
-        // API returned array directly
         setAgentUsageData(data);
       } else if (data.detail) {
-        // API returned a detail message ("No transactions found")
-        setAgentUsageData([]); // Set empty array to show EmptyState
+        setAgentUsageData([]);
       } else if (Array.isArray(data.data)) {
-        // If inside `data.data` (optional fallback)
         setAgentUsageData(data.data);
       } else {
         setAgentUsageData([]);
       }
     }
   }, [address]);
-   // make sure to include `address` in dependencies
 
   useEffect(() => {
     loadAgentData();
   }, [address]);
-  // For Recent Activity — always fetch without agentId
+
   const {
     transactions: recentTransactions,
     fetchTransactions: fetchRecentTransactions,
