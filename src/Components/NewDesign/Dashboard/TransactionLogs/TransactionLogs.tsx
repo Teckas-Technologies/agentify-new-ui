@@ -91,7 +91,7 @@ export const TransactionLogs: React.FC<Props> = ({ transactions }) => {
     };
   return (
     <div className="space-y-4">
-      {[...transactions].reverse().map((tx) => (
+      {[...transactions].map((tx) => (
         <div
           key={tx._id}
           className="flex items-center justify-between md:p-3 md:pb-3 pb-2 bg-card hover:bg-accent/10 rounded-md transition-colors"

@@ -150,7 +150,7 @@ const Dashboard = () => {
       dashboardStats?.mostUsedAgent === "N/A"
         ? "None"
         : dashboardStats?.mostUsedAgent ?? "None",
-        transactionVolume: dashboardStats?.transactionVolume
+    transactionVolume: dashboardStats?.transactionVolume
       ? `$${dashboardStats.transactionVolume}`
       : "$0",
     chainsInteracted: dashboardStats?.chainsInteracted ?? 0,
@@ -503,24 +503,21 @@ const Dashboard = () => {
                       />
                     ) : (
                       <div className="space-y-0">
-                        {[...recentTransactions]
-                          .reverse()
-                          .slice(0, 4)
-                          .map((tx) => (
-                            <ActivityItem
-                              key={tx._id}
-                              title={formatTransactionType(tx.transaction_type)}
-                              description={tx.description}
-                              timestamp={`${formatDistanceToNow(
-                                convertToISTDate(tx.time),
-                                {
-                                  addSuffix: true,
-                                }
-                              )}`}
-                              status={normalizeStatus(tx.status)}
-                              icon={<Activity className="h-4 w-4" />}
-                            />
-                          ))}
+                        {[...recentTransactions].slice(0, 4).map((tx) => (
+                          <ActivityItem
+                            key={tx._id}
+                            title={formatTransactionType(tx.transaction_type)}
+                            description={tx.description}
+                            timestamp={`${formatDistanceToNow(
+                              convertToISTDate(tx.time),
+                              {
+                                addSuffix: true,
+                              }
+                            )}`}
+                            status={normalizeStatus(tx.status)}
+                            icon={<Activity className="h-4 w-4" />}
+                          />
+                        ))}
                       </div>
                     )}
                   </CardContent>
