@@ -212,16 +212,31 @@ const Dashboard = () => {
     !address || !gasDetails || !gasDetails.data || gasDetails.data.length === 0;
 
   const { fetchAgentChart, loading: chartLoading } = useFetchAgentChart();
-  const [agentUsageData, setAgentUsageData] = useState([]);
+  const [agentUsageData, setAgentUsageData] = useState<any[]>([]);
+
 
   const loadAgentData = useCallback(async () => {
     if (!address) return; // early return if no address
     const data = await fetchAgentChart(address);
+  
     if (data) {
       console.log("Agent Usage Data:", data);
-      setAgentUsageData(data);
+  
+      if (Array.isArray(data)) {
+        // API returned array directly
+        setAgentUsageData(data);
+      } else if (data.detail) {
+        // API returned a detail message ("No transactions found")
+        setAgentUsageData([]); // Set empty array to show EmptyState
+      } else if (Array.isArray(data.data)) {
+        // If inside `data.data` (optional fallback)
+        setAgentUsageData(data.data);
+      } else {
+        setAgentUsageData([]);
+      }
     }
-  }, [address]); // make sure to include `address` in dependencies
+  }, [address]);
+   // make sure to include `address` in dependencies
 
   useEffect(() => {
     loadAgentData();
