@@ -80,13 +80,13 @@ export const useChat = (initialAgents: any[] = []) => {
                 is_favourite: is_favourite.toString(),
                 search_query,
             });
-
+            const accessToken = await getAccessToken();
             const response = await fetch(`${PYTHON_SERVER_URL}/api/v1/agents/?${queryParams.toString()}`, {
                 method: "GET",
-                // headers: {
-                //     "Content-Type": "application/json",
-                //     Authorization: `Bearer ${token}`,
-                // },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
             });
 
             if (!response.ok) {
@@ -113,8 +113,13 @@ export const useChat = (initialAgents: any[] = []) => {
         try {
             setLoading(true);
             setError(null);
+            const accessToken = await getAccessToken();
             const response = await fetch(`${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`, {
-                method: "GET"
+                method: "GET",
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
             })
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
@@ -139,8 +144,13 @@ export const useChat = (initialAgents: any[] = []) => {
         try {
             setLoading(true);
             setError(null);
+            const accessToken = await getAccessToken();
             const response = await fetch(`${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`, {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
             })
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
@@ -162,12 +172,14 @@ export const useChat = (initialAgents: any[] = []) => {
         setError(null);
 
         try {
+            const accessToken = await getAccessToken();
             const response = await fetch(
                 `${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`,
                 {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
                     },
                     body: JSON.stringify({ newMessage }),
                 }
@@ -197,10 +209,12 @@ export const useChat = (initialAgents: any[] = []) => {
         setError(null);
 
         try {
+            const accessToken = await getAccessToken();
             const response = await fetch(`${PYTHON_SERVER_URL}/api/agentCommands/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({
                     user_id: userId,
@@ -234,12 +248,14 @@ export const useChat = (initialAgents: any[] = []) => {
         setError(null);
 
         try {
+            const accessToken = await getAccessToken();
             const response = await fetch(
                 `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&agent_id=${agentId}&skip=${skip}&limit=${limit}`,
                 {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
                     },
                 }
             );

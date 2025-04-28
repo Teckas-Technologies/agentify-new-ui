@@ -5,7 +5,7 @@ import { useState } from "react";
 const TRANSACTIONS_API_URL =
   "https://agentify-lifi-g9f2ghedephpgkeg.canadacentral-01.azurewebsites.net/api/transactions/";
 
-  const AGENTIFY_API_URL = PYTHON_SERVER_URL;
+const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
 export interface Transaction {
   _id: string;
@@ -65,13 +65,16 @@ const useFetchTransactions = () => {
       if (searchQuery) params.append("search_query", searchQuery);
       if (filter) params.append("filter", filter);
       const accessToken = await getAccessToken();
-      const response = await fetch(`${AGENTIFY_API_URL}/api/transactions/?${params.toString()}`, {
-        method: "GET",
-        headers: {
-        
-          Authorization: `Bearer ${accessToken}`, 
-        },
-      });
+      const response = await fetch(
+        `${AGENTIFY_API_URL}/api/transactions/?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
       console.log("Url >>>", response.url);
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);

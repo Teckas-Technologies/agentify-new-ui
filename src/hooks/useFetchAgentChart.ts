@@ -23,7 +23,7 @@ const useFetchAgentChart = () => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`, // ✅ added Authorization header
+            Authorization: `Bearer ${accessToken}`, 
           },
         }
       );
