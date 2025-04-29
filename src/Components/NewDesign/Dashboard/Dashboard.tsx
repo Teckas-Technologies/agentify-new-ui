@@ -44,6 +44,7 @@ import { PreConnectState } from "./PreConnectState/PreConnectState";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import useFetchSavedCommands from "@/hooks/useFetchSavedCommands";
 import { usePrivy } from "@privy-io/react-auth";
+import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 
 // export const agentUsageData = [
 //   { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
@@ -83,7 +84,7 @@ const quickActions = [
     title: "Quick Swap",
     description: "Swap tokens with minimal clicks",
     icon: Repeat2,
-    action: "/playground",
+    action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
   },
   {
     title: "Command History",
@@ -395,10 +396,20 @@ const Dashboard = () => {
                     !user || !address || loading ? (
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
-                      <>
-                        {stats.transactionDifference >= 0 ? " ↑" : " ↓"}
+                      <span
+                        className={`flex items-center gap-1 ${
+                          stats.transactionDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {stats.transactionDifference >= 0 ? (
+                          <FaArrowUp className="inline-block" />
+                        ) : (
+                          <FaArrowDown className="inline-block" />
+                        )}
                         <span>{stats.transactionDifference}%</span>
-                      </>
+                      </span>
                     ),
                   isPositive: stats.transactionDifference >= 0,
                 }}
@@ -433,10 +444,20 @@ const Dashboard = () => {
                     !address || loading ? (
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
-                      <>
-                        {stats.volumeDifference >= 0 ? " ↑" : " ↓"}
+                      <span
+                        className={`flex items-center gap-1 ${
+                          stats.volumeDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {stats.volumeDifference >= 0 ? (
+                          <FaArrowUp className="inline-block" />
+                        ) : (
+                          <FaArrowDown className="inline-block" />
+                        )}
                         <span>{stats.volumeDifference}%</span>
-                      </>
+                      </span>
                     ),
                   isPositive: stats.volumeDifference >= 0,
                 }}
@@ -457,10 +478,20 @@ const Dashboard = () => {
                     !address || loading ? (
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
-                      <>
-                        {stats.chainsDifference >= 0 ? " ↑" : " ↓"}
+                      <span
+                        className={`flex items-center gap-1 ${
+                          stats.chainsDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {stats.chainsDifference >= 0 ? (
+                          <FaArrowUp className="inline-block" />
+                        ) : (
+                          <FaArrowDown className="inline-block" />
+                        )}
                         <span>{stats.chainsDifference}%</span>
-                      </>
+                      </span>
                     ),
                   isPositive: stats.chainsDifference >= 0,
                 }}
