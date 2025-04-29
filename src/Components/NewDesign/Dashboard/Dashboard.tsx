@@ -45,6 +45,7 @@ import { useWalletConnect } from "@/hooks/useWalletConnect";
 import useFetchSavedCommands from "@/hooks/useFetchSavedCommands";
 import { usePrivy } from "@privy-io/react-auth";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
+import useFetchLastCommand from "@/hooks/useFetchLastCommand";
 
 // export const agentUsageData = [
 //   { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
@@ -79,26 +80,26 @@ type GasHistory = {
 //   { day: "Sun", value: 0 },
 // ];
 
-const quickActions = [
-  {
-    title: "Quick Swap",
-    description: "Swap tokens with minimal clicks",
-    icon: Repeat2,
-    action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
-  },
-  {
-    title: "Command History",
-    description: "View your recent commands",
-    icon: Terminal,
-    action: "/commands",
-  },
-  {
-    title: "Run Last Command",
-    description: "Execute your most recent transaction",
-    icon: PlayCircle,
-    action: "/playground",
-  },
-];
+// const quickActions = [
+//   {
+//     title: "Quick Swap",
+//     description: "Swap tokens with minimal clicks",
+//     icon: Repeat2,
+//     action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
+//   },
+//   {
+//     title: "Command History",
+//     description: "View your recent commands",
+//     icon: Terminal,
+//     action: "/commands",
+//   },
+//   {
+//     title: "Run Last Command",
+//     description: "Execute your most recent transaction",
+//     icon: PlayCircle,
+//     action: "/playground",
+//   },
+// ];
 // const savedCommandsData = [
 //   {
 //     id: 1,
@@ -310,18 +311,8 @@ const Dashboard = () => {
       }
     }
   }, [address]);
-  const lastCommand =
-    savedCommandsData.length > 0 ? savedCommandsData[0] : null;
 
-  // Generate the action URL for the last command
-  const getLastCommandUrl = () => {
-    if (lastCommand) {
-      const agentId = lastCommand.agent_id; // Assuming the last command has the 'agentId' field
-      const command = encodeURIComponent(lastCommand.command); // Assuming the last command has the 'command' field
-      return `/playground?agent=${agentId}&message=${command}`;
-    }
-    return "/playground"; // Fallback URL
-  };
+
   useEffect(() => {
     loadSavedCommands();
   }, [address]);
@@ -355,7 +346,42 @@ const Dashboard = () => {
     });
     return new Date(istString);
   };
+  const { lastCommand, fetchLastCommand } = useFetchLastCommand();
+  const [quickActions, setQuickActions] = useState([
+    {
+      title: "Quick Swap",
+      description: "Swap tokens with minimal clicks",
+      icon: Repeat2,
+      action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
+    },
+    {
+      title: "Command History",
+      description: "View your recent commands",
+      icon: Terminal,
+      action: "/commands",
+    },
+  ]);
 
+  useEffect(() => {
+    const loadLastCommand = async () => {
+      const data = await fetchLastCommand();
+      if (data?.command && data?.agent_id) {
+        setQuickActions((prev) => [
+          ...prev,
+          {
+            title: "Run Last Command",
+            description: "Execute your most recent transaction",
+            icon: PlayCircle,
+            action: `/playground?agent=${data.agent_id}&message=${encodeURIComponent(data.command)}`,
+          },
+        ]);
+      }
+    };
+
+    if (address) {
+      loadLastCommand();
+    }
+  }, [address]);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
