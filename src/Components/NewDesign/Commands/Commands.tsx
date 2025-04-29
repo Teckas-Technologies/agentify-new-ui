@@ -168,11 +168,11 @@ const CommandsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto max-w-5xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Saved Commands</h1>
+          <h1 className="md:text-2xl text-lg font-bold">Saved Commands</h1>
           <Button variant="outline" onClick={() => router.push('/')}>
             Back to Dashboard
           </Button>

@@ -75,7 +75,7 @@ export const BarChartComponent = ({
               }}
             />
             <Tooltip 
-              formatter={(value: number) => value.toFixed(2)}
+              formatter={(value: number) => value.toFixed(4)}
               contentStyle={{ 
                 backgroundColor: "hsl(240 10% 3.9%)", 
                 borderColor: "hsl(240 3.7% 15.9%)",

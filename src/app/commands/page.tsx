@@ -1,5 +1,6 @@
 "use client";
 import CommandsPage from "@/Components/NewDesign/Commands/Commands";
+import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
 import { PYTHON_SERVER_URL } from "@/config/constants";
 import React from "react";
 import { useAccount } from "wagmi";
@@ -28,6 +29,7 @@ export default function Page() {
   //   }
   return (
     <main className="min-h-screen bg-[var(--bg-dark)] text-white">
+    <Navbar/>
       <CommandsPage />
     </main>
   );
