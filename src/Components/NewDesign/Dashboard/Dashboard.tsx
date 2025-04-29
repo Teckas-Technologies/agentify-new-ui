@@ -346,7 +346,7 @@ const Dashboard = () => {
     });
     return new Date(istString);
   };
-  const { lastCommand, fetchLastCommand } = useFetchLastCommand();
+  const { lastCommand, fetchLastCommand,loading:quickActionsLoading } = useFetchLastCommand();
   const [quickActions, setQuickActions] = useState([
     {
       title: "Quick Swap",
@@ -692,7 +692,7 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid gap-3">
-                        {!address ? (
+                        {quickActionsLoading || !user || !address ? (
                           <>
                             <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
                             <Skeleton className="h-[50px] w-full rounded-md bg-white/10" />
@@ -728,7 +728,7 @@ const Dashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {!address || chainLoading ? (
+                      {!user || !address || chainLoading ? (
                         <div className="flex flex-wrap gap-2">
                           <div className="h-[25px] w-[100px]">
                             <Skeleton className="w-full h-full bg-white/10 rounded-md" />
