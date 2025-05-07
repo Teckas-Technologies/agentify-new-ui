@@ -1,5 +1,6 @@
 "use client";
 import Dashboard from "@/Components/NewDesign/Dashboard/Dashboard";
+import SwapComponent from "@/Components/NewDesign/Swap";
 import { PYTHON_SERVER_URL } from "@/config/constants";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -87,6 +88,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[var(--bg-dark)] text-white">
       <Dashboard />
+      <SwapComponent/>
     </main>
   );
 }
