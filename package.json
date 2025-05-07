@@ -11,6 +11,7 @@
   "dependencies": {
     "@aave/contract-helpers": "^1.33.1",
     "@aave/math-utils": "^1.33.1",
+    "@berachain-foundation/berancer-sdk": "^1.1.2",
     "@bgd-labs/aave-address-book": "^4.17.0",
     "@bigmi/react": "^0.1.1",
     "@emotion/cache": "^11.14.0",

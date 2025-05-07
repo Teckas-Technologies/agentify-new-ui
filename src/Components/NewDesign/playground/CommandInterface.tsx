@@ -20,6 +20,7 @@ import AgentSelector from "./AgentSelector";
 import { formatUnits } from "ethers/lib/utils";
 import { marketConfigs } from "@/utils/markets";
 import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
+import { useBeraSwap } from "@/hooks/useBeraSwap";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -53,6 +54,7 @@ export const CommandInterface = ({
     const { executeLifi, validateTokenBalance } = useLifiHook();
     const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } = useAaveHook();
     const { createTransactions, createTransactionsv2 } = useTransactions();
+    const { swap, txHash, isSwapping, error, RPC_URL } = useBeraSwap();
     const { wallets } = useWallets();
     const wallet = wallets[0];
 
@@ -326,7 +328,130 @@ export const CommandInterface = ({
             if (response?.success) {
                 if (response?.data?.tool_response !== "None") {
                     const toolMessage = JSON.parse(response?.data?.tool_response);
-
+                    if (toolMessage?.type === "berachain_swap") {
+                        const {
+                          fromAddress,
+                          toAddress,
+                          slippage,
+                          fromToken,
+                          toToken,
+                          parsedFromAmount,
+                          estimatedToAmount,
+                          fromTokenAddress,
+                          toTokenAddress,
+                        } = toolMessage.details;
+                      
+                        if (!fromAddress || !toAddress) {
+                          setMessages((prev) => [
+                            ...prev,
+                            { role: "ai", message: "Missing swap parameters. Please try again." },
+                          ]);
+                          return;
+                        }
+                      
+                        const fromAmount = Number(parsedFromAmount) / 1e18;
+                        const from = `${fromAmount} ${fromToken}`;
+                        const to = `${estimatedToAmount} ${toToken}`;
+                      
+                        try {
+                          const berachainId = toolMessage?.BerachainId;
+                          if (wallet && berachainId && parseInt(wallet.chainId.split(":")[1]) !== berachainId) {
+                            await switchNetwork(berachainId);
+                          }
+                      
+                          // ✅ Move this message INSIDE try, just before the swap
+                          setMessages((prev) => [
+                            ...prev,
+                            {
+                              role: "ai",
+                              message: `Executing swap: ${fromToken} → ${toToken}. Don't close the page...`,
+                            },
+                          ]);
+                      
+                          const amountString = fromAmount.toString();
+                      
+                          const txHash = await swap(
+                            fromTokenAddress,
+                            18,
+                            fromToken,
+                            toTokenAddress,
+                            6,
+                            toToken,
+                            amountString
+                          );
+                      
+                          if (txHash) {
+                            const explorerUrl = `https://berascan.com/tx/${txHash}`;
+                      
+                            await createTransv2(
+                              address,
+                              "berachainSwapAgent",
+                              "SWAP",
+                              `Swapped ${from} to ${to}`,
+                              "Berachain",
+                              new Date(),
+                              fromToken,
+                              fromAmount,
+                              txHash,
+                              explorerUrl,
+                              "SUCCESS",
+                              RPC_URL,
+                              "BERA",
+                              18,
+                              toToken,
+                              "Berachain Swap Agent"
+                            );
+                      
+                            const statusMessage = `Swap successful! 🎉 [View on Berascan](${explorerUrl})`;
+                            await chat({
+                              inputMessage: statusMessage,
+                              agentName: selectedAgent?.agentId,
+                              userId: address,
+                              isTransaction: true,
+                            });
+                            updateLastAiMessage(statusMessage);
+                          } else {
+                            throw new Error("Swap failed (no transaction hash)");
+                          }
+                        } catch (error: any) {
+                          console.error("Swap error:", error);
+                      
+                          let errorMsg = "Something went wrong. Please try again later.";
+                      
+                          if (error?.code === "ACTION_REJECTED" || error?.message?.includes("user rejected transaction")) {
+                            errorMsg = "Swap cancelled by user.";
+                          } else if (error?.code === "UNPREDICTABLE_GAS_LIMIT" || error?.message?.includes("cannot estimate gas")) {
+                            errorMsg = "Swap failed due to gas limit issues. Please check your balance and try a smaller amount.";
+                          }
+                      
+                          setMessages((prev) => [
+                            ...prev,
+                            { role: "ai", message: errorMsg },
+                          ]);
+                      
+                          await createTransv2(
+                            address,
+                            "berachainSwapAgent",
+                            "SWAP",
+                            `Failed swap: ${from} to ${to}`,
+                            "Berachain",
+                            new Date(),
+                            fromToken,
+                            fromAmount,
+                            "failed",
+                            "#",
+                            "FAILED",
+                            RPC_URL,
+                            "BERA",
+                            18,
+                            toToken,
+                            "Berachain Swap Agent"
+                          );
+                        }
+                        return;
+                      }
+                      
+                      
                     if (toolMessage?.type === "lend") {
                         const { market, tokenSymbol, amount, explorer } = toolMessage;
                         if (!market || !tokenSymbol || !amount) {
