@@ -163,7 +163,7 @@ console.log("Token contract for approval:", fromTokenContract.address);
 console.log("Checking allowance for:");
 console.log("Owner (walletAddress):", walletAddress);
 console.log("Spender (callData.to):", callData.to);
-const currentAllowance: ethers.BigNumber = await fromTokenContract.allowance("0x0f8b92dAF673604CEE6598c7177846fd663BCdC1", "0x4Be03f781C497A489E3cB0287833452cA9B9E80B");
+const currentAllowance: ethers.BigNumber = await fromTokenContract.allowance(walletAddress, callData.to);
 console.log("Current allowance:", currentAllowance.toString());
 
 if (currentAllowance.lt(swapAmount.amount)) {
