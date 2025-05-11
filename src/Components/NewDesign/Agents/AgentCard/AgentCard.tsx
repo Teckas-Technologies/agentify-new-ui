@@ -103,6 +103,26 @@ const AgentCard = ({
             "Transaction signing",
           ],
         };
+        case "berachainSwapAgent":
+  return {
+    ...details,
+    icon: "BeraSwap", // Example icon for Berachain
+    gradient: "from-yellow-400/20 via-yellow-500/20 to-yellow-600/20", // Fully yellow gradient
+    sampleCommands: [
+      "Swap BERA to USDC",
+      "Get Berachain swap rates",
+      "Swap with custom slippage on Berachain",
+    ],
+    supportedChains: ["Berachain"],
+    securityNotes:
+      "Operates on Berachain. Ensure token approval for Berachain-based tokens.",
+    permissions: [
+      "Connect wallet",
+      "Token approvals",
+      "Transaction signing",
+    ],
+  };
+
       // Add more cases as needed
       default:
         return details;
@@ -177,6 +197,33 @@ const AgentCard = ({
           </svg>
         </div>
       ),
+      BeraSwap: () => (
+        <div className="p-3 rounded-xl bg-amber-500/10 ring-1 ring-amber-500/30">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 100 100"
+            fill="none"
+            className="h-5 w-5 text-amber-400"
+          >
+            <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="4" />
+            <path
+              d="M35 50c0-8.3 6.7-15 15-15s15 6.7 15 15-6.7 15-15 15"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+            />
+            <path
+              d="M50 35v-8M50 65v8M65 50h8M35 50h-8"
+              stroke="currentColor"
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      ),
+      
+      
+      
     };
 
     const IconComponent = icons[name as keyof typeof icons];

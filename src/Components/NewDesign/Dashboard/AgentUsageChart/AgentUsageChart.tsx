@@ -16,16 +16,21 @@ interface AgentUsageChartProps {
   data: AgentUsageData[];
 }
 
-const COLORS = [
-  "hsl(262, 83.3%, 57.8%)", // Swap
-  "hsl(12, 76.4%, 64.7%)", // Bridge
-  "hsl(142, 76.2%, 36.3%)", // Lend/Borrow
-];
+const getColorForAgent = (agentName: string) => {
+  const mapping: Record<string, string> = {
+    "Swap Agent": "hsl(262, 83.3%, 57.8%)",        // Purple
+    "Bridge Agent": "hsl(12, 76.4%, 64.7%)",       // Orange
+    "Lend and Borrow agent": "hsl(142, 76.2%, 36.3%)", // Green
+    "Berachain Swap Agent": "hsl(48, 100%, 50%)",  // Yellow
+  };
+  return mapping[agentName] || "#ccc"; // fallback color
+};
 const formatAgentLabel = (agentName: string) => {
   const mapping: Record<string, string> = {
     "Swap Agent": "Swap",
     "Bridge Agent": "Bridge",
     "Lend and Borrow agent": "Lend",
+    "Berachain Swap Agent": "Berachain Swap",
   };
   return mapping[agentName] || agentName;
 };
@@ -50,9 +55,9 @@ const renderLegend = (props: any) => {
         <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
           <div
             className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: entry.color }}
+            style={{ backgroundColor: getColorForAgent(entry.payload.agentName) }}
           />
-          <span style={{ color: entry.color }}>
+         <span style={{ color: getColorForAgent(entry.payload.agentName) }}>
             {formatAgentLabel(entry.payload.agentName)}
           </span>
         </li>
@@ -83,10 +88,7 @@ export const AgentUsageChart = ({ data }: AgentUsageChartProps) => {
             paddingAngle={3}
           >
             {formattedData.map((entry, index) => ( // ✅ use formattedData here too
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
+             <Cell key={`cell-${index}`} fill={getColorForAgent(entry.agentName)} />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
