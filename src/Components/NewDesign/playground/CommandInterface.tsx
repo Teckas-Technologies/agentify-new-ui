@@ -82,7 +82,7 @@ export const CommandInterface = ({
     error,
     RPC_URL,
     validateTokenBalance: validateBeraChainTokenBalance,
-    validateNativeTokenBalance
+    validateNativeTokenBalance,
   } = useBeraSwap();
   const { wallets } = useWallets();
   const wallet = wallets[0];
@@ -349,20 +349,25 @@ export const CommandInterface = ({
       return;
     }
 
-    const userMessage: Message = { role: "human", message: inputValue };
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue(""); // Clear the input field
-
-    setIsLoading(true);
-
-    try {
-      const enrichedMessage = JSON.stringify({
+    const enrichedMessage = JSON.stringify({
       message: inputValue,
       context: {
         fromAddress: address,
         toAddress: address,
       },
     });
+
+    // Set only the message part in the frontend message array
+    const userMessage: Message = {
+      role: "human",
+      message: JSON.parse(enrichedMessage).message,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue(""); // Clear input field
+
+    setIsLoading(true);
+
+    try {
       const response = await chat({
         inputMessage: enrichedMessage,
         agentName: selectedAgent?.agentId,
@@ -384,8 +389,10 @@ export const CommandInterface = ({
               estimatedToAmount,
               fromTokenAddress,
               toTokenAddress,
+              fromTokenDecimals,
+              toTokenDecimals,
             } = toolMessage.details;
-          
+
             if (!fromAddress || !toAddress) {
               setMessages((prev) => [
                 ...prev,
@@ -396,11 +403,11 @@ export const CommandInterface = ({
               ]);
               return;
             }
-          
+
             const fromAmount = Number(parsedFromAmount) / 1e18;
             const from = `${fromAmount} ${fromToken}`;
             const to = `${estimatedToAmount} ${toToken}`;
-          
+
             try {
               const berachainId = toolMessage?.BerachainId;
               if (
@@ -411,7 +418,8 @@ export const CommandInterface = ({
                 await switchNetwork(berachainId);
                 console.log("Chain switched..");
               }
-          
+              const chainInfo = await getChainInfoById(berachainId);
+
               // ✅ Conditional balance validation based on the fromToken
               let hasSufficientBalance;
               if (fromToken === "BERA") {
@@ -427,7 +435,7 @@ export const CommandInterface = ({
                   parsedFromAmount
                 );
               }
-          
+
               if (!hasSufficientBalance) {
                 setMessages((prev) => [
                   ...prev,
@@ -438,7 +446,7 @@ export const CommandInterface = ({
                 ]);
                 return;
               }
-          
+
               // ✅ Show message before initiating the swap
               setMessages((prev) => [
                 ...prev,
@@ -447,22 +455,22 @@ export const CommandInterface = ({
                   message: `Executing swap: ${fromToken} → ${toToken}. Don't close the page...`,
                 },
               ]);
-          
+
               const amountString = fromAmount.toString();
-          
+
               const txHash = await swap(
                 fromTokenAddress,
-                18,
+                fromTokenDecimals,
                 fromToken,
                 toTokenAddress,
-                6,
+                toTokenDecimals,
                 toToken,
                 amountString
               );
-          
+
               if (txHash) {
-                const explorerUrl = `https://berascan.com/tx/${txHash}`;
-          
+                const explorerUrl = `https://berascan.com/tx`;
+
                 await createTransv2(
                   address,
                   "berachainSwapAgent",
@@ -473,15 +481,15 @@ export const CommandInterface = ({
                   fromToken,
                   fromAmount,
                   txHash,
-                  explorerUrl,
+                  `${explorerUrl}/txHash`,
                   "SUCCESS",
                   RPC_URL,
                   "BERA",
-                  18,
+                  fromTokenDecimals,
                   toToken,
                   "Berachain Swap Agent"
                 );
-          
+
                 const statusMessage = `Swap successful! 🎉 [View on Berascan](${explorerUrl})`;
                 await chat({
                   inputMessage: statusMessage,
@@ -495,9 +503,9 @@ export const CommandInterface = ({
               }
             } catch (error: any) {
               console.error("Swap error:", error);
-          
+
               let errorMsg = "Something went wrong. Please try again later.";
-          
+
               if (
                 error?.code === "ACTION_REJECTED" ||
                 error?.message?.includes("user rejected transaction")
@@ -510,12 +518,12 @@ export const CommandInterface = ({
                 errorMsg =
                   "Swap failed due to gas limit issues. Please check your balance and try a smaller amount.";
               }
-          
+
               setMessages((prev) => [
                 ...prev,
                 { role: "ai", message: errorMsg },
               ]);
-          
+              const explorerUrl = `https://berascan.com/tx`;
               await createTransv2(
                 address,
                 "berachainSwapAgent",
@@ -525,8 +533,8 @@ export const CommandInterface = ({
                 new Date(),
                 fromToken,
                 fromAmount,
-                "failed",
-                "#",
+                `failed_${uuidv4()}`,
+                `${explorerUrl}/failed`,
                 "FAILED",
                 RPC_URL,
                 "BERA",
@@ -537,7 +545,6 @@ export const CommandInterface = ({
             }
             return;
           }
-          
 
           if (toolMessage?.type === "lend") {
             const { market, tokenSymbol, amount, explorer } = toolMessage;
@@ -1162,128 +1169,125 @@ export const CommandInterface = ({
                       <Zap className="h-4 w-4 text-primary" />
                       <h3 className="text-sm font-medium">Quick Start</h3>
                     </div>
+                    {messages?.map((msg, index) => {
+                      // Parse message if it's a JSON string, otherwise use as-is
+                      let displayMessage = msg.message;
+                      try {
+                        const parsed = JSON.parse(msg.message);
+                        if (parsed.message) {
+                          displayMessage = parsed.message; // Extract "message" field from JSON
+                        }
+                      } catch (e) {
+                        // Not JSON, use original message
+                      }
 
-                    {messages?.map((msg, index) => (
-                      <>
-                        <div
-                          key={index}
-                          className={`message w-full h-auto flex ${
-                            index === messages.length - 1 &&
-                            msg.role === "ai" &&
-                            "md:flex-row flex-col"
-                          } gap-1 md:gap-2 lg:gap-3 my-2 ${
-                            msg.role === "ai" ? "justify-start" : "justify-end"
-                          }`}
-                        >
-                          {msg?.role === "human" && (
-                            <div
-                              className="p-1 md:p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 self-center cursor-pointer"
-                              onClick={() => {
-                                savedCommands.includes(msg?.message)
-                                  ? deleteCommand(msg.message)
-                                  : saveCommand(msg?.message, index);
-                              }}
-                            >
-                              <Heart
-                                className={`h-4 w-4 md:h-5 md:w-5 ${
-                                  savedCommands.includes(msg.message)
-                                    ? "fill-current text-primary"
-                                    : "text-primary"
-                                }`}
-                              />
-                            </div>
-                          )}
+                      return (
+                        <>
                           <div
-                            className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${
+                            key={index}
+                            className={`message w-full h-auto flex ${
+                              index === messages.length - 1 &&
+                              msg.role === "ai" &&
+                              "md:flex-row flex-col"
+                            } gap-1 md:gap-2 lg:gap-3 my-2 ${
                               msg.role === "ai"
-                                ? "bg-white/5 hover:bg-primary/10 border border-white/10"
-                                : "user-msg agent-name bg-primary/50 border border-white/10"
+                                ? "justify-start"
+                                : "justify-end"
                             }`}
                           >
-                            <MarkdownToJSX
-                              options={{
-                                disableParsingRawHTML: true,
-                                overrides: {
-                                  table: {
-                                    props: {
-                                      className:
-                                        "table-auto w-full border-collapse border border-gray-300",
-                                    },
-                                  },
-                                  th: {
-                                    props: {
-                                      className:
-                                        "border border-gray-300 p-2 bg-gray-200 text-black min-w-[4rem]",
-                                    },
-                                  },
-                                  td: {
-                                    props: {
-                                      className: "border border-gray-300 p-2",
-                                    },
-                                  },
-                                  a: {
-                                    props: {
-                                      className:
-                                        "text-blue-600 underline underline-offset-2",
-                                      target: "_blank",
-                                      rel: "noopener noreferrer",
-                                    },
-                                  },
-                                  ul: {
-                                    props: {
-                                      className: "list-disc pl-6",
-                                    },
-                                  },
-                                  ol: {
-                                    props: {
-                                      className: "list-decimal pl-6",
-                                    },
-                                  },
-                                  li: {
-                                    props: {
-                                      className: "mb-1",
-                                    },
-                                  },
-                                },
-                              }}
-                            >
-                              {msg.message}
-                            </MarkdownToJSX>
-                          </div>
-
-                          {/* {msg?.txHash && msg.role === "ai" && (
-                                                        <>
-                                                            <a
-                                                                href={`${msg?.txHash.includes("https://") ? msg?.txHash : `https://etherscan.io/${msg?.txHash.includes("tx") ? "" : "tx/"}${msg?.txHash}`}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="approve-btn flex items-center justify-center gap-1 px-2 py-2 md:py-1 mt-1 min-w-[5rem] bg-grey-700 max-w-[9rem] rounded-3xl border-1 border-zinc-600 hover:border-zinc-400 cursor-pointer"
-                                                            >
-                                                                <h2 className="text-center dark:text-white text-sm">
-                                                                    Check Explorer
-                                                                </h2>
-                                                                <InlineSVG
-                                                                    src="/icons/goto.svg"
-                                                                    className="fill-current bg-transparent text-white w-2.5 h-2.8"
-                                                                />
-                                                            </a>
-                                                        </>
-                                                    )} */}
-                        </div>
-                        {isLoading && index === messages.length - 1 && (
-                          <div
-                            className={`whole-div w-full flex items-center gap-1 justify-start`}
-                          >
+                            {msg?.role === "human" && (
+                              <div
+                                className="p-1 md:p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 self-center cursor-pointer"
+                                onClick={() => {
+                                  savedCommands.includes(msg?.message)
+                                    ? deleteCommand(msg.message)
+                                    : saveCommand(msg?.message, index);
+                                }}
+                              >
+                                <Heart
+                                  className={`h-4 w-4 md:h-5 md:w-5 ${
+                                    savedCommands.includes(msg.message)
+                                      ? "fill-current text-primary"
+                                      : "text-primary"
+                                  }`}
+                                />
+                              </div>
+                            )}
                             <div
-                              className={`relative message px-3 py-2.5 flex items-center gap-1 rounded-lg max-w-xs bg-white/5 hover:bg-primary/10 border border-white/10`}
+                              className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${
+                                msg.role === "ai"
+                                  ? "bg-white/5 hover:bg-primary/10 border border-white/10"
+                                  : "user-msg agent-name bg-primary/50 border border-white/10"
+                              }`}
                             >
-                              <p className={`text-sm text-white`}>Typing...</p>
+                              <MarkdownToJSX
+                                options={{
+                                  disableParsingRawHTML: true,
+                                  overrides: {
+                                    table: {
+                                      props: {
+                                        className:
+                                          "table-auto w-full border-collapse border border-gray-300",
+                                      },
+                                    },
+                                    th: {
+                                      props: {
+                                        className:
+                                          "border border-gray-300 p-2 bg-gray-200 text-black min-w-[4rem]",
+                                      },
+                                    },
+                                    td: {
+                                      props: {
+                                        className: "border border-gray-300 p-2",
+                                      },
+                                    },
+                                    a: {
+                                      props: {
+                                        className:
+                                          "text-blue-600 underline underline-offset-2",
+                                        target: "_blank",
+                                        rel: "noopener noreferrer",
+                                      },
+                                    },
+                                    ul: {
+                                      props: {
+                                        className: "list-disc pl-6",
+                                      },
+                                    },
+                                    ol: {
+                                      props: {
+                                        className: "list-decimal pl-6",
+                                      },
+                                    },
+                                    li: {
+                                      props: {
+                                        className: "mb-1",
+                                      },
+                                    },
+                                  },
+                                }}
+                              >
+                                {displayMessage}
+                              </MarkdownToJSX>
                             </div>
                           </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                      </>
-                    ))}
+                          {isLoading && index === messages.length - 1 && (
+                            <div
+                              className={`whole-div w-full flex items-center gap-1 justify-start`}
+                            >
+                              <div
+                                className={`relative message px-3 py-2.5 flex items-center gap-1 rounded-lg max-w-xs bg-white/5 hover:bg-primary/10 border border-white/10`}
+                              >
+                                <p className={`text-sm text-white`}>
+                                  Typing...
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          <div ref={messagesEndRef} />
+                        </>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
