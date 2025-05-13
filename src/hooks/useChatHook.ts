@@ -25,6 +25,8 @@ export const useChat = (initialAgents: any[] = []) => {
     setLoading(true);
     setError(null);
     const accessToken = await getAccessToken();
+    console.log("Access token ,,,",accessToken);
+    
     try {
       const response = await fetch(`${PYTHON_SERVER_URL}/api/chat`, {
         method: "POST",
