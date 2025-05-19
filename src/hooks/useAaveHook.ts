@@ -25,7 +25,7 @@ interface BorrowData {
     onBehalfOf?: string;
 }
 
-interface RepayData {
+export interface RepayData {
     market: MarketType;
     tokenSymbol: string;
     amount: string; // can be "-1" to repay max
@@ -295,211 +295,285 @@ const useAaveHook = () => {
     };
 
 
-    const borrowToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: BorrowData) => {
-        const selectedMarket = marketConfigs[market];
+  const borrowToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: BorrowData) => {
+    console.log("Initiating borrowToAave...");
+    console.log("Params received:", { market, tokenSymbol, amount, onBehalfOf });
 
-        if (!selectedMarket) {
-            setError(`Market "${market}" not supported.`);
-            return { success: false, message: `Sorry, the market '${market}' is not supported at the moment.` };
-        }
+    const selectedMarket = marketConfigs[market];
+    console.log("Selected market config:", selectedMarket);
 
-        const poolAddress = selectedMarket.pool;
-        const wTokenGateWay = selectedMarket.wethGateway;
-        const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
-        const chainId = selectedMarket.chainId;
+    if (!selectedMarket) {
+        const errorMsg = `Market "${market}" not supported.`;
+        console.error(errorMsg);
+        setError(errorMsg);
+        return { success: false, message: `Sorry, the market '${market}' is not supported at the moment.` };
+    }
 
-        if (!reserve) {
-            setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
-            return { success: false, message: `The token '${tokenSymbol}' is not supported in the '${market}' market at the moment.` };
-        }
+    const poolAddress = selectedMarket.pool;
+    const wTokenGateWay = selectedMarket.wethGateway;
+    const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+    const chainId = selectedMarket.chainId;
 
-        try {
-            if (wallet && chainId && parseInt(wallet.chainId.split(":")[1]) !== chainId) {
+    console.log("Pool address:", poolAddress);
+    console.log("WETH Gateway:", wTokenGateWay);
+    console.log("Reserve token address:", reserve);
+    console.log("Expected Chain ID:", chainId);
+
+    if (!reserve) {
+        const errorMsg = `Token "${tokenSymbol}" not supported in market "${market}".`;
+        console.error(errorMsg);
+        setError(errorMsg);
+        return {
+            success: false,
+            message: `The token '${tokenSymbol}' is not supported in the '${market}' market at the moment.`,
+        };
+    }
+
+    try {
+        if (wallet && chainId) {
+            const currentChainId = parseInt(wallet.chainId.split(":")[1]);
+            console.log("Current Wallet Chain ID:", currentChainId);
+
+            if (currentChainId !== chainId) {
+                console.log(`Switching network to ${chainId}...`);
                 await switchNetwork(chainId);
             }
-
-            const provider = await getProvider();
-            if (!provider) {
-                console.error("[supplyToAave] Provider not found");
-                setError("Provider not found");
-                return { success: false, message: `We're unable to initialize the provider at the moment. Please try again later.` };
-            }
-            const signer = await provider.getSigner();
-
-            if (!isConnected || !address || !signer) {
-                setError("Wallet not connected. Please connect your wallet first.");
-                return { success: false, message: `Your wallet is not connected. Please connect your wallet first to proceed.` };
-            }
-
-            if (!amount) {
-                setError("amount is missing.");
-                return { success: false, message: `The amount is missing. Please provide the required amount to proceed.` };
-            }
-
-            const user = address;
-            const onBehalf = onBehalfOf || user;
-
-            setLoading(true);
-            setError(null);
-
-            const pool = new Pool(provider, {
-                POOL: poolAddress,
-                WETH_GATEWAY: wTokenGateWay,
-            });
-
-            const txs: EthereumTransactionTypeExtended[] = await pool.borrow({
-                user,
-                reserve,
-                amount,
-                interestRateMode: InterestRate.Variable,
-                onBehalfOf: onBehalf,
-            });
-
-            const txHashes: string[] = [];
-
-            for (const tx of txs) {
-                const extendedTxData = await tx.tx();
-                const { from, ...txData } = extendedTxData;
-                const txResponse = await signer.sendTransaction({
-                    ...txData,
-                    value: txData.value ? BigNumber.from(txData.value) : undefined,
-                });
-                txHashes.push(txResponse.hash);
-            }
-
-            return { success: true, txHashes: txHashes };
-        } catch (err: any) {
-            if (
-                err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError"
-            ) {
-                setError("Transaction rejected by the user.");
-                return { success: false, message: "You have rejected the transaction." };
-            } else if (err.name === "TransactionExecutionError") {
-                setError("Transaction execution failed. Please try again.");
-                return { success: false, message: "Transaction execution failed. Please try again later." };
-            } else {
-                setError(err.message || "An unexpected error occurred.");
-                return { success: false, message: "Oops! Something unexpected happened. Please try again." };
-            }
-        } finally {
-            setLoading(false);
         }
-    };
 
-    const repayToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: RepayData) => {
         const provider = await getProvider();
+        console.log("Provider:", provider);
+
         if (!provider) {
-            console.error("[supplyToAave] Provider not found");
-            setError("Provider not found");
-            return { success: false, message: `We're unable to initialize the provider at the moment. Please try again later.` };
+            const errorMsg = "Provider not found";
+            console.error("[borrowToAave]", errorMsg);
+            setError(errorMsg);
+            return {
+                success: false,
+                message: `We're unable to initialize the provider at the moment. Please try again later.`,
+            };
         }
+
         const signer = await provider.getSigner();
+        console.log("Signer:", signer);
 
         if (!isConnected || !address || !signer) {
-            setError("Wallet not connected. Please connect your wallet first.");
-            return { success: false, message: `Your wallet is not connected. Please connect your wallet first to proceed.` };
-        }
-
-        const selectedMarket = marketConfigs[market];
-
-        if (!selectedMarket) {
-            setError(`Market "${market}" not supported.`);
-            return { success: false, message: `Sorry, the market '${market}' is not supported at the moment.` };
-        }
-
-        const poolAddress = selectedMarket.pool;
-        const wTokenGateWay = selectedMarket.wethGateway;
-        const variableDebtTokenAddress = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets].V_TOKEN;
-        const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
-
-        if (!reserve || !variableDebtTokenAddress) {
-            setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
-            return;
+            const errorMsg = "Wallet not connected. Please connect your wallet first.";
+            console.error(errorMsg);
+            setError(errorMsg);
+            return { success: false, message: errorMsg };
         }
 
         if (!amount) {
-            setError("amount is missing.");
+            const errorMsg = "amount is missing.";
+            console.error(errorMsg);
+            setError(errorMsg);
             return { success: false, message: `The amount is missing. Please provide the required amount to proceed.` };
         }
 
         const user = address;
         const onBehalf = onBehalfOf || user;
 
-        try {
-            setLoading(true);
-            setError(null);
+        console.log("User:", user);
+        console.log("On behalf of:", onBehalf);
+        console.log("Amount to borrow:", amount);
 
-            const pool = new Pool(provider, {
-                POOL: poolAddress,
-                WETH_GATEWAY: wTokenGateWay,
+        setLoading(true);
+        setError(null);
+
+        const pool = new Pool(provider, {
+            POOL: poolAddress,
+            WETH_GATEWAY: wTokenGateWay,
+        });
+        console.log("Aave Pool instance created.");
+
+        const txs: EthereumTransactionTypeExtended[] = await pool.borrow({
+            user,
+            reserve,
+            amount,
+            interestRateMode: InterestRate.Variable,
+            onBehalfOf: onBehalf,
+        });
+
+        console.log("Generated borrow transactions:", txs);
+
+        const txHashes: string[] = [];
+
+        for (const tx of txs) {
+            const extendedTxData = await tx.tx();
+            console.log("Extended transaction data:", extendedTxData);
+
+            const { from, ...txData } = extendedTxData;
+            const txResponse = await signer.sendTransaction({
+                ...txData,
+                value: txData.value ? BigNumber.from(txData.value) : undefined,
             });
-
-            const deadline = Math.floor(Date.now() / 1000 + 3600).toString();
-            const signatureData = await generateSupplySignatureRequest(user, variableDebtTokenAddress, amount, deadline, poolAddress, provider);
-            const signerAddress = await signer.getAddress();
-
-            const signature: string = await provider.send("eth_signTypedData_v4", [
-                signerAddress,
-                signatureData,
-            ]);
-
-            console.log("Entered", signature)
-
-            let repayAmount = amount;
-            if (amount !== "-1") {
-                console.log("Entered 1")
-                // convert to wei
-                const tokenERC20Service = new ERC20Service(provider);
-                console.log("Entered 2")
-                const { decimals } = await tokenERC20Service.getTokenData(variableDebtTokenAddress);
-                console.log("Entered 3")
-                repayAmount = ethers.utils.parseUnits(amount, decimals).toString();
-                console.log("Entered 4")
-            }
-
-            console.log("Entered 5")
-
-            const txs: EthereumTransactionTypeExtended[] = await pool.repayWithPermit({
-                user,
-                amount: repayAmount,
-                reserve: variableDebtTokenAddress,
-                signature,
-                interestRateMode: InterestRate.Variable,
-                onBehalfOf: onBehalf,
-                deadline
-            });
-
-
-            console.log(txs)
-
-            const txHashes: string[] = [];
-
-            for (const tx of txs) {
-                const extendedTxData = await tx.tx();
-                const { from, ...txData } = extendedTxData;
-                const txResponse = await signer.sendTransaction({
-                    ...txData,
-                    value: txData.value ? BigNumber.from(txData.value) : undefined,
-                });
-                txHashes.push(txResponse.hash);
-            }
-
-            return txHashes;
-        } catch (err: any) {
-            if (
-                err.message?.includes("User denied transaction signature") ||
-                err.name === "UserRejectedRequestError"
-            ) {
-                setError("Transaction rejected by the user.");
-            } else if (err.name === "TransactionExecutionError") {
-                setError("Transaction execution failed. Please try again.");
-            } else {
-                setError(err.message || "An unexpected error occurred.");
-            }
-        } finally {
-            setLoading(false);
+            console.log("Transaction sent:", txResponse);
+            txHashes.push(txResponse.hash);
         }
-    };
+
+        console.log("All transaction hashes:", txHashes);
+
+        return { success: true, txHashes: txHashes };
+    } catch (err: any) {
+        console.error("Error during borrow process:", err);
+
+        if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
+            const errorMsg = "Transaction rejected by the user.";
+            setError(errorMsg);
+            return { success: false, message: "You have rejected the transaction." };
+        } else if (err.name === "TransactionExecutionError") {
+            const errorMsg = "Transaction execution failed. Please try again.";
+            setError(errorMsg);
+            return { success: false, message: errorMsg };
+        } else {
+            const errorMsg = err.message || "An unexpected error occurred.";
+            setError(errorMsg);
+            return { success: false, message: "Oops! Something unexpected happened. Please try again." };
+        }
+    } finally {
+        console.log("Borrow process complete. Resetting loading state.");
+        setLoading(false);
+    }
+};
+
+
+    const repayToAave = async ({ market, tokenSymbol, amount, onBehalfOf }: RepayData) => {
+    const provider = await getProvider();
+    if (!provider) {
+        console.error("[supplyToAave] Provider not found");
+        setError("Provider not found");
+        return { success: false, message: `We're unable to initialize the provider at the moment. Please try again later.` };
+    }
+    const signer = await provider.getSigner();
+
+    if (!isConnected || !address || !signer) {
+        setError("Wallet not connected. Please connect your wallet first.");
+        return { success: false, message: `Your wallet is not connected. Please connect your wallet first to proceed.` };
+    }
+
+    const selectedMarket = marketConfigs[market];
+
+    if (!selectedMarket) {
+        setError(`Market "${market}" not supported.`);
+        return { success: false, message: `Sorry, the market '${market}' is not supported at the moment.` };
+    }
+
+    const poolAddress = selectedMarket.pool;
+    const wTokenGateWay = selectedMarket.wethGateway;
+    const variableDebtTokenAddress = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets].V_TOKEN;
+    const reserve = selectedMarket.assets[tokenSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+
+    // 🔍 Log resolved market config and tokens
+    console.log("Selected Market:", selectedMarket);
+    console.log("Pool Address:", poolAddress);
+    console.log("WETH Gateway:", wTokenGateWay);
+    console.log("Variable Debt Token Address:", variableDebtTokenAddress);
+    console.log("Reserve Token Address:", reserve);
+
+    if (!reserve || !variableDebtTokenAddress) {
+        setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
+        return;
+    }
+
+    if (!amount) {
+        setError("amount is missing.");
+        return { success: false, message: `The amount is missing. Please provide the required amount to proceed.` };
+    }
+
+    const user = address;
+    const onBehalf = onBehalfOf || user;
+
+    try {
+        setLoading(true);
+        setError(null);
+
+        console.log("Initializing Aave Pool with:", {
+            pool: poolAddress,
+            gateway: wTokenGateWay
+        });
+
+        const pool = new Pool(provider, {
+            POOL: poolAddress,
+            WETH_GATEWAY: wTokenGateWay,
+        });
+
+        const deadline = Math.floor(Date.now() / 1000 + 3600).toString();
+        console.log("Signature Deadline:", deadline);
+
+        const signatureData = await generateSupplySignatureRequest(user, variableDebtTokenAddress, amount, deadline, poolAddress, provider);
+        console.log("Generated Signature Data:", signatureData);
+
+        const signerAddress = await signer.getAddress();
+        console.log("Signer Address:", signerAddress);
+
+        const signature: string = await provider.send("eth_signTypedData_v4", [
+            signerAddress,
+            signatureData,
+        ]);
+
+        console.log("Received Signature:", signature);
+
+        let repayAmount = amount;
+        if (amount !== "-1") {
+            console.log("Normal repay mode - calculating wei amount");
+
+            const tokenERC20Service = new ERC20Service(provider);
+            const { decimals } = await tokenERC20Service.getTokenData(variableDebtTokenAddress);
+            console.log("Token Decimals:", decimals);
+
+            repayAmount = ethers.utils.parseUnits(amount, decimals).toString();
+            console.log("Repay Amount (in wei):", repayAmount);
+        } else {
+            console.log("Full repay mode (amount = -1)");
+        }
+
+        const txs: EthereumTransactionTypeExtended[] = await pool.repayWithPermit({
+            user,
+            amount: repayAmount,
+            reserve,
+            signature,
+            interestRateMode: InterestRate.Variable,
+            onBehalfOf: onBehalf,
+            deadline
+        });
+
+        console.log("Prepared Transactions:", txs);
+
+        const txHashes: string[] = [];
+
+        for (const tx of txs) {
+            const extendedTxData = await tx.tx();
+            console.log("Prepared Tx Data:", extendedTxData);
+
+            const { from, ...txData } = extendedTxData;
+            const txResponse = await signer.sendTransaction({
+                ...txData,
+                value: txData.value ? BigNumber.from(txData.value) : undefined,
+            });
+
+            console.log("Sent Transaction Hash:", txResponse.hash);
+            txHashes.push(txResponse.hash);
+        }
+
+        return txHashes;
+    } catch (err: any) {
+        console.error("Error in repayToAave:", err); // 🔍 full error
+
+        if (
+            err.message?.includes("User denied transaction signature") ||
+            err.name === "UserRejectedRequestError"
+        ) {
+            setError("Transaction rejected by the user.");
+        } else if (err.name === "TransactionExecutionError") {
+            setError("Transaction execution failed. Please try again.");
+        } else {
+            setError(err.message || "An unexpected error occurred.");
+        }
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     return { loading, error, status, supplyToAave, withdrawFromAave, borrowToAave, repayToAave };
 };

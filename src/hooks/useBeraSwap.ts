@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { BigNumber, ethers } from "ethers";
+import { Big } from "big.js";
 import {
   BalancerApi,
   SwapKind,
@@ -23,7 +24,7 @@ export const useBeraSwap = () => {
 
   const { user } = usePrivy();
   const { wallets } = useWallets();
-const {address} = useAccount();
+  const { address } = useAccount();
   const getProvider =
     async (): Promise<ethers.providers.Web3Provider | null> => {
       const userWalletType = user?.wallet?.walletClientType;
@@ -54,56 +55,64 @@ const {address} = useAccount();
         return null;
       }
     };
-    const validateTokenBalance = async (chainId: any, tokenAddress: any, amount: any) => {
-      if (!address) {
-        return;
-      }
-      try {
-        console.log(chainId, tokenAddress, amount);
-        const token = await getToken(chainId, tokenAddress);
-        console.log("Token:", token);
-        const tokenBalance = await getTokenBalance(address, token);
-        console.log("bal", tokenBalance);
-        const userBalance = BigInt(tokenBalance?.amount || "0");
-        const requiredAmount = BigInt(amount);
-        console.log("Step1", tokenBalance, userBalance, requiredAmount);
-        if (userBalance < requiredAmount) {
-          console.log("Step2");
-          setError("Insufficient token balance. Please check your wallet balance");
-          return false;
-        }
-        console.log("Step3");
-        return true;
-      } catch (err) {
-        console.log("Step4", err);
-        setError("Failed to fetch token balance. Please try again.");
+  const validateTokenBalance = async (
+    chainId: any,
+    tokenAddress: any,
+    amount: any
+  ) => {
+    if (!address) {
+      return;
+    }
+    try {
+      console.log(chainId, tokenAddress, amount);
+      const token = await getToken(chainId, tokenAddress);
+      console.log("Token:", token);
+      const tokenBalance = await getTokenBalance(address, token);
+      console.log("bal", tokenBalance);
+      const userBalance = BigInt(tokenBalance?.amount || "0");
+      const requiredAmount = BigInt(amount);
+      console.log("Step1", tokenBalance, userBalance, requiredAmount);
+      if (userBalance < requiredAmount) {
+        console.log("Step2");
+        setError(
+          "Insufficient token balance. Please check your wallet balance"
+        );
         return false;
       }
-    };
-    const validateNativeTokenBalance = async (amount: bigint): Promise<boolean> => {
-      if (!address) return false;
-      try {
-        const provider = await getProvider();
-        if (!provider) throw new Error("Provider not available");
-    
-        const balance = await provider.getBalance(address);
-        console.log("Native BERA balance:", balance.toString());
-    
-        const requiredAmount = BigNumber.from(amount.toString()); // Convert bigint to BigNumber
-    
-        if (balance.lt(requiredAmount)) {
-          setError("Insufficient native token balance.");
-          return false;
-        }
-    
-        return true;
-      } catch (err) {
-        console.error("Failed to fetch native balance:", err);
-        setError("Could not fetch native token balance.");
+      console.log("Step3");
+      return true;
+    } catch (err) {
+      console.log("Step4", err);
+      setError("Failed to fetch token balance. Please try again.");
+      return false;
+    }
+  };
+  const validateNativeTokenBalance = async (
+    amount: bigint
+  ): Promise<boolean> => {
+    if (!address) return false;
+    try {
+      const provider = await getProvider();
+      if (!provider) throw new Error("Provider not available");
+
+      const balance = await provider.getBalance(address);
+      console.log("Native BERA balance:", balance.toString());
+
+      const requiredAmount = BigNumber.from(amount.toString()); // Convert bigint to BigNumber
+
+      if (balance.lt(requiredAmount)) {
+        setError("Insufficient native token balance.");
         return false;
       }
-    };
-    
+
+      return true;
+    } catch (err) {
+      console.error("Failed to fetch native balance:", err);
+      setError("Could not fetch native token balance.");
+      return false;
+    }
+  };
+
   const swap = useCallback(
     async (
       fromTokenAddress: string,
@@ -150,19 +159,12 @@ const {address} = useAccount();
         console.log("To token:", toToken);
 
         let amountString: string;
-        if (typeof amount === "bigint") {
-          amountString = amount.toString();
-        } else if (typeof amount === "number") {
-          amountString = amount.toString();
+        if (typeof amount === "bigint" || typeof amount === "number") {
+          amountString = Big(amount.toString()).toFixed(); // Ensures plain decimal
         } else {
-          amountString = amount;
+          amountString = Big(amount).toFixed(); // Handles scientific notation like "1e-17"
         }
-        console.log("Parsed amount string:", amountString);
-
-        if (!/^\d*\.?\d+$/.test(amountString)) {
-          throw new Error("Invalid amount format");
-        }
-
+        console.log(" amount ---", amountString);
         const swapAmount = TokenAmount.fromHumanAmount(
           fromToken,
           amountString as `${number}`
@@ -218,39 +220,55 @@ const {address} = useAccount();
           wethIsEth: false,
         });
         console.log("Call data for transaction:", callData);
+        const isNativeToken =
+          fromToken.address === ethers.constants.AddressZero;
 
-        const tokenAbi = [
-          "function approve(address spender, uint256 amount) public returns (bool)",
-        ];
-        const fromTokenContract = new ethers.Contract(
-          fromToken.address,
-          erc20Abi,
-          signer
-        );
-        const code = await provider.getCode(fromTokenContract.address);
-        console.log("Deployed code at token address -----------", code);
-        const network = await provider.getNetwork();
-        console.log("Connected network:", network.name, network.chainId);
-        console.log("Token contract for approval:", fromTokenContract.address);
-        console.log("Checking allowance for:");
-        console.log("Owner (walletAddress):", walletAddress);
-        console.log("Spender (callData.to):", callData.to);
-        const currentAllowance: ethers.BigNumber =
-          await fromTokenContract.allowance(walletAddress, callData.to);
-        console.log("Current allowance:", currentAllowance.toString());
-
-        if (currentAllowance.lt(swapAmount.amount)) {
-          console.log("Insufficient allowance, sending approve transaction...");
-          const approveTx = await fromTokenContract.approve(
-            callData.to,
-            swapAmount.amount
+        if (!isNativeToken) {
+          const fromTokenContract = new ethers.Contract(
+            fromToken.address,
+            erc20Abi,
+            signer
           );
-          console.log("Approval transaction sent:", approveTx.hash);
-          await approveTx.wait();
-          console.log("Approval confirmed");
+
+          const code = await provider.getCode(fromTokenContract.address);
+          console.log("Deployed code at token address -----------", code);
+          if (code === "0x") {
+            throw new Error("Token contract does not exist on this network.");
+          }
+
+          const network = await provider.getNetwork();
+          console.log("Connected network:", network.name, network.chainId);
+          console.log(
+            "Token contract for approval:",
+            fromTokenContract.address
+          );
+          console.log("Checking allowance for:");
+          console.log("Owner (walletAddress):", walletAddress);
+          console.log("Spender (callData.to):", callData.to);
+
+          const currentAllowance: ethers.BigNumber =
+            await fromTokenContract.allowance(walletAddress, callData.to);
+          console.log("Current allowance:", currentAllowance.toString());
+
+          if (currentAllowance.lt(swapAmount.amount)) {
+            console.log(
+              "Insufficient allowance, sending approve transaction..."
+            );
+            const approveTx = await fromTokenContract.approve(
+              callData.to,
+              swapAmount.amount
+            );
+            console.log("Approval transaction sent:", approveTx.hash);
+            await approveTx.wait();
+            console.log("Approval confirmed");
+          } else {
+            console.log(
+              "Sufficient allowance already exists. Skipping approval."
+            );
+          }
         } else {
           console.log(
-            "Sufficient allowance already exists. Skipping approval."
+            "Native token selected — skipping approve and allowance check."
           );
         }
 
@@ -266,9 +284,9 @@ const {address} = useAccount();
         console.log("Sending swap tx with:", {
           to: callData.to,
           data: callData.callData,
-          value: callData.value.toString()
+          value: callData.value.toString(),
         });
-        
+
         setTxHash(swapTx.hash);
         await swapTx.wait();
         console.log("Swap confirmed:", swapTx.hash);
@@ -292,6 +310,6 @@ const {address} = useAccount();
     swap,
     RPC_URL,
     validateTokenBalance,
-    validateNativeTokenBalance
+    validateNativeTokenBalance,
   };
 };
