@@ -57,6 +57,7 @@
     "@wagmi/chains": "^1.8.0",
     "@wagmi/core": "^2.16.5",
     "@walletconnect/ethereum-provider": "^2.19.1",
+    "big.js": "^7.0.1",
     "bignumber.js": "^9.3.0",
     "chart.js": "^4.4.9",
     "class-variance-authority": "^0.7.1",
@@ -94,6 +95,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/big.js": "^6.2.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

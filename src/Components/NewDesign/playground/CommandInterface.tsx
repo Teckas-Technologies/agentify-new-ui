@@ -469,7 +469,7 @@ export const CommandInterface = ({
               );
 
               if (txHash) {
-                const explorerUrl = `https://berascan.com/tx`;
+                const explorerUrl = `https://berascan.com/tx/${txHash}`;
 
                 await createTransv2(
                   address,
@@ -481,7 +481,7 @@ export const CommandInterface = ({
                   fromToken,
                   fromAmount,
                   txHash,
-                  `${explorerUrl}/txHash`,
+                  explorerUrl,
                   "SUCCESS",
                   RPC_URL,
                   "BERA",
@@ -517,6 +517,12 @@ export const CommandInterface = ({
               ) {
                 errorMsg =
                   "Swap failed due to gas limit issues. Please check your balance and try a smaller amount.";
+              } else if (
+                error?.message?.includes("No swap paths found") ||
+                error?.message?.toLowerCase().includes("low liquidity")
+              ) {
+                errorMsg =
+                  "Swap failed: No available swap path due to low liquidity. Try a different token pair or amount.";
               }
 
               setMessages((prev) => [
@@ -524,7 +530,7 @@ export const CommandInterface = ({
                 { role: "ai", message: errorMsg },
               ]);
               const explorerUrl = `https://berascan.com/tx`;
-              await createTransv2(
+              await createTrans(
                 address,
                 "berachainSwapAgent",
                 "SWAP",
@@ -534,12 +540,10 @@ export const CommandInterface = ({
                 fromToken,
                 fromAmount,
                 `failed_${uuidv4()}`,
-                `${explorerUrl}/failed`,
+                `${explorerUrl}/tx/failed`,
                 "FAILED",
-                RPC_URL,
-                "BERA",
-                18,
-                toToken,
+                0,
+                0,
                 "Berachain Swap Agent"
               );
             }
@@ -742,7 +746,11 @@ export const CommandInterface = ({
                 "Lend and Borrow agent"
               );
 
-              const statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
+              let statusMessage = `Oops! The borrowing of ${amount} ${tokenSymbol} failed.`;
+
+              if (res?.message?.includes("UNPREDICTABLE_GAS_LIMIT")) {
+                statusMessage = `Transaction failed due to low gas funds. Please ensure your wallet has enough native tokens to cover gas fees.`;
+              }
               await chat({
                 inputMessage: res?.message || statusMessage,
                 agentName: selectedAgent?.agentId,
@@ -852,15 +860,122 @@ export const CommandInterface = ({
               return;
             }
           } else if (toolMessage?.type === "repay") {
-            const statusMessage = `The repay option will be available soon. Stay tuned!`;
+            const { market, tokenSymbol, amount, onBehalfOf, explorer } =
+              toolMessage;
+            console.log("Tool message received for repay:", toolMessage);
+
+            const marketType: MarketType = market;
+            const selectedMarket = marketConfigs[marketType];
+
+            // Push AI message before execution
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "ai",
+                message: `Executing repay for ${amount} ${tokenSymbol}, don't close the page until confirmations...`,
+              },
+            ]);
+
+            setExecutingAave(true); // Optional: Add to indicate process ongoing
+
+            const repayResult = await repayToAave({
+              market,
+              tokenSymbol,
+              amount,
+              onBehalfOf,
+            });
+            const chainInfo = await getChainInfoById(selectedMarket.chainId);
+
+            if (Array.isArray(repayResult) && repayResult.length > 0) {
+              const txHash = repayResult[0];
+
+              if (!chainInfo) {
+                console.error(
+                  "Chain info not found for chainId:",
+                  selectedMarket.chainId
+                );
+                return;
+              }
+
+              const { nativeTokenSymbol, rpcUrl, decimals, chainName } =
+                chainInfo;
+              console.log("Creating transaction record with:", {
+                address,
+                tokenSymbol,
+                amount,
+                txHash,
+                explorer: `${explorer}tx/${txHash}`,
+                rpcUrl,
+                nativeTokenSymbol,
+                decimals,
+              });
+              await createTransv2(
+                address,
+                "lendingBorrowingAgent",
+                "REPAY",
+                `Repayment of ${amount} ${tokenSymbol} executed successfully`,
+                chainName,
+                new Date(),
+                tokenSymbol,
+                amount,
+                txHash,
+                `${explorer}tx/${txHash}`,
+                "SUCCESS",
+                rpcUrl,
+                nativeTokenSymbol,
+                decimals,
+                tokenSymbol,
+                "Lend and Borrow agent"
+              );
+
+              const statusMessage = `Repayment successful! 🎉\n\nYou can view the transaction on [explorer](${explorer}tx/${txHash}).`;
+
+              await chat({
+                inputMessage: statusMessage,
+                agentName: selectedAgent?.agentId,
+                userId: address,
+                isTransaction: true,
+              });
+
+              updateLastAiMessage(statusMessage);
+              setExecutingAave(false);
+              return;
+            }
+
+            // Repayment failed
+            await createTrans(
+              address,
+              "lendingBorrowingAgent",
+              "REPAY",
+              `Repayment of ${amount} ${tokenSymbol} failed!`,
+              chainInfo?.chainName || "",
+              new Date(),
+              tokenSymbol,
+              amount,
+              `failed_${uuidv4()}`,
+              `${explorer}tx/failed`,
+              "FAILED",
+              0,
+              0,
+              "Lend and Borrow agent"
+            );
+
+            const errorMessage =
+              typeof repayResult === "object" &&
+              !Array.isArray(repayResult) &&
+              "message" in repayResult
+                ? repayResult.message
+                : `Repayment of ${amount} ${tokenSymbol} failed.`;
+
             await chat({
-              inputMessage: statusMessage,
+              inputMessage: errorMessage,
               agentName: selectedAgent?.agentId,
               userId: address,
               isTransaction: true,
             });
 
-            updateLastAiMessage(statusMessage);
+            updateLastAiMessage(errorMessage);
+            setExecutingAave(false);
             return;
           } else if (
             toolMessage?.type === "swap" ||
