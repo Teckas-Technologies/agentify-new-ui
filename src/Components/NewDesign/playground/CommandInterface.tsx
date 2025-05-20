@@ -686,36 +686,42 @@ export const CommandInterface = ({
             const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
             if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-              const chainInfo = await getChainInfoById(selectedMarket.chainId);
+             const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
-              if (!chainInfo) {
-                console.error(
-                  "Chain info not found for chainId:",
-                  selectedMarket.chainId
-                );
-                return;
-              }
+if (!chainInfo) {
+  console.error("Chain info not found for chainId:", selectedMarket.chainId);
+  return;
+}
 
-              const { nativeTokenSymbol, rpcUrl, decimals, chainName } =
-                chainInfo;
-              await createTransv2(
-                address,
-                "lendingBorrowingAgent",
-                "BORROW",
-                `Borrow ${amount} ${tokenSymbol} executed successfully`,
-                chainName,
-                new Date(),
-                tokenSymbol,
-                amount,
-                res?.txHashes[0],
-                `${explorer}tx/${res?.txHashes[0]}`,
-                "SUCCESS",
-                rpcUrl,
-                nativeTokenSymbol,
-                decimals,
-                tokenSymbol,
-                "Lend and Borrow agent"
-              );
+console.log("Borrow createTransv2 params:", {
+  address,
+  type: "BORROW",
+  message: `Borrow ${amount} ${tokenSymbol} executed successfully`,
+  chainName: chainInfo.chainName,
+  tokenSymbol,
+  amount,
+  txHash: res?.txHashes[0],
+  explorerUrl: `${explorer}tx/${res?.txHashes[0]}`
+});
+
+await createTransv2(
+  address,
+  "lendingBorrowingAgent",
+  "BORROW",
+  `Borrow ${amount} ${tokenSymbol} executed successfully`,
+  chainInfo.chainName,
+  new Date(),
+  tokenSymbol,
+  amount,
+  res?.txHashes[0],
+  `${explorer}tx/${res?.txHashes[0]}`,
+  "SUCCESS",
+  chainInfo.rpcUrl,
+  chainInfo.nativeTokenSymbol,
+  chainInfo.decimals,
+  tokenSymbol,
+  "Lend and Borrow agent"
+);
 
               const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
               await chat({
