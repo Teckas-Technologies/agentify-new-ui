@@ -85,6 +85,7 @@ export interface Node {
     usableAsTool?: any;
     iconUrl?: NodeIconUrl;
     codex?: Codex;
+    type?: string;
     x: number;
     y: number;
 }

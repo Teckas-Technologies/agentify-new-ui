@@ -2,10 +2,11 @@
 
 import { Node } from "@/nodes/node.types";
 import { Bookmark, DeleteIcon, DoorOpen, Edit, FlaskConical, MoreHorizontal, Pencil, Play, Trash, Trash2, ZoomIn, ZoomOut } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import NodeConfigModal from "./node-config-modal";
 import { SaveWorkflowPayload, useSaveWorkflowOnN8N } from "@/hooks/useSaveWorkflowOnN8N";
 import { Button } from "@/Components/ui/button";
+import ToggleSwitch from "./form-fields/toggle-switch";
 
 interface Props {
     selectedNodes: Node[];
@@ -13,6 +14,16 @@ interface Props {
     setConnections: (val: { from: string; to: string }[]) => void;
     handleNodeDelete: (node: Node) => void;
     handleNodeDrag: (node: Node, dx: number, dy: number) => void;
+}
+
+function convertExpression(value: string): string {
+    console.log("Value: ", value)
+    return value.replace(/\{\{\s*(json\[\s*["'](.+?)["']\s*\]\.data(?:\.[\w\d_]+)*)\s*\}\}/g, (_, expr) => {
+        const updated = expr.replace(/json\[\s*["'](.+?)["']\s*\]\.data((?:\.[\w\d_]+)*)/g, (_: any, __: any, path: any) => {
+            return `$json${path}`;
+        });
+        return `{{ ${updated} }}`;
+    });
 }
 
 
@@ -27,8 +38,10 @@ export default function WorkFlowEditor({ selectedNodes, handleNodeDelete, handle
     const [showNameModal, setShowNameModal] = useState(false);
     const [nameInput, setNameInput] = useState(workflowName);
     const [executingNode, setExecutingNode] = useState<string | null>(null);
+    const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null);
+    const [isActive, setIsActive] = useState(false);
 
-    const { saveWorkflowOnN8N } = useSaveWorkflowOnN8N();
+    const { saveWorkflowOnN8N, getWorkflowsFromN8N, activateWorkflowOnN8N, deactivateWorkflowOnN8N } = useSaveWorkflowOnN8N();
 
     const [nodeFormValues, setNodeFormValues] = useState<Record<string, any>>({});
 
@@ -40,15 +53,80 @@ export default function WorkFlowEditor({ selectedNodes, handleNodeDelete, handle
         const nodesPayload: SaveWorkflowPayload["nodes"] = selectedNodes.map(node => {
             const formData = nodeFormValues[node.displayName] || {};
             const pos: [number, number] = [node.x ?? 0, node.y ?? 0];
+            let parameters: Record<string, any> = formData.parameters || {};
+
+            console.log("Form Params:", parameters)
+
+            if (node.name === "n8n-nodes-base.httpRequest") {
+                console.log("Entered")
+                // Convert header key-value to JSON string
+                const headers = (parameters.headerParameters?.parameters || []).reduce((acc: any, cur: any) => {
+                    acc[cur.name] = cur.value;
+                    return acc;
+                }, {});
+
+                // Convert body key-value to JSON string with expression support
+                const body = (parameters.bodyParameters?.parameters || []).reduce((acc: any, cur: any) => {
+                    let value = cur.value;
+                    if (typeof value === 'string' && value.includes('json["')) {
+                        value = convertExpression(value);
+                    }
+                    acc[cur.name] = value;
+                    return acc;
+                }, {});
+
+                console.log("Body:", body)
+
+                parameters = {
+                    authentication: parameters.authentication || "none",
+                    method: parameters.method || "GET",
+                    url: parameters.url || "",
+                    sendHeaders: !!parameters.sendHeaders,
+                    specifyHeaders: "json",
+                    jsonHeaders: JSON.stringify(headers, null, 2),
+                    sendBody: !!parameters.sendBody,
+                    contentType: "json",  // parameters.contentType || 
+                    specifyBody: "json",
+                    jsonBody: `=${JSON.stringify(body, null, 2)}`
+                };
+            }
+
+            if (node.name === "n8n-nodes-base.scheduleTrigger") {
+                const intervalList = parameters?.rule?.interval;
+
+                if (Array.isArray(intervalList)) {
+                    intervalList.forEach((interval: any) => {
+                        if (Array.isArray(interval.triggerAtDay)) {
+                            interval.triggerAtDay = interval.triggerAtDay.map((day: any) => Number(day));
+                        }
+                        if (interval.triggerAtHour !== undefined) {
+                            interval.triggerAtHour = Number(interval.triggerAtHour);
+                        }
+                        if (interval.triggerAtMinute !== undefined) {
+                            interval.triggerAtMinute = Number(interval.triggerAtMinute);
+                        }
+                        if (interval.weeksInterval !== undefined) {
+                            interval.weeksInterval = Number(interval.weeksInterval);
+                        }
+                        if (interval.daysInterval !== undefined) {
+                            interval.daysInterval = Number(interval.daysInterval);
+                        }
+                        if (interval.monthsInterval !== undefined) {
+                            interval.monthsInterval = Number(interval.monthsInterval);
+                        }
+                    });
+                }
+            }
+
 
             return {
                 id: node.displayName,
                 name: node.displayName,
                 type: node.name,
-                typeVersion: 1,
+                typeVersion: node.name === "n8n-nodes-base.scheduleTrigger" ? 1 : 4,
                 position: pos,
-                parameters: formData.parameters || {},
-                credentials: formData.credentials || undefined
+                parameters,
+                credentials: formData.credentials || {}
             };
         });
 
@@ -78,7 +156,9 @@ export default function WorkFlowEditor({ selectedNodes, handleNodeDelete, handle
         console.log("N8N payload: ", payload)
 
         try {
-            await saveWorkflowOnN8N(payload);
+            const res = await saveWorkflowOnN8N(payload);
+            console.log("Save Workflow:", res)
+            setSavedWorkflowId(res.id);
             alert("Workflow saved successfully");
         } catch (err) {
             console.error(err);
@@ -86,6 +166,13 @@ export default function WorkFlowEditor({ selectedNodes, handleNodeDelete, handle
         }
     };
 
+    const activateWorkflow = async () => {
+        if (!savedWorkflowId) return;
+
+        const res = await activateWorkflowOnN8N(savedWorkflowId);
+        console.log("Res: Ac: ", res)
+        setIsActive(res.active);
+    }
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -272,11 +359,18 @@ export default function WorkFlowEditor({ selectedNodes, handleNodeDelete, handle
             </div>
 
             <div className="absolute top-0 right-0 z-10 flex items-center gap-2 w-auto h-[3.25rem] bg-gray-800 rounded-md px-1.5">
+                <div className="w-auto flex gap-1 items-center">
+                    <h2>{isActive ? "  active" : "in active"}</h2>
+                    <ToggleSwitch checked={isActive} onChange={setIsActive} />
+                </div>
                 <Button variant="outline" onClick={executeWorkflow}>
                     <FlaskConical className="w-4 h-4 text-white" /> Execute Workflow
                 </Button>
                 <Button variant="default" onClick={handleSaveWorkflow} className="">
                     <Bookmark className="w-4 h-4 text-white" /> Save
+                </Button>
+                <Button variant="default" onClick={activateWorkflow} className="">
+                    <Bookmark className="w-4 h-4 text-white" /> Activate
                 </Button>
             </div>
 

@@ -100,12 +100,55 @@ const NodeConfigModal: React.FC<Props> = ({ node, onClose, prevNodeOutputs, onSa
     const [output, setOutput] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(()=>{
+    useEffect(() => {
         console.log("Form values:", initialValues);
     }, [])
 
+    // useEffect(() => {
+    //     const updated = { ...initialValues };
+
+    //     // Handle Schedule Trigger 'field' default init
+    //     node.properties.forEach((prop) => {
+    //         if (prop.type === "fixedCollection" && prop.default && prop.options) {
+    //             const defaultKeys = Object.keys(prop.default);
+    //             defaultKeys.forEach((entryKey) => {
+    //                 const defaultArray = prop.default?.[entryKey];
+    //                 if (Array.isArray(defaultArray) && defaultArray.length > 0) {
+    //                     if (!updated[prop.name]) {
+    //                         updated[prop.name] = {};
+    //                     }
+    //                     updated[prop.name][entryKey] = defaultArray;
+    //                 }
+    //             });
+    //         }
+    //     });
+
+    //     setFormValues(updated);
+    // }, []);
+
     const handleChange = (name: string, value: any) => {
-        setFormValues((prev) => ({ ...prev, [name]: value }));
+        setFormValues((prev) => {
+            const updated = { ...prev, [name]: value };
+
+            if (name === "sendQuery" && value === true && updated["specifyQuery"] === undefined) {
+                updated["specifyQuery"] = "keypair";
+            }
+
+            if (name === "sendHeaders" && value === true && updated["specifyHeaders"] === undefined) {
+                updated["specifyHeaders"] = "keypair";
+            }
+
+            if (name === "sendBody" && value === true) {
+                if (updated["contentType"] === undefined) {
+                    updated["contentType"] = "json";
+                }
+                if (updated["specifyBody"] === undefined && updated["contentType"] === "json") {
+                    updated["specifyBody"] = "keypair";
+                }
+            }
+
+            return updated;
+        });
     };
 
     const handleFocus = (name: string) => setActiveField(name);
@@ -136,6 +179,43 @@ const NodeConfigModal: React.FC<Props> = ({ node, onClose, prevNodeOutputs, onSa
     const testStep = async () => {
         try {
             setError(null);
+
+            if (node.name === "n8n-nodes-base.scheduleTrigger") {
+                const now = new Date();
+
+                const pad = (n: number) => n.toString().padStart(2, "0");
+
+                const output = {
+                    timestamp: now.toISOString(),
+                    readableDate: now.toLocaleDateString("en-IN", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                    }),
+                    readableTime: now.toLocaleTimeString("en-IN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                    }),
+                    dayOfWeek: now.toLocaleDateString("en-IN", { weekday: "long" }),
+                    year: now.getFullYear(),
+                    month: now.toLocaleString("en-IN", { month: "long" }),
+                    dayOfMonth: now.getDate(),
+                    hour: now.getHours(),
+                    minute: now.getMinutes(),
+                    second: now.getSeconds(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                };
+
+                setOutput(output);
+                onSaveOutput(node.displayName, output, {
+                    parameters: formValues,
+                    credentials: {},
+                });
+                return;
+            }
+
             const interpolate = (value: any, outputs: Record<string, any>): any => {
                 if (typeof value === "string") {
                     return value.replace(/{{\s*(.*?)\s*}}/g, (_, path: string) => {
@@ -234,6 +314,8 @@ const NodeConfigModal: React.FC<Props> = ({ node, onClose, prevNodeOutputs, onSa
         const name = prop.name;
         const id = `input-${name}`;
 
+        console.log("Properties:", prop)
+
         if (prop.type === "string") {
             return (
                 <input
@@ -319,78 +401,258 @@ const NodeConfigModal: React.FC<Props> = ({ node, onClose, prevNodeOutputs, onSa
             );
         }
 
+        // if (prop.type === "fixedCollection" && prop.options) {
+        //     const values = prop.options as FixedCollectionEntry[];
+        //     return values.map((entry) => {
+        //         const collectionKey = `${prop.name}.${entry.name}`;
+        //         const paramList = formValues[prop.name]?.[entry.name] || [];
+
+        //         // Show one default row if empty
+        //         const effectiveParamList = paramList.length === 0 ? [{ name: "", value: "" }] : paramList;
+
+        //         const updateParam = (index: number, field: string, val: string) => {
+        //             const updated = [...effectiveParamList];
+        //             updated[index] = { ...updated[index], [field]: val };
+        //             setFormValues((prev) => ({
+        //                 ...prev,
+        //                 [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: updated }
+        //             }));
+        //         };
+
+        //         const addParam = () => {
+        //             const newList = [...effectiveParamList, { name: "", value: "" }];
+        //             setFormValues((prev) => ({
+        //                 ...prev,
+        //                 [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: newList }
+        //             }));
+        //         };
+
+        //         const removeParam = (index: number) => {
+        //             const updated = effectiveParamList.filter((_: any, i: any) => i !== index);
+        //             setFormValues((prev) => ({
+        //                 ...prev,
+        //                 [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: updated }
+        //             }));
+        //         };
+
+        //         return (
+        //             <div key={entry.name} className="mb-3">
+        //                 {/* <label className="block font-semibold text-sm">{entry.displayName}</label> */}
+        //                 {effectiveParamList.map((param: any, index: number) => (
+        //                     <div key={index} className="w-full flex gap-2 items-start mb-4">
+        //                         <div className="inputs w-full flex flex-col gap-2">
+        //                             <div className="mb-1">
+        //                                 <h5 className="text-white mb-1 text-sm">Name</h5>
+        //                                 <input
+        //                                     type="text"
+        //                                     placeholder="Name"
+        //                                     className="border px-2 py-1 w-full bg-black"
+        //                                     value={param.name}
+        //                                     onChange={(e) => updateParam(index, "name", e.target.value)}
+        //                                 />
+        //                             </div>
+        //                             <div className="mb-1">
+        //                                 <h5 className="text-white mb-1 text-sm">Value</h5>
+        //                                 <input
+        //                                     type="text"
+        //                                     placeholder="Value"
+        //                                     className="border px-2 py-1 w-full bg-black"
+        //                                     value={param.value}
+        //                                     onChange={(e) => updateParam(index, "value", e.target.value)}
+        //                                     onDrop={(e) => {
+        //                                         e.preventDefault();
+        //                                         const key = e.dataTransfer.getData("application/json-key");
+        //                                         const val = JSON.parse(e.dataTransfer.getData("application/json-value"));
+        //                                         updateParam(index, "value", `{{ ${key} }}`);
+        //                                     }}
+        //                                     onDragOver={(e) => e.preventDefault()}
+        //                                 />
+        //                             </div>
+        //                         </div>
+        //                         {effectiveParamList.length > 1 && (
+        //                             <button onClick={() => removeParam(index)} className="text-red-600 text-sm mt-[30px]">🗑️</button>
+        //                         )}
+        //                     </div>
+        //                 ))}
+        //                 <Button
+        //                     onClick={addParam}
+        //                     variant="outline"
+        //                     className="bg-primary/50"
+        //                 >
+        //                     + Add Parameter
+        //                 </Button>
+        //             </div>
+        //         );
+        //     });
+        // }
+
         if (prop.type === "fixedCollection" && prop.options) {
             const values = prop.options as FixedCollectionEntry[];
-            return values.map((entry) => {
-                const collectionKey = `${prop.name}.${entry.name}`;
-                const paramList = formValues[prop.name]?.[entry.name] || [];
 
-                // Show one default row if empty
-                const effectiveParamList = paramList.length === 0 ? [{ name: "", value: "" }] : paramList;
+            return values.map((entry: FixedCollectionEntry) => {
+                const paramList: any[] =
+                    (formValues[prop.name]?.[entry.name] as any[]) ||
+                    (formValues[prop.name] as any[]) ||
+                    [];
 
-                const updateParam = (index: number, field: string, val: string) => {
-                    const updated = [...effectiveParamList];
-                    updated[index] = { ...updated[index], [field]: val };
+                const effectiveParamList = paramList.length === 0 ? [{}] : paramList;
+
+                const isBasicNameValue =
+                    entry.values.length === 2 &&
+                    entry.values.find((v) => v.name === "name") &&
+                    entry.values.find((v) => v.name === "value");
+
+                const updateField = (index: number, key: string, value: any) => {
+                    const updatedList = [...effectiveParamList];
+                    updatedList[index] = { ...updatedList[index], [key]: value };
                     setFormValues((prev) => ({
                         ...prev,
-                        [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: updated }
+                        [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: updatedList }
                     }));
                 };
 
                 const addParam = () => {
-                    const newList = [...effectiveParamList, { name: "", value: "" }];
                     setFormValues((prev) => ({
                         ...prev,
-                        [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: newList }
+                        [prop.name]: {
+                            ...(prev[prop.name] || {}),
+                            [entry.name]: [...effectiveParamList, {}]
+                        }
                     }));
                 };
 
                 const removeParam = (index: number) => {
-                    const updated = effectiveParamList.filter((_: any, i: any) => i !== index);
+                    const filtered = effectiveParamList.filter((_, i) => i !== index);
                     setFormValues((prev) => ({
                         ...prev,
-                        [prop.name]: { ...(prev[prop.name] || {}), [entry.name]: updated }
+                        [prop.name]: {
+                            ...(prev[prop.name] || {}),
+                            [entry.name]: filtered
+                        }
                     }));
                 };
 
                 return (
-                    <div key={entry.name} className="mb-3">
-                        {/* <label className="block font-semibold text-sm">{entry.displayName}</label> */}
-                        {effectiveParamList.map((param: any, index: number) => (
-                            <div key={index} className="flex gap-2 items-center mb-2">
-                                <input
-                                    type="text"
-                                    placeholder="Name"
-                                    className="border px-2 py-1 w-1/2 bg-black"
-                                    value={param.name}
-                                    onChange={(e) => updateParam(index, "name", e.target.value)}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Value"
-                                    className="border px-2 py-1 w-1/2 bg-black"
-                                    value={param.value}
-                                    onChange={(e) => updateParam(index, "value", e.target.value)}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        const key = e.dataTransfer.getData("application/json-key");
-                                        const val = JSON.parse(e.dataTransfer.getData("application/json-value"));
-                                        updateParam(index, "value", `{{ ${key} }}`);
-                                    }}
-                                    onDragOver={(e) => e.preventDefault()}
-                                />
-                                {effectiveParamList.length > 1 && (
-                                    <button onClick={() => removeParam(index)} className="text-red-600 text-sm">🗑️</button>
+                    <div key={entry.name} className="mb-4">
+                        {effectiveParamList.map((entryObj: Record<string, any>, index: number) => (
+                            <div key={index} className="border p-2 mb-3 bg-gray-800 rounded">
+                                {entry.values.map((field) => {
+                                    const fieldValue = entryObj[field.name] ?? field.default;
+
+                                    // --- displayOptions.show logic ---
+                                    if (field.displayOptions?.show) {
+                                        const [conditionKey] = Object.keys(field.displayOptions.show);
+                                        const allowedValues = field.displayOptions.show[conditionKey];
+                                        const selectedValue = entryObj[conditionKey];
+
+                                        if (!allowedValues.includes(selectedValue)) return null;
+                                    }
+
+                                    // --- Render different types ---
+                                    if (field.type === "string" || field.type === "number") {
+                                        return (
+                                            <div key={field.name} className="mb-2">
+                                                <label className="text-white text-sm block mb-1">
+                                                    {field.displayName}
+                                                </label>
+                                                <input
+                                                    type={field.type === "number" ? "number" : "text"}
+                                                    className="w-full px-2 py-1 bg-black border"
+                                                    value={fieldValue}
+                                                    placeholder={field.placeholder || ""}
+                                                    onChange={(e) =>
+                                                        updateField(
+                                                            index,
+                                                            field.name,
+                                                            field.type === "number"
+                                                                ? Number(e.target.value)
+                                                                : e.target.value
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        );
+                                    }
+
+                                    if (field.type === "options") {
+                                        const options = field?.options as NodeOptionValue[]
+                                        return (
+                                            <div key={field.name} className="mb-2">
+                                                <label className="text-white text-sm block mb-1">
+                                                    {field.displayName}
+                                                </label>
+                                                <select
+                                                    className="w-full px-2 py-1 bg-black border"
+                                                    value={fieldValue}
+                                                    onChange={(e) =>
+                                                        updateField(index, field.name, e.target.value)
+                                                    }
+                                                >
+                                                    {options?.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        );
+                                    }
+
+                                    if (field.type === "multiOptions") {
+                                        const options = field?.options as NodeOptionValue[]
+                                        return (
+                                            <div key={field.name} className="mb-2">
+                                                <label className="text-white text-sm block mb-1">
+                                                    {field.displayName}
+                                                </label>
+                                                <select
+                                                    multiple
+                                                    className="w-full px-2 py-1 bg-black border"
+                                                    value={fieldValue}
+                                                    onChange={(e) =>
+                                                        updateField(
+                                                            index,
+                                                            field.name,
+                                                            Array.from(
+                                                                e.target.selectedOptions,
+                                                                (o) => o.value
+                                                            )
+                                                        )
+                                                    }
+                                                >
+                                                    {options?.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        );
+                                    }
+
+                                    return null;
+                                })}
+
+                                {isBasicNameValue && effectiveParamList.length > 1 && (
+                                    <button
+                                        onClick={() => removeParam(index)}
+                                        className="text-red-600 text-sm mt-2 block"
+                                    >
+                                        🗑 Remove
+                                    </button>
                                 )}
                             </div>
                         ))}
-                        <Button
-                            onClick={addParam}
-                            variant="outline"
-                            className="bg-primary/50"
-                        >
-                            + Add Parameter
-                        </Button>
+
+                        {isBasicNameValue && (
+                            <Button
+                                onClick={addParam}
+                                variant="outline"
+                                className="bg-primary/50"
+                            >
+                                + Add Parameter
+                            </Button>
+                        )}
                     </div>
                 );
             });
@@ -401,6 +663,7 @@ const NodeConfigModal: React.FC<Props> = ({ node, onClose, prevNodeOutputs, onSa
     };
 
     console.log("Prev Node Outputs: ", prevNodeOutputs)
+    console.log("Node: ", node)
 
     return (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center">
