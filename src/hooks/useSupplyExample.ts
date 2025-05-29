@@ -24,7 +24,6 @@ export async function supplyWithSign({
             WETH_GATEWAY: "0xDde0E8E6d3653614878Bf5009EDC317BC129fE2F", // weth
         });
 
-        console.log("Transaction");
         const deadline = Math.floor(Date.now() / 1000 + 3600).toString();
 
         const data = await generateSupplySignatureRequest(
@@ -34,14 +33,11 @@ export async function supplyWithSign({
             deadline,
             provider
         );
-        console.log(data);
         const address = await signer.getAddress();
         const signature: string = await provider.send("eth_signTypedData_v4", [
             address,
             data,
         ]);
-        console.log(signature);
-
         const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
             user,
             reserve,
@@ -58,9 +54,7 @@ export async function supplyWithSign({
                 ...txData,
                 value: txData.value ? BigNumber.from(txData.value) : undefined,
             });
-            console.log(txResponse);
         }
-        console.log("Transaction Completed");
     } catch (error) {
         // Handle errors appropriately
         console.error("Error in supply:", error);

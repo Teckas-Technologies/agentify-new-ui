@@ -3,7 +3,6 @@ import { PYTHON_SERVER_URL } from "@/config/constants";
 
 async function fetchInitialAgents() {
   const query = new URLSearchParams({
-    user_id: "demo_user", // or dynamic address
     skip: "0",
     limit: "10",
     is_favourite: "false",
@@ -12,7 +11,7 @@ async function fetchInitialAgents() {
 
   try {
     const res = await fetch(
-      `${PYTHON_SERVER_URL}/api/v1/agents/?${query.toString()}`,
+      `${PYTHON_SERVER_URL}/api/v1/agents/list-agents/?${query.toString()}`,
       { cache: "no-store" }
     );
 

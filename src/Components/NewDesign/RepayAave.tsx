@@ -23,7 +23,6 @@ const RepayAave = () => {
 
     if (Array.isArray(result)) {
       alert(`Repayment submitted. TX Hash: ${result[0]}`);
-      console.log("Transaction hashes:", result);
     } else if (result && typeof result === "object" && "success" in result) {
       alert(result.message);
     }

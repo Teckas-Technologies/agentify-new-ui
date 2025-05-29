@@ -4,17 +4,16 @@ import React from 'react';
 // import { PrivyClient } from "@privy-io/server-auth";
 
 async function fetchInitialAgents() {
-  const query = new URLSearchParams({
-    user_id: "demo_user", // or dynamic address
-    skip: "0",
-    limit: "10",
-    is_favourite: "false",
-    search_query: "",
-  });
+  // const query = new URLSearchParams({
+  //   skip: "0",
+  //   limit: "10",
+  //   is_favourite: "false",
+  //   search_query: "",
+  // });
 
   try {
     const res = await fetch(
-      `${PYTHON_SERVER_URL}/api/v1/agents/?${query.toString()}`,
+      `${PYTHON_SERVER_URL}/api/v1/agents/list-agents/`, // ?${query.toString()}
       { cache: "no-store" }
     );
 

@@ -4,8 +4,13 @@ import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
+type ChainCount = {
+  chainName: string;
+  count: number;
+};
+
 const useFetchChainActivity = () => {
-  const [chainActivity, setChainActivity] = useState<any[] | null>(null);
+  const [chainActivity, setChainActivity] = useState<ChainCount[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,12 +37,12 @@ const useFetchChainActivity = () => {
       }
 
       const result = await response.json();
-      console.log("Chain activity response ---", result);
       setChainActivity(result);
       return result;
-    } catch (err: any) {
-      console.error("Error fetching chain activity:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error fetching chain activity:", error);
+      setError(error.message || "Something went wrong");
       return null;
     } finally {
       setLoading(false);

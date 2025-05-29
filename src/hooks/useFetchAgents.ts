@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { PYTHON_SERVER_URL } from "@/config/constants";
 import { getAccessToken } from "@privy-io/react-auth";
+import { Agent } from "@/types/types";
 
-const useFetchAgents = (initialData: any[] = []) => {
-  const [agentsData, setAgentsData] = useState<any[]>(initialData);
+const useFetchAgents = (initialData: Agent[] = []) => {
+  const [agentsData, setAgentsData] = useState<Agent[]>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
@@ -13,14 +14,12 @@ const useFetchAgents = (initialData: any[] = []) => {
   const AGENTIFY_AI = PYTHON_SERVER_URL;
 
   const fetchAgents = async ({
-    userId,
     skip = 0,
     limit = 6,
     searchQuery = "",
     isFavourite = false,
     filter = "",
   }: {
-    userId: string;
     skip?: number;
     limit?: number;
     searchQuery?: string;
@@ -32,7 +31,6 @@ const useFetchAgents = (initialData: any[] = []) => {
       setError(null);
 
       const query = new URLSearchParams({
-        user_id: userId,
         skip: skip.toString(),
         limit: limit.toString(),
         search_query: searchQuery,
@@ -42,10 +40,9 @@ const useFetchAgents = (initialData: any[] = []) => {
       if (filter && filter.trim() !== "") {
         query.append("filter", filter); // ✅ only if filter has a value
       }
-      const url = `${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`;
-    console.log("Fetching agents from URL:", url); 
+      const url = `${AGENTIFY_AI}/api/v1/agents/list-agents/?${query.toString()}`;
     const accessToken = await getAccessToken();
-    const response = await fetch(`${AGENTIFY_AI}/api/v1/agents/?${query.toString()}`, {
+    const response = await fetch(`${AGENTIFY_AI}/api/v1/agents/list-agents/?${query.toString()}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -56,7 +53,6 @@ const useFetchAgents = (initialData: any[] = []) => {
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
       const result = await response.json();
-      console.log("Agents response ---", result);
 
       setAgentsData(result.data || []);
       setTotalPages(result.totalPages || 1);
@@ -64,9 +60,10 @@ const useFetchAgents = (initialData: any[] = []) => {
       setPageSize(result.pageSize || limit);
 
       return result;
-    } catch (err: any) {
-      console.error("Error occurred while fetching agents:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error occurred while fetching agents:", error);
+      setError(error.message || "Something went wrong");
       return [];
     } finally {
       setLoading(false);

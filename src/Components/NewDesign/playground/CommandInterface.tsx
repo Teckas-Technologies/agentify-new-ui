@@ -23,7 +23,7 @@ import { useAccount } from "wagmi";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useChat } from "@/hooks/useChatHook";
 import dynamic from "next/dynamic";
-import useAaveHook from "@/hooks/useAaveHook";
+import useAaveHook, { TransactionError } from "@/hooks/useAaveHook";
 import useLifiHook from "@/hooks/useLifiHook";
 import { useTransactions } from "@/hooks/useTransactionsHook";
 import { v4 as uuidv4 } from "uuid";
@@ -33,6 +33,7 @@ import { formatUnits } from "ethers/lib/utils";
 import { marketConfigs } from "@/utils/markets";
 import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
 import { useBeraSwap } from "@/hooks/useBeraSwap";
+import { AgentCommand } from "../Dashboard/Dashboard";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -47,7 +48,7 @@ interface CommandInterfaceProps {
 export const CommandInterface = ({
   selectedAgent,
   isWalletConnected = false,
-  onConnect = () => {},
+  onConnect = () => { },
   onSelectAgent,
   initialAgents,
 }: CommandInterfaceProps) => {
@@ -88,7 +89,7 @@ export const CommandInterface = ({
   const wallet = wallets[0];
 
   useEffect(() => {
-    if (messages.length > 3) {
+    if (messages && messages?.length > 3) {
       // Scroll to bottom when messages update
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -148,7 +149,6 @@ export const CommandInterface = ({
         selectedAgent?.name,
         command
       );
-      console.log("RES:", res);
 
       setSavedCommands((prev) => [...prev, command]);
       // setFavoritedIndexes((prev) => {
@@ -175,7 +175,6 @@ export const CommandInterface = ({
         agentId: selectedAgent?.agentId,
         command,
       });
-      console.log("RES:", res);
       setSavedCommands((prevCommands) =>
         prevCommands.filter((cmd) => cmd !== command)
       );
@@ -218,7 +217,6 @@ export const CommandInterface = ({
       agent_name,
     };
     const data = await createTransactions(payload);
-    console.log("created transaction", data);
   };
 
   const createTransv2 = async (
@@ -258,26 +256,23 @@ export const CommandInterface = ({
       token_symbol,
     };
     const data = await createTransactionsv2(payload);
-    console.log("created transaction", data);
   };
 
   const fetchHistory = useCallback(async () => {
     try {
       if (!address || !selectedAgent?.agentId) return;
-      const history = await fetchChatHistory(address, selectedAgent?.agentId);
-      const filteredMessages = history?.threads?.filter(
+      const history = await fetchChatHistory(selectedAgent?.agentId);
+      const filteredMessages = history?.message?.filter(
         (msg: Message) => msg.message.trim() !== "" && msg.role !== "tool"
       );
 
       setMessages(filteredMessages);
 
-      const cmds = await getAgentCommands(address, selectedAgent.agentId);
+      const cmds = await getAgentCommands(selectedAgent.agentId);
       if (cmds && Array.isArray(cmds?.data?.data)) {
-        setSavedCommands(cmds?.data?.data?.map((cmd: any) => cmd.command));
+        setSavedCommands(cmds?.data?.data?.map((cmd: AgentCommand) => cmd.command));
       }
 
-      console.log("filteredMessages", filteredMessages);
-      console.log("savedCommands", cmds.data);
     } catch (error) {
       console.error("Error fetching history or commands:", error);
     }
@@ -286,7 +281,7 @@ export const CommandInterface = ({
   const clearChatHistory = async () => {
     try {
       if (!address || !selectedAgent?.agentId) return;
-      await clearHistory(address, selectedAgent?.agentId);
+      await clearHistory(selectedAgent?.agentId);
       setMessages([]);
     } catch (error) {
       console.error("Error clearing chat history:", error);
@@ -329,23 +324,18 @@ export const CommandInterface = ({
   }
 
   const handleChat = async () => {
-    console.log("Ip:", inputValue);
     if (!inputValue.trim()) {
-      console.log("Message is empty, returning...");
       return;
     }
     if (isLoading) {
-      console.log("Already loading, returning...");
       return;
     }
 
     if (!address) {
-      console.log("No address found, returning...");
       return;
     }
 
     if (!selectedAgent) {
-      console.log("No agent selected, returning...");
       return;
     }
 
@@ -356,13 +346,12 @@ export const CommandInterface = ({
         toAddress: address,
       },
     });
-
     // Set only the message part in the frontend message array
     const userMessage: Message = {
       role: "human",
       message: JSON.parse(enrichedMessage).message,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => (Array.isArray(prev) ? [...prev, userMessage] : [userMessage]));
     setInputValue(""); // Clear input field
 
     setIsLoading(true);
@@ -374,7 +363,6 @@ export const CommandInterface = ({
         userId: address,
         isTransaction: false,
       });
-      console.log("RES:", response);
       if (response?.success) {
         if (response?.data?.tool_response !== "None") {
           const toolMessage = JSON.parse(response?.data?.tool_response);
@@ -416,9 +404,8 @@ export const CommandInterface = ({
                 parseInt(wallet.chainId.split(":")[1]) !== berachainId
               ) {
                 await switchNetwork(berachainId);
-                console.log("Chain switched..");
               }
-              const chainInfo = await getChainInfoById(berachainId);
+              // const chainInfo = await getChainInfoById(berachainId);
 
               // ✅ Conditional balance validation based on the fromToken
               let hasSufficientBalance;
@@ -501,7 +488,8 @@ export const CommandInterface = ({
               } else {
                 throw new Error("Swap failed (no transaction hash)");
               }
-            } catch (error: any) {
+            } catch (err: unknown) {
+              const error = err as TransactionError;
               console.error("Swap error:", error);
 
               let errorMsg = "Something went wrong. Please try again later.";
@@ -553,7 +541,14 @@ export const CommandInterface = ({
           if (toolMessage?.type === "lend") {
             const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
-              console.log("Err missing fields");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  message: `Required Fields are incorrect or missing!`,
+                },
+              ]);
+              return;
             }
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
@@ -566,16 +561,12 @@ export const CommandInterface = ({
             ]);
             setExecutingAave(true);
 
-            console.log(
-              "Market Type",
-              MarketType[market as keyof typeof MarketType]
-            );
             const res = await supplyToAave({
               market: MarketType[market as keyof typeof MarketType],
               tokenSymbol: tokenSymbol,
               amount: amount.toString(),
             });
-            console.log("Lend RES:", res);
+
             const chainInfo = await getChainInfoById(selectedMarket.chainId);
             if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
               if (!chainInfo) {
@@ -660,7 +651,14 @@ export const CommandInterface = ({
           } else if (toolMessage?.type === "borrow") {
             const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
-              console.log("Err missing fields");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  message: `Required Fields are incorrect or missing!`,
+                },
+              ]);
+              return;
             }
             setMessages((prev) => [
               ...prev,
@@ -671,57 +669,41 @@ export const CommandInterface = ({
             ]);
             setExecutingAave(true);
 
-            console.log(
-              "Market Type",
-              MarketType[market as keyof typeof MarketType]
-            );
             const res = await borrowToAave({
               market: MarketType[market as keyof typeof MarketType],
               tokenSymbol: tokenSymbol,
               amount: amount.toString(),
             });
-            console.log("Borrow RES:", res);
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
             const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
             if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
-             const chainInfo = await getChainInfoById(selectedMarket.chainId);
+              const chainInfo = await getChainInfoById(selectedMarket.chainId);
 
-if (!chainInfo) {
-  console.error("Chain info not found for chainId:", selectedMarket.chainId);
-  return;
-}
+              if (!chainInfo) {
+                console.error("Chain info not found for chainId:", selectedMarket.chainId);
+                return;
+              }
 
-console.log("Borrow createTransv2 params:", {
-  address,
-  type: "BORROW",
-  message: `Borrow ${amount} ${tokenSymbol} executed successfully`,
-  chainName: chainInfo.chainName,
-  tokenSymbol,
-  amount,
-  txHash: res?.txHashes[0],
-  explorerUrl: `${explorer}tx/${res?.txHashes[0]}`
-});
-
-await createTransv2(
-  address,
-  "lendingBorrowingAgent",
-  "BORROW",
-  `Borrow ${amount} ${tokenSymbol} executed successfully`,
-  chainInfo.chainName,
-  new Date(),
-  tokenSymbol,
-  amount,
-  res?.txHashes[0],
-  `${explorer}tx/${res?.txHashes[0]}`,
-  "SUCCESS",
-  chainInfo.rpcUrl,
-  chainInfo.nativeTokenSymbol,
-  chainInfo.decimals,
-  tokenSymbol,
-  "Lend and Borrow agent"
-);
+              await createTransv2(
+                address,
+                "lendingBorrowingAgent",
+                "BORROW",
+                `Borrow ${amount} ${tokenSymbol} executed successfully`,
+                chainInfo.chainName,
+                new Date(),
+                tokenSymbol,
+                amount,
+                res?.txHashes[0],
+                `${explorer}tx/${res?.txHashes[0]}`,
+                "SUCCESS",
+                chainInfo.rpcUrl,
+                chainInfo.nativeTokenSymbol,
+                chainInfo.decimals,
+                tokenSymbol,
+                "Lend and Borrow agent"
+              );
 
               const statusMessage = `Great! You've successfully borrowed ${amount} ${tokenSymbol}. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res?.txHashes[0]}).`;
               await chat({
@@ -771,7 +753,14 @@ await createTransv2(
           } else if (toolMessage?.type === "withdraw") {
             const { market, tokenSymbol, amount, explorer } = toolMessage;
             if (!market || !tokenSymbol || !amount) {
-              console.log("Err missing fields");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "ai",
+                  message: `Required Fields are incorrect or missing!`,
+                },
+              ]);
+              return;
             }
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
@@ -784,16 +773,11 @@ await createTransv2(
             ]);
             setExecutingAave(true);
 
-            console.log(
-              "Market Type",
-              MarketType[market as keyof typeof MarketType]
-            );
             const res = await withdrawFromAave({
               market: MarketType[market as keyof typeof MarketType],
               tokenSymbol: tokenSymbol,
               amount: amount.toString(),
             });
-            console.log("Withdraw RES:", res);
             const chainInfo = await getChainInfoById(selectedMarket.chainId);
             if (res?.success && res?.txHashes && res?.txHashes?.length > 0) {
               if (!chainInfo) {
@@ -866,10 +850,7 @@ await createTransv2(
               return;
             }
           } else if (toolMessage?.type === "repay") {
-            const { market, tokenSymbol, amount, onBehalfOf, explorer } =
-              toolMessage;
-            console.log("Tool message received for repay:", toolMessage);
-
+            const { market, tokenSymbol, amount, onBehalfOf, explorer } = toolMessage;
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
 
@@ -903,18 +884,7 @@ await createTransv2(
                 return;
               }
 
-              const { nativeTokenSymbol, rpcUrl, decimals, chainName } =
-                chainInfo;
-              console.log("Creating transaction record with:", {
-                address,
-                tokenSymbol,
-                amount,
-                txHash,
-                explorer: `${explorer}tx/${txHash}`,
-                rpcUrl,
-                nativeTokenSymbol,
-                decimals,
-              });
+              const { nativeTokenSymbol, rpcUrl, decimals, chainName } = chainInfo;
               await createTransv2(
                 address,
                 "lendingBorrowingAgent",
@@ -968,8 +938,8 @@ await createTransv2(
 
             const errorMessage =
               typeof repayResult === "object" &&
-              !Array.isArray(repayResult) &&
-              "message" in repayResult
+                !Array.isArray(repayResult) &&
+                "message" in repayResult
                 ? repayResult.message
                 : `Repayment of ${amount} ${tokenSymbol} failed.`;
 
@@ -988,7 +958,6 @@ await createTransv2(
             toolMessage?.type === "bridge"
           ) {
             const { quote, explorer } = toolMessage;
-            console.log("Quote:", quote);
 
             if (quote) {
               const {
@@ -1034,16 +1003,14 @@ await createTransv2(
                 ...prev,
                 {
                   role: "ai",
-                  message: `Executing ${
-                    fromChainId.toString() === toChainId.toString()
-                      ? "Swap"
-                      : "Bridge"
-                  }, don't close the page until get confirmations...`,
+                  message: `Executing ${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                    }, don't close the page until get confirmations...`,
                 },
               ]);
               setExecutingLifi(true);
               const response: any = await executeLifi({ quote });
-              console.log("Res:", response);
               if (response?.txHash) {
                 const agentId =
                   fromChainId.toString() === toChainId.toString()
@@ -1072,12 +1039,10 @@ await createTransv2(
                   address,
                   agentId,
                   transaction_type,
-                  `${
-                    fromChainId.toString() === toChainId.toString()
-                      ? "Swap"
-                      : "Bridge"
-                  } ${formatedAmount} ${
-                    fromToken.symbol
+                  `${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                  } ${formatedAmount} ${fromToken.symbol
                   } executed successfully!`,
                   chainInfo.chainName,
                   new Date(),
@@ -1091,13 +1056,11 @@ await createTransv2(
                   agentName
                 );
 
-                const statusMessage = `Your ${
-                  fromChainId.toString() === toChainId.toString()
-                    ? "Swap"
-                    : "Bridge"
-                } was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${
-                  response?.txHash
-                }).`;
+                const statusMessage = `Your ${fromChainId.toString() === toChainId.toString()
+                  ? "Swap"
+                  : "Bridge"
+                  } was executed successfully!. 🎉 You can check the transaction on the [explorer](${explorer}tx/${response?.txHash
+                  }).`;
                 await chat({
                   inputMessage: statusMessage,
                   agentName: selectedAgent?.agentId,
@@ -1136,12 +1099,10 @@ await createTransv2(
                   address,
                   agentId,
                   transaction_type,
-                  `${
-                    fromChainId.toString() === toChainId.toString()
-                      ? "Swap"
-                      : "Bridge"
-                  } ${formatedAmount} ${
-                    fromToken.symbol
+                  `${fromChainId.toString() === toChainId.toString()
+                    ? "Swap"
+                    : "Bridge"
+                  } ${formatedAmount} ${fromToken.symbol
                   } execution was failed!`,
                   chainInfo.chainName,
                   new Date(),
@@ -1155,11 +1116,10 @@ await createTransv2(
                   agentName
                 );
 
-                const statusMessage = `Oops! ${
-                  fromChainId.toString() === toChainId.toString()
-                    ? "Swap"
-                    : "Bridge"
-                } execution was failed!.`;
+                const statusMessage = `Oops! ${fromChainId.toString() === toChainId.toString()
+                  ? "Swap"
+                  : "Bridge"
+                  } execution was failed!.`;
                 await chat({
                   inputMessage: statusMessage,
                   agentName: selectedAgent?.agentId,
@@ -1203,7 +1163,7 @@ await createTransv2(
           { role: "ai", message: "Something went wrong!" },
         ]);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
@@ -1263,13 +1223,12 @@ await createTransv2(
 
         <CardContent className="flex-1 p-0 overflow-y-hidden relative">
           <ScrollArea
-            className={`w-full ${
-              modelOpen
-                ? "overflow-y-hidden h-[37vh]"
-                : "md:h-[calc(100vh-80px)] h-[calc(100vh-280px)]"
-            }`}
+            className={`w-full ${modelOpen
+              ? "overflow-y-hidden h-[37vh]"
+              : "md:h-[calc(100vh-80px)] h-[calc(100vh-280px)]"
+              }`}
           >
-            <div className="p-3 md:p-6">
+            <div className=""> {/** p-3 md:p-6 */}
               {!isWalletConnected ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                   <div className="p-4 rounded-full bg-primary/5 ring-1 ring-primary/20 mb-2">
@@ -1303,17 +1262,13 @@ await createTransv2(
                       }
 
                       return (
-                        <>
-                          <div
-                            key={index}
-                            className={`message w-full h-auto flex ${
-                              index === messages.length - 1 &&
-                              msg.role === "ai" &&
-                              "md:flex-row flex-col"
-                            } gap-1 md:gap-2 lg:gap-3 my-2 ${
-                              msg.role === "ai"
-                                ? "justify-start"
-                                : "justify-end"
+                        <div key={index}>
+                          <div className={`message w-full h-auto flex ${index === messages.length - 1 &&
+                            msg.role === "ai" &&
+                            "md:flex-row flex-col"
+                            } gap-1 md:gap-2 lg:gap-3 my-2 ${msg.role === "ai"
+                              ? "justify-start"
+                              : "justify-end"
                             }`}
                           >
                             {msg?.role === "human" && (
@@ -1326,20 +1281,18 @@ await createTransv2(
                                 }}
                               >
                                 <Heart
-                                  className={`h-4 w-4 md:h-5 md:w-5 ${
-                                    savedCommands.includes(msg.message)
-                                      ? "fill-current text-primary"
-                                      : "text-primary"
-                                  }`}
+                                  className={`h-4 w-4 md:h-5 md:w-5 ${savedCommands.includes(msg.message)
+                                    ? "fill-current text-primary"
+                                    : "text-primary"
+                                    }`}
                                 />
                               </div>
                             )}
                             <div
-                              className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${
-                                msg.role === "ai"
-                                  ? "bg-white/5 hover:bg-primary/10 border border-white/10"
-                                  : "user-msg agent-name bg-primary/50 border border-white/10"
-                              }`}
+                              className={`relative px-4 py-3 max-w-xs md:max-w-md md:overflow-x-auto overflow-x-auto rounded-md w-auto ${msg.role === "ai"
+                                ? "bg-white/5 hover:bg-primary/10 border border-white/10"
+                                : "user-msg agent-name bg-primary/50 border border-white/10"
+                                }`}
                             >
                               <MarkdownToJSX
                                 options={{
@@ -1406,7 +1359,7 @@ await createTransv2(
                             </div>
                           )}
                           <div ref={messagesEndRef} />
-                        </>
+                        </div>
                       );
                     })}
                   </div>
@@ -1475,11 +1428,10 @@ await createTransv2(
                         > */}
               <div
                 onClick={handleChat}
-                className={`flex items-center justify-center p-2 rounded-xl transition-colors ring-1 ring-primary/20 ${
-                  !isWalletConnected || !inputValue.trim()
-                    ? "cursor-not-allowed"
-                    : "bg-primary/10 hover:bg-primary/20 cursor-pointer"
-                }`}
+                className={`flex items-center justify-center p-2 rounded-xl transition-colors ring-1 ring-primary/20 ${!isWalletConnected || !inputValue.trim()
+                  ? "cursor-not-allowed"
+                  : "bg-primary/10 hover:bg-primary/20 cursor-pointer"
+                  }`}
               >
                 <Send className="h-5 w-5 text-primary" />
               </div>

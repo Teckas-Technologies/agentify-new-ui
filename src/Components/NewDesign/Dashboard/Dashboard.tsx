@@ -47,85 +47,24 @@ import { usePrivy } from "@privy-io/react-auth";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import useFetchLastCommand from "@/hooks/useFetchLastCommand";
 
-// export const agentUsageData = [
-//   { name: "Swap", value: 62, color: "hsl(262, 83.3%, 57.8%)" },
-//   { name: "Bridge", value: 26, color: "hsl(12, 76.4%, 64.7%)" },
-//   { name: "Lend/Borrow", value: 12, color: "hsl(142, 76.2%, 36.3%)" },
-// ];
 type GasHistory = {
   day: string;
   gas: number;
 };
 
-// export const chainActivityData = [
-//   { name: "Arbitrum", count: 58 },
-//   { name: "Polygon", count: 42 },
-//   { name: "Optimism", count: 37 },
-//   { name: "Ethereum", count: 26 },
-//   { name: "Base", count: 15 },
-// ];
+type AgentUsage = {
+  agentName: string;
+  percentage: number;
+}
 
-// export const gasUsageData = {
-//   totalGas: "0.138 ETH",
-//   avgGas: "0.0006 ETH",
-// };
-
-// export const gasHistoryData = [
-//   { day: "Mon", value: 0 },
-//   { day: "Tue", value: 0 },
-//   { day: "Wed", value: 0 },
-//   { day: "Thu", value: 0 },
-//   { day: "Fri", value: 0 },
-//   { day: "Sat", value: 0 },
-//   { day: "Sun", value: 0 },
-// ];
-
-// const quickActions = [
-//   {
-//     title: "Quick Swap",
-//     description: "Swap tokens with minimal clicks",
-//     icon: Repeat2,
-//     action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
-//   },
-//   {
-//     title: "Command History",
-//     description: "View your recent commands",
-//     icon: Terminal,
-//     action: "/commands",
-//   },
-//   {
-//     title: "Run Last Command",
-//     description: "Execute your most recent transaction",
-//     icon: PlayCircle,
-//     action: "/playground",
-//   },
-// ];
-// const savedCommandsData = [
-//   {
-//     id: 1,
-//     title: "ETH to USDC Swap",
-//     command: "swap 0.1 ETH to USDC on Arbitrum",
-//   },
-//   {
-//     id: 2,
-//     title: "Bridge to Optimism",
-//     command: "bridge 100 USDC to Optimism",
-//   },
-//   {
-//     id: 3,
-//     title: "Lend on Aave",
-//     command: "lend 500 USDC on Arbitrum Aave",
-//   },
-// ];
-// interface DashboardPageProps {
-//   stats?: any[];
-//   chainActivity?: any[];
-//   gasDetails?: any[];
-//   agentUsage?: any[];
-//   recentActivity?: any[];
-//   savedCommands?: any[];
-//   transactionLogs?: any[];
-// }
+export type AgentCommand = {
+  _id: string;
+  user_id: string;
+  agent_id: "swapAgent" | "bridgeAgent" | "berachainSwapAgent" | string;
+  agent_name: string;
+  command: string;
+  created_at: string; // ISO date string
+};
 
 const Dashboard = () => {
   const router = useRouter();
@@ -136,7 +75,7 @@ const Dashboard = () => {
     useFetchDashboardHeader();
   const fetchDashboardStatsMemoized = useCallback(async () => {
     if (address) {
-      await fetchDashboardStats(address);
+      await fetchDashboardStats();
     }
   }, [address]);
 
@@ -194,9 +133,8 @@ const Dashboard = () => {
 
   const loadGasData = useCallback(async () => {
     if (!address) return;
-    const data = await fetchGasDetails(address);
+    const data = await fetchGasDetails();
     if (data) {
-      console.log("Gas Usage History:", data.data);
       setLocalData({
         totalGas: data.totalGas || 0,
         avgGas: data.average || 0,
@@ -213,14 +151,13 @@ const Dashboard = () => {
     !address || !gasDetails || !gasDetails.data || gasDetails.data.length === 0;
 
   const { fetchAgentChart, loading: chartLoading } = useFetchAgentChart();
-  const [agentUsageData, setAgentUsageData] = useState<any[]>([]);
+  const [agentUsageData, setAgentUsageData] = useState<AgentUsage[]>([]);
 
   const loadAgentData = useCallback(async () => {
     if (!address) return;
     const data = await fetchAgentChart(address);
 
     if (data) {
-      console.log("Agent Usage Data:", data);
       if (Array.isArray(data)) {
         setAgentUsageData(data);
       } else if (data.detail) {
@@ -255,15 +192,10 @@ const Dashboard = () => {
   const loadRecentTransactions = useCallback(() => {
     if (address) {
       fetchRecentTransactions({
-        userId: address,
         limit: 4,
       });
     }
   }, [address, fetchRecentTransactions]);
-  console.log(
-    "...........................................",
-    Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
 
   // 🔁 useCallback for fetching tab-specific transactions (with agentId)
   const loadTabbedTransactions = useCallback(() => {
@@ -274,8 +206,7 @@ const Dashboard = () => {
         lend: "lendingBorrowingAgent",
       };
 
-      const params: { userId: string; agentId?: string; limit: number } = {
-        userId: address,
+      const params: { agentId?: string; limit: number } = {
         limit: 4,
       };
 
@@ -300,12 +231,12 @@ const Dashboard = () => {
     fetchSavedCommands,
     loading: savedCmdLoading,
   } = useFetchSavedCommands();
-  const [savedCommandsData, setSavedCommandsData] = useState<any[]>([]);
+  const [savedCommandsData, setSavedCommandsData] = useState<AgentCommand[]>([]);
 
   // useCallback to memoize fetch function
   const loadSavedCommands = useCallback(async () => {
     if (address) {
-      const res = await fetchSavedCommands(address);
+      const res = await fetchSavedCommands();
       if (res?.data) {
         setSavedCommandsData(res.data);
       }
@@ -338,15 +269,8 @@ const Dashboard = () => {
     };
     return mapping[type] || type;
   };
-  const convertToISTDate = (time: string): Date => {
-    const utcDate = new Date(time.endsWith("Z") ? time : `${time}Z`);
-    // toLocaleString to convert to IST and parse back to Date
-    const istString = utcDate.toLocaleString("en-US", {
-      timeZone: "Asia/Kolkata",
-    });
-    return new Date(istString);
-  };
-  const { lastCommand, fetchLastCommand,loading:quickActionsLoading } = useFetchLastCommand();
+
+  const { lastCommand, fetchLastCommand, loading: quickActionsLoading } = useFetchLastCommand();
   const [quickActions, setQuickActions] = useState([
     {
       title: "Quick Swap",
@@ -366,15 +290,23 @@ const Dashboard = () => {
     const loadLastCommand = async () => {
       const data = await fetchLastCommand();
       if (data?.command && data?.agent_id) {
-        setQuickActions((prev) => [
-          ...prev,
-          {
-            title: "Run Last Command",
-            description: "Execute your most recent transaction",
-            icon: PlayCircle,
-            action: `/playground?agent=${data.agent_id}&message=${encodeURIComponent(data.command)}`,
-          },
-        ]);
+        setQuickActions((prev) => {
+          const alreadyExists = prev.some(
+            (action) => action.title === "Run Last Command"
+          );
+
+          if (alreadyExists) return prev;
+
+          return [
+            ...prev,
+            {
+              title: "Run Last Command",
+              description: "Execute your most recent transaction",
+              icon: PlayCircle,
+              action: `/playground?agent=${data.agent_id}&message=${encodeURIComponent(data.command)}`,
+            },
+          ];
+        });
       }
     };
 
@@ -382,6 +314,16 @@ const Dashboard = () => {
       loadLastCommand();
     }
   }, [address]);
+
+  function isJsonString(str: string) {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -423,11 +365,10 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${
-                          stats.transactionDifference >= 0
+                        className={`flex items-center gap-1 ${stats.transactionDifference >= 0
                             ? "text-green-500"
                             : "text-red-500"
-                        }`}
+                          }`}
                       >
                         {stats.transactionDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -471,11 +412,10 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${
-                          stats.volumeDifference >= 0
+                        className={`flex items-center gap-1 ${stats.volumeDifference >= 0
                             ? "text-green-500"
                             : "text-red-500"
-                        }`}
+                          }`}
                       >
                         {stats.volumeDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -505,11 +445,10 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${
-                          stats.chainsDifference >= 0
+                        className={`flex items-center gap-1 ${stats.chainsDifference >= 0
                             ? "text-green-500"
                             : "text-red-500"
-                        }`}
+                          }`}
                       >
                         {stats.chainsDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -760,10 +699,10 @@ const Dashboard = () => {
                                 index === 0
                                   ? "bg-primary/20"
                                   : index === 1
-                                  ? "bg-accent/20"
-                                  : index === 2
-                                  ? "bg-success/20"
-                                  : "bg-secondary"
+                                    ? "bg-accent/20"
+                                    : index === 2
+                                      ? "bg-success/20"
+                                      : "bg-secondary"
                               }
                             />
                           ))}
@@ -806,7 +745,9 @@ const Dashboard = () => {
                           <SavedCommand
                             key={command._id}
                             title={command.agent_name}
-                            command={command.command}
+                            command={isJsonString(command.command)
+                              ? JSON.parse(command.command).message
+                              : command.command}
                             agentId={command.agent_id}
                             icon={<PlayCircle className="h-4 w-4" />}
                           />
