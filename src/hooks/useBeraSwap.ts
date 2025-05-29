@@ -8,10 +8,11 @@ import {
   TokenAmount,
   Swap,
   Slippage,
+  ChainId,
 } from "@berachain-foundation/berancer-sdk";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { erc20Abi } from "viem";
-import { getToken, getTokenBalance } from "@lifi/sdk";
+import { ChainKey, getToken, getTokenBalance } from "@lifi/sdk";
 import { useAccount } from "wagmi";
 
 const RPC_URL = "https://rpc.berachain.com/";
@@ -28,8 +29,6 @@ export const useBeraSwap = () => {
   const getProvider =
     async (): Promise<ethers.providers.Web3Provider | null> => {
       const userWalletType = user?.wallet?.walletClientType;
-      console.log("User wallet type:", userWalletType);
-
       if (!userWalletType) {
         setError("No wallet connection found");
         return null;
@@ -38,7 +37,6 @@ export const useBeraSwap = () => {
       const matchedWallet = wallets.find(
         (wallet) => wallet.walletClientType === userWalletType
       );
-      console.log("Matched wallet:", matchedWallet);
 
       if (!matchedWallet) {
         setError(`No ${userWalletType} wallet connected`);
@@ -47,7 +45,6 @@ export const useBeraSwap = () => {
 
       try {
         const ethereumProvider = await matchedWallet.getEthereumProvider();
-        console.log("Ethereum provider:", ethereumProvider);
         return new ethers.providers.Web3Provider(ethereumProvider);
       } catch (err) {
         console.error("Error getting provider:", err);
@@ -57,32 +54,25 @@ export const useBeraSwap = () => {
     };
   const validateTokenBalance = async (
     chainId: any,
-    tokenAddress: any,
-    amount: any
+    tokenAddress: string,
+    amount: string
   ) => {
     if (!address) {
       return;
     }
     try {
-      console.log(chainId, tokenAddress, amount);
       const token = await getToken(chainId, tokenAddress);
-      console.log("Token:", token);
       const tokenBalance = await getTokenBalance(address, token);
-      console.log("bal", tokenBalance);
       const userBalance = BigInt(tokenBalance?.amount || "0");
       const requiredAmount = BigInt(amount);
-      console.log("Step1", tokenBalance, userBalance, requiredAmount);
       if (userBalance < requiredAmount) {
-        console.log("Step2");
         setError(
           "Insufficient token balance. Please check your wallet balance"
         );
         return false;
       }
-      console.log("Step3");
       return true;
     } catch (err) {
-      console.log("Step4", err);
       setError("Failed to fetch token balance. Please try again.");
       return false;
     }
@@ -96,7 +86,6 @@ export const useBeraSwap = () => {
       if (!provider) throw new Error("Provider not available");
 
       const balance = await provider.getBalance(address);
-      console.log("Native BERA balance:", balance.toString());
 
       const requiredAmount = BigNumber.from(amount.toString()); // Convert bigint to BigNumber
 
@@ -123,7 +112,6 @@ export const useBeraSwap = () => {
       toTokenSymbol: string,
       amount: string | number | bigint
     ): Promise<string> => {
-      console.log("Initiating swap...");
       setIsSwapping(true);
       setError(null);
       setTxHash(null);
@@ -134,13 +122,10 @@ export const useBeraSwap = () => {
 
         const signer = provider.getSigner();
         const walletAddress = await signer.getAddress();
-        console.log("Wallet address:", walletAddress);
-
         const balancerApi = new BalancerApi(
           "https://api.berachain.com/",
           CHAIN_ID
         );
-        console.log("API ..", balancerApi);
 
         const fromToken = new Token(
           CHAIN_ID,
@@ -148,7 +133,6 @@ export const useBeraSwap = () => {
           fromTokenDecimals,
           fromTokenSymbol
         );
-        console.log("From token:", fromToken);
 
         const toToken = new Token(
           CHAIN_ID,
@@ -156,7 +140,6 @@ export const useBeraSwap = () => {
           toTokenDecimals,
           toTokenSymbol
         );
-        console.log("To token:", toToken);
 
         let amountString: string;
         if (typeof amount === "bigint" || typeof amount === "number") {
@@ -164,12 +147,11 @@ export const useBeraSwap = () => {
         } else {
           amountString = Big(amount).toFixed(); // Handles scientific notation like "1e-17"
         }
-        console.log(" amount ---", amountString);
+
         const swapAmount = TokenAmount.fromHumanAmount(
           fromToken,
           amountString as `${number}`
         );
-        console.log("Swap amount (TokenAmount):", swapAmount);
 
         const { paths: sorPaths } =
           await balancerApi.sorSwapPaths.fetchSorSwapPaths({
@@ -179,14 +161,6 @@ export const useBeraSwap = () => {
             swapKind: SwapKind.GivenOut,
             swapAmount,
           });
-        console.log("Fetching SOR paths with::::::::", {
-          chainId: CHAIN_ID,
-          tokenIn: fromToken.address,
-          tokenOut: toToken.address,
-          swapKind: SwapKind.GivenOut,
-          swapAmount: swapAmount.amount.toString(),
-        });
-        console.log("SOR paths:", sorPaths);
 
         if (!sorPaths || sorPaths.length === 0) {
           throw new Error("No swap paths found — possibly low liquidity");
@@ -200,16 +174,8 @@ export const useBeraSwap = () => {
         });
 
         const queryOutput = await swap.query(RPC_URL);
-        console.log("Query output:", queryOutput);
-
         const slippage = Slippage.fromPercentage("1");
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 900);
-        console.log(
-          "Slippage:",
-          slippage.toString(),
-          "Deadline:",
-          deadline.toString()
-        );
 
         const callData = swap.buildCall({
           slippage,
@@ -219,7 +185,6 @@ export const useBeraSwap = () => {
           recipient: walletAddress as `0x${string}`,
           wethIsEth: false,
         });
-        console.log("Call data for transaction:", callData);
         const isNativeToken =
           fromToken.address === ethers.constants.AddressZero;
 
@@ -231,45 +196,29 @@ export const useBeraSwap = () => {
           );
 
           const code = await provider.getCode(fromTokenContract.address);
-          console.log("Deployed code at token address -----------", code);
           if (code === "0x") {
             throw new Error("Token contract does not exist on this network.");
           }
 
           const network = await provider.getNetwork();
-          console.log("Connected network:", network.name, network.chainId);
-          console.log(
-            "Token contract for approval:",
-            fromTokenContract.address
-          );
-          console.log("Checking allowance for:");
-          console.log("Owner (walletAddress):", walletAddress);
-          console.log("Spender (callData.to):", callData.to);
-
           const currentAllowance: ethers.BigNumber =
             await fromTokenContract.allowance(walletAddress, callData.to);
-          console.log("Current allowance:", currentAllowance.toString());
 
           if (currentAllowance.lt(swapAmount.amount)) {
-            console.log(
-              "Insufficient allowance, sending approve transaction..."
-            );
             const approveTx = await fromTokenContract.approve(
               callData.to,
               swapAmount.amount
             );
-            console.log("Approval transaction sent:", approveTx.hash);
             await approveTx.wait();
-            console.log("Approval confirmed");
           } else {
-            console.log(
-              "Sufficient allowance already exists. Skipping approval."
-            );
+            // console.log(
+            //   "Sufficient allowance already exists. Skipping approval."
+            // );
           }
         } else {
-          console.log(
-            "Native token selected — skipping approve and allowance check."
-          );
+          // console.log(
+          //   "Native token selected — skipping approve and allowance check."
+          // );
         }
 
         const swapTx = await signer.sendTransaction({
@@ -277,25 +226,15 @@ export const useBeraSwap = () => {
           data: callData.callData,
           value: callData.value,
         });
-        console.log("Swap transaction sent:", swapTx.hash);
-        console.log("callData.to:", callData.to);
-        console.log("callData.callData:", callData.callData);
-        console.log("callData.value:", callData.value);
-        console.log("Sending swap tx with:", {
-          to: callData.to,
-          data: callData.callData,
-          value: callData.value.toString(),
-        });
-
         setTxHash(swapTx.hash);
         await swapTx.wait();
-        console.log("Swap confirmed:", swapTx.hash);
 
         return swapTx.hash;
-      } catch (err: any) {
-        console.error("Swap failed:", err);
-        setError(err.message || "Swap failed");
-        throw err;
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error("Swap failed:", error);
+        setError(error.message || "Swap failed");
+        throw error;
       } finally {
         setIsSwapping(false);
       }

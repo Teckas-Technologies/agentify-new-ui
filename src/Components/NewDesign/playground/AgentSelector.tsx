@@ -8,35 +8,18 @@ import {
 } from "@/Components/ui/command";
 import { ArrowLeftRight, Layers, Repeat, Search, Zap } from "lucide-react";
 // import { cn } from "@/lib/utils";
-import { useCallback, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { useChat } from "@/hooks/useChatHook";
 import { Agent } from "@/types/types";
 import { Input } from "@/Components/ui/input";
 import { Skeleton } from "@/Components/ui/skeleton";
 
-const dummyAgents = [
-  {
-    id: "swap",
-    name: "Swap Assistant",
-    description: "Execute token swaps across any DEX",
-    icon: ArrowLeftRight,
-    gradient: "from-violet-500/20 via-fuchsia-500/20 to-violet-500/20",
-  },
-  {
-    id: "bridge",
-    name: "Bridge Assistant",
-    description: "Bridge tokens between networks",
-    icon: Layers,
-    gradient: "from-cyan-500/20 via-blue-500/20 to-cyan-500/20",
-  },
-  {
-    id: "lend",
-    name: "Lend & Borrow Assistant",
-    description: "Manage lending positions",
-    icon: Zap,
-    gradient: "from-amber-500/20 via-orange-500/20 to-amber-500/20",
-  },
-];
+const agentIconMap: Record<string, JSX.Element> = {
+  swapAgent: <ArrowLeftRight className="h-5 w-5" />,
+  bridgeAgent: <Layers className="h-5 w-5" />,
+  berachainSwapAgent: <Repeat className="h-5 w-5" />,
+  default: <Zap className="h-5 w-5" />
+};
 
 export const AgentSelector = ({
   selectedAgent,
@@ -98,7 +81,6 @@ export const AgentSelector = ({
   const fetchAllAgents = useCallback(async () => {
     setLoading(true);
     const res = await fetchAgents({ page: page, search_query: search });
-    console.log("Res:", res);
     setAgents(res.data);
     setTotalPages(res?.totalPages);
     if (res?.data.length > 0 && !queryAgent) {
@@ -170,11 +152,10 @@ export const AgentSelector = ({
                 onClick={() => handleSelectAgent(agent)}
                 className={
                   `group flex items-start gap-4 p-4 mt-1 cursor-pointer transition-all duration-300 from-violet-500/20 via-fuchsia-500/20 to-violet-500/20 rounded-sm 
-                                ${
-                                  selectedAgent?.agentId === agent.agentId
-                                    ? "bg-gradient-to-r border border-primary/20"
-                                    : "hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10"
-                                }`
+                                ${selectedAgent?.agentId === agent.agentId
+                    ? "bg-gradient-to-r border border-primary/20"
+                    : "hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10"
+                  }`
                   // cn(
                   //     "group flex items-start gap-4 p-4 cursor-pointer transition-all duration-300",
                   //     "hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10",
@@ -188,22 +169,14 @@ export const AgentSelector = ({
                             transition-all duration-300 group-hover:ring-primary/20 
                             group-hover:bg-white/10"
                 >
-                  {agent.agentId === "swapAgent" ? (
-                    <ArrowLeftRight className="h-5 w-5" />
-                  ) : agent.agentId === "bridgeAgent" ? (
-                    <Layers className="h-5 w-5" />
-                  ) : agent.agentId === "berachainSwapAgent" ? (
-                    <Repeat className="h-5 w-5" />
-                  ) : (
-                    <Zap className="h-5 w-5" />
-                  )}
+                  {agentIconMap[agent.agentId] ?? agentIconMap.default}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <h3 className="font-medium text-gradient">{agent.name}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed truncate-1-lines">
                     {agent.description}
                   </p>
-                </div>
+                </div> 
               </div>
             ))}
         </CommandGroup>

@@ -106,11 +106,11 @@ const ActivityPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [filterType, setFilterType] = useState("");
-  const limit = 8;
+  const limit = 5;
   const {address} = useAccount();
-  const fetchTransactionData = async(skip:any,limit:any)=>{
-    const response = await fetchTransactions(address,searchQuery,skip,limit,filterType);
-    console.log("API Response:", response);
+  const fetchTransactionData = async(skip: number,limit: number)=>{
+    if(!address) return;
+    const response = await fetchTransactions(searchQuery, skip, limit, filterType);
     setTransactionData(response.data.data);
     setCurrentPage(response.data.currentPage); 
     setTotalPages(response.data.totalPages);

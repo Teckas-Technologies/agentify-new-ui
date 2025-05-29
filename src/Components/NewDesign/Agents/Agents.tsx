@@ -16,6 +16,7 @@ import {
 } from "@/Components/ui/dialog";
 import useFetchAgents from "@/hooks/useFetchAgents";
 import { Skeleton } from "@/Components/ui/skeleton";
+import { Agent } from "@/types/types";
 
 export interface AgentCategory {
   id: string;
@@ -23,7 +24,7 @@ export interface AgentCategory {
 }
 
 interface AgentsPageProps {
-  initialAgents?: any[];
+  initialAgents?: Agent[];
 }
 
 const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
@@ -35,7 +36,6 @@ const AgentsPage = ({ initialAgents = [] }: AgentsPageProps) => {
 
   useEffect(() => {
     fetchAgents({
-      userId: "demo_user", // Replace with actual userId
       searchQuery: searchTerm,
       filter: selectedCategory !== "all" ? selectedCategory : "",
     });

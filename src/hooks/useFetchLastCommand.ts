@@ -4,8 +4,14 @@ import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
+type AgentCommandRequest = {
+  command: string;
+  agent_id: string;
+};
+
+
 const useFetchLastCommand = () => {
-  const [lastCommand, setLastCommand] = useState<any | null>(null);
+  const [lastCommand, setLastCommand] = useState<AgentCommandRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,12 +37,12 @@ const useFetchLastCommand = () => {
       }
 
       const result = await response.json();
-      console.log("Last command response ---", result);
       setLastCommand(result);
       return result;
-    } catch (err: any) {
-      console.error("Error fetching last command:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error fetching last command:", error);
+      setError(error.message || "Something went wrong");
       return null;
     } finally {
       setLoading(false);

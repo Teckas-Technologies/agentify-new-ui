@@ -6,7 +6,6 @@ export const switchNetwork = async (chainId: number) => {
         const chain = await switchChain(wagmiConfig, {
             chainId,
         } as any);
-        console.log("Switched to:", chain.name);
     } catch (error) {
         console.error("Failed to switch network", error);
     }

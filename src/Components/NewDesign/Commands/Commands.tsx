@@ -1,7 +1,7 @@
 "use client";
 
 import { CardContent } from "@/Components/ui/card";
-import { FileText, PlayCircle } from "lucide-react";
+import { ArrowLeft, FileText, PlayCircle } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { useRouter } from "next/navigation";
 import {
@@ -19,6 +19,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { Skeleton } from "@/Components/ui/skeleton";
 import { EmptyState } from "../Dashboard/EmptyState/EmptyState";
+import Navbar from "../Dashboard/Navbar/Navbar";
+
+
+interface Command {
+  agent_id: string;
+  agent_name: string;
+  command: string;
+  id: string;
+}
 
 const CommandsPage = () => {
   const router = useRouter();
@@ -28,17 +37,17 @@ const CommandsPage = () => {
     fetchSavedCommands,
     loading: savedCmdLoading,
   } = useFetchSavedCommands();
-  const [savedCommandsData, setSavedCommandsData] = useState<any[]>([]);
+  const [savedCommandsData, setSavedCommandsData] = useState<Command[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const commandsPerPage = 3;
+  const commandsPerPage = 5;
 
   const skip = (currentPage - 1) * commandsPerPage;
   const limit = commandsPerPage;
 
   const loadSavedCommands = useCallback(async () => {
     if (address) {
-      const res = await fetchSavedCommands(address, skip, limit);
+      const res = await fetchSavedCommands(skip, limit);
       if (res?.data) {
         setSavedCommandsData(res.data);
       }
@@ -63,6 +72,15 @@ const CommandsPage = () => {
       setCurrentPage(page);
     }
   };
+
+  function isJsonString(str: string) {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   const renderPaginationItems = () => {
     if (!savedCommands?.totalPages) return null;
@@ -168,15 +186,36 @@ const CommandsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto max-w-5xl">
+    // <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
+      <Navbar />
+      {/* <div className="container mx-auto max-w-5xl"> */}
+      <div className="container relative mx-auto px-3 py-6 md:px-4 md:py-8">
+        <div className=" mb-8 md:px-5 px-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="neumorphic-sm flex items-center gap-2 mb-4 hover:bg-primary/20"
+            onClick={() => router.push('/')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-2xl font-bold bg-gradient-to-br from-white via-white/90 to-white/70 bg-clip-text text-transparent">
+            Saved Commands
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Execute smart transactions with your favorite commands
+          </p>
+
+        </div>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        {/* <div className="flex items-center justify-between mb-6">
           <h1 className="md:text-2xl text-lg font-bold">Saved Commands</h1>
           <Button variant="outline" onClick={() => router.push('/')}>
             Back to Dashboard
           </Button>
-        </div>
+        </div> */}
 
         {/* Commands List */}
         <CardContent>
@@ -200,7 +239,9 @@ const CommandsPage = () => {
                 <SavedCommand
                   key={command.id}
                   title={command.agent_name}
-                  command={command.command}
+                  command={isJsonString(command.command)
+                    ? JSON.parse(command.command).message
+                    : command.command}
                   agentId={command.agent_id}
                   icon={<PlayCircle className="h-4 w-4" />}
                 />

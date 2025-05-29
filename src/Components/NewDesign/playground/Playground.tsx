@@ -68,11 +68,8 @@ const Playground = ({ initialAgentsData }: { initialAgentsData: Agent[] }) => {
         getToken();
     }, [address, user])
 
-    console.log("ID Token:", identityToken)
-
     const getToken = async () => {
         const accessToken = await getAccessToken();
-        console.log("Access Token:", accessToken);
     }
 
     return (

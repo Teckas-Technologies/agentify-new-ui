@@ -4,17 +4,30 @@ import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
+type AgentCommand = {
+  _id: string;
+  user_id: string;
+  agent_id: string;
+  agent_name: string;
+  command: string;
+  created_at: string; // ISO date string
+};
+
+type AgentCommandResponse = {
+  data: AgentCommand[];
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+};
+
+
 const useFetchSavedCommands = () => {
-  const [savedCommands, setSavedCommands] = useState<{
-    data: any[];
-    totalPages: number;
-  } | null>(null);
+  const [savedCommands, setSavedCommands] = useState<AgentCommandResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch saved commands with optional skip and limit parameters
   const fetchSavedCommands = async (
-    userId: string,
     skip?: number,
     limit?: number
   ) => {
@@ -23,12 +36,10 @@ const useFetchSavedCommands = () => {
       setError(null);
 
       const query = new URLSearchParams({
-        user_id: userId,
         skip: skip !== undefined ? skip.toString() : "0", // Default to 0 if skip is not provided
         limit: limit !== undefined ? limit.toString() : "10", // Default to 10 if limit is not provided
       });
       const accessToken = await getAccessToken();
-      console.log("Access ...................", accessToken);
 
       const response = await fetch(
         `${AGENTIFY_API_URL}/api/agentCommands/?${query.toString()}`,
@@ -46,17 +57,19 @@ const useFetchSavedCommands = () => {
       }
 
       const result = await response.json();
-      console.log("Saved Commands Data ---", result);
 
       // Store the response with pagination metadata
       setSavedCommands({
-        data: result.data, // the commands array
-        totalPages: result.totalPages, // the total pages
+        data: result.data,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        pageSize: result.pageSize,
       });
       return result;
-    } catch (err: any) {
-      console.error("Error fetching saved commands:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error fetching saved commands:", error);
+      setError(error.message || "Something went wrong");
       return null;
     } finally {
       setLoading(false);

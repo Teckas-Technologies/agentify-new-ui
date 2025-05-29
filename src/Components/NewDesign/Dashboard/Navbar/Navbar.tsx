@@ -16,9 +16,6 @@ const Navbar: React.FC = () => {
   const { user } = usePrivy();
   const { address } = useAccount();
 
-  console.log("Address", address);
-  console.log("User", user);
-
   const handleClick = () => {
     if (!address || !user) {
       handleWalletConnect();

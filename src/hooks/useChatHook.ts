@@ -11,22 +11,20 @@ interface RequestFields {
   isTransaction: boolean;
 }
 
-export const useChat = (initialAgents: any[] = []) => {
+export const useChat = () => {
   const { address } = useAccount();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [agents, setAgents] = useState<Agent[]>(initialAgents || []);
+  const [agents, setAgents] = useState<Agent[]>([]);
 
   const chat = async (data: RequestFields) => {
     if (!address) {
-      console.log("Please connect your wallet.");
       return;
     }
     setLoading(true);
     setError(null);
     const accessToken = await getAccessToken();
-    console.log("Access token ,,,",accessToken);
-    
+
     try {
       const response = await fetch(`${PYTHON_SERVER_URL}/api/chat`, {
         method: "POST",
@@ -50,9 +48,10 @@ export const useChat = (initialAgents: any[] = []) => {
 
       const result = await response.json();
       return { success: true, data: result };
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-      return { success: false, message: err.message || "An error occurred" };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error.message || "An error occurred");
+      return { success: false, message: error.message || "An error occurred" };
     } finally {
       setLoading(false);
     }
@@ -76,7 +75,6 @@ export const useChat = (initialAgents: any[] = []) => {
       const skip = (page - 1) * limit;
 
       const queryParams = new URLSearchParams({
-        user_id: address || "1",
         skip: skip.toString(),
         limit: limit.toString(),
         is_favourite: is_favourite.toString(),
@@ -84,7 +82,7 @@ export const useChat = (initialAgents: any[] = []) => {
       });
       const accessToken = await getAccessToken();
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/v1/agents/?${queryParams.toString()}`,
+        `${PYTHON_SERVER_URL}/api/v1/agents/list-agents/?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -101,18 +99,18 @@ export const useChat = (initialAgents: any[] = []) => {
       const result = await response.json();
       setAgents(result.data || []);
       return result;
-    } catch (err: any) {
-      console.error("Error occurred:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error occurred:", error);
+      setError(error.message || "Something went wrong");
       return [];
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchChatHistory = async (userId: string, agentId: string) => {
+  const fetchChatHistory = async (agentId: string) => {
     if (!address) {
-      console.log("Please connect your wallet.");
       return;
     }
     try {
@@ -120,7 +118,7 @@ export const useChat = (initialAgents: any[] = []) => {
       setError(null);
       const accessToken = await getAccessToken();
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`,
+        `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
           method: "GET",
           headers: {
@@ -133,20 +131,18 @@ export const useChat = (initialAgents: any[] = []) => {
         throw new Error(`Error: ${response.statusText}`);
       }
       const result = await response.json();
-      console.log("Result:", result);
       return result;
-    } catch (err: any) {
-      console.error("Error occurred:", err);
-      setError(err?.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error occurred:", error);
+      setError(error.message || "Something went wrong");
     } finally {
       setLoading(false);
-      console.log("Loading state set to false");
     }
   };
 
-  const clearHistory = async (userId: string, agentId: string) => {
+  const clearHistory = async ( agentId: string) => {
     if (!address) {
-      console.log("Please connect your wallet.");
       return;
     }
     try {
@@ -154,7 +150,7 @@ export const useChat = (initialAgents: any[] = []) => {
       setError(null);
       const accessToken = await getAccessToken();
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`,
+        `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
           method: "DELETE",
           headers: {
@@ -167,19 +163,17 @@ export const useChat = (initialAgents: any[] = []) => {
         throw new Error(`Error: ${response.statusText}`);
       }
       const result = await response.json();
-      console.log("Result:", result);
       return result;
-    } catch (err: any) {
-      console.error("Error occurred:", err);
-      setError(err?.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error occurred:", error);
+      setError(error.message || "Something went wrong");
     } finally {
       setLoading(false);
-      console.log("Loading state set to false");
     }
   };
 
   const updateMessage = async (
-    userId: string,
     agentId: string,
     newMessage: string
   ) => {
@@ -189,7 +183,7 @@ export const useChat = (initialAgents: any[] = []) => {
     try {
       const accessToken = await getAccessToken();
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/history/${userId}/${agentId}`,
+        `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
           method: "PUT",
           headers: {
@@ -206,9 +200,10 @@ export const useChat = (initialAgents: any[] = []) => {
 
       const result = await response.json();
       return { success: true, data: result };
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-      return { success: false, message: err.message || "An error occurred" };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error.message || "An error occurred");
+      return { success: false, message: error.message || "An error occurred" };
     } finally {
       setLoading(false);
     }
@@ -245,16 +240,16 @@ export const useChat = (initialAgents: any[] = []) => {
 
       const result = await response.json();
       return { success: true, data: result };
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-      return { success: false, message: err.message || "An error occurred" };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error.message || "An error occurred");
+      return { success: false, message: error.message || "An error occurred" };
     } finally {
       setLoading(false);
     }
   };
 
   const getAgentCommands = async (
-    userId: string,
     agentId: string,
     skip: number = 0,
     limit: number = 10
@@ -265,7 +260,7 @@ export const useChat = (initialAgents: any[] = []) => {
     try {
       const accessToken = await getAccessToken();
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/agentCommands/?user_id=${userId}&agent_id=${agentId}&skip=${skip}&limit=${limit}`,
+        `${PYTHON_SERVER_URL}/api/agentCommands/?agent_id=${agentId}&skip=${skip}&limit=${limit}`,
         {
           method: "GET",
           headers: {
@@ -281,16 +276,17 @@ export const useChat = (initialAgents: any[] = []) => {
 
       const result = await response.json();
       return { success: true, data: result };
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-      return { success: false, message: err.message || "An error occurred" };
-    } finally {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error.message || "An error occurred");
+      return { success: false, message: error.message || "An error occurred" };
+    }
+    finally {
       setLoading(false);
     }
   };
 
   const deleteAgentCommand = async ({
-    userId,
     agentId,
     command,
   }: {
@@ -303,7 +299,6 @@ export const useChat = (initialAgents: any[] = []) => {
 
     try {
       const queryParams = new URLSearchParams({
-        user_id: userId,
         agent_id: agentId,
         command: command,
       });
@@ -326,11 +321,12 @@ export const useChat = (initialAgents: any[] = []) => {
       }
 
       return { success: true };
-    } catch (err: any) {
-      console.error("Error deleting agent command:", err);
-      setError(err.message || "Something went wrong during deletion");
-      return { success: false, message: err.message || "Something went wrong" };
-    } finally {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error.message || "An error occurred");
+      return { success: false, message: error.message || "An error occurred" };
+    }
+    finally {
       setLoading(false);
     }
   };

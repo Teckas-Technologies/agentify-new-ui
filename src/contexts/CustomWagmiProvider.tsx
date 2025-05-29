@@ -158,8 +158,6 @@ export const wagmiConfig = createWagmiConfig({
   //   return createClient({ chain, transport: http() });
   // },
 });
-console.log("App Id --", process.env.NEXT_PUBLIC_PRIVY_APP_ID);
-
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
     createOnLogin: "users-without-wallets",
@@ -199,7 +197,6 @@ function ChainFetcher({ children }: { children: ReactNode }) {
     queryKey: ["chains"],
     queryFn: async () => {
       const chains = await getChains({ chainTypes: [ChainType.EVM] });
-      console.log("Chains: ", chains);
       config.setChains(chains); // ✅ Dynamically update LiFi config
       return chains;
     },

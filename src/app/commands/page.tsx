@@ -29,7 +29,7 @@ export default function Page() {
   //   }
   return (
     <main className="min-h-screen bg-[var(--bg-dark)] text-white">
-    <Navbar/>
+    {/* <Navbar/> */}
       <CommandsPage />
     </main>
   );

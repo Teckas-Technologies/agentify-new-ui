@@ -4,8 +4,10 @@ import {
   Cell,
   ResponsiveContainer,
   Legend,
-  Tooltip,
+  Tooltip
 } from "recharts";
+
+import { Props as DefaultLegendProps } from 'recharts/types/component/DefaultLegendContent';
 
 interface AgentUsageData {
   agentName: string;
@@ -47,11 +49,11 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const renderLegend = (props: any) => {
+const renderLegend = (props: DefaultLegendProps): React.ReactNode => {
   const { payload } = props;
   return (
     <ul className="flex justify-center gap-4 mt-2">
-      {payload.map((entry: any, index: number) => (
+      {payload?.map((entry: any, index: number) => (
         <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
           <div
             className="w-3 h-3 rounded-full"

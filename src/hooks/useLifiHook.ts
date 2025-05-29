@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes } from "@lifi/sdk";
+import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route } from "@lifi/sdk";
 import { useAccount } from "wagmi";
+import { TransactionError } from "./useAaveHook";
 
 // import { customSwitchNetwork } from "../wagmiConfig"; // Uncomment if network switching is needed
 
@@ -9,52 +10,45 @@ const useLifiHook = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const getTransactionLinks = (route: any) => {
-        route.steps.forEach((step: any, index: any) => {
-            step.execution?.process.forEach((process: any) => {
-                if (process.txHash) {
-                    console.log(
-                        `Transaction Hash for Step ${index + 1}, Process ${process.type}:`,
-                        process.txHash
-                    )
-                }
-            })
-        })
-    }
+    // const getTransactionLinks = (route: any) => {
+    //     route.steps.forEach((step: any, index: any) => {
+    //         step.execution?.process.forEach((process: any) => {
+    //             if (process.txHash) {
+    //                 // console.log(
+    //                 //     `Transaction Hash for Step ${index + 1}, Process ${process.type}:`,
+    //                 //     process.txHash
+    //                 // )
+    //             }
+    //         })
+    //     })
+    // }
 
     // ✅ Validate Token Balance
-    const validateTokenBalance = async (chainId: any, tokenAddress: any, amount: any) => {
+    const validateTokenBalance = async (chainId: any, tokenAddress: { address: string }, amount: string) => {
         if (!address) {
             return;
         }
         try {
-            console.log(chainId, tokenAddress, amount)
             const token = await getToken(chainId, tokenAddress.address);
-            console.log("Token:", token)
             const tokenBalance = await getTokenBalance(address, token);
-            console.log("bal", tokenBalance);
             const userBalance = BigInt(tokenBalance?.amount || "0");
             const requiredAmount = BigInt(amount);
-            console.log("Step1", tokenBalance, userBalance, requiredAmount)
             if (userBalance < requiredAmount) {
-                console.log("Step2")
                 setError("Insufficient token balance. Please check your wallet balance");
                 return false;
             }
-            console.log("Step3")
             return true;
         } catch (err) {
-            console.log("Step4", err)
             setError("Failed to fetch token balance. Please try again.");
             return false;
         }
     };
 
     // ✅ Validate Available Chains
-    const validateChains = async (fromChain: any, toChain: any) => {
+    const validateChains = async (fromChain: number, toChain: number) => {
         try {
             const chains = await getChains();
-            if (!chains.some((chain: any) => chain.id === fromChain) || !chains.some((chain: any) => chain.id === toChain)) {
+            if (!chains.some((chain) => chain.id === fromChain) || !chains.some((chain) => chain.id === toChain)) {
                 setError("Selected blockchain is not supported. Please choose a different network.");
                 return false;
             }
@@ -66,7 +60,7 @@ const useLifiHook = () => {
     };
 
     // ✅ Validate Available Token Swap/Bridge Routes
-    const validateConnections = async (fromChain: any, fromToken: any, toChain: any, toToken: any) => {
+    const validateConnections = async (fromChain: number, fromToken: string, toChain: number, toToken: string) => {
         try {
             const response = await getConnections({ fromChain, fromToken, toChain, toToken });
             if (!response || response?.connections.length === 0) {
@@ -155,15 +149,16 @@ const useLifiHook = () => {
             }
 
             return quote;
-        } catch (err: any) {
-            setError(err?.message || "Failed to fetch a quote. Please try again.");
+        } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            setError(error.message || "Failed to fetch a quote. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     // Execute swap & bridge
-    const executeLifi = async ({ quote }: { quote: any }) => {
+    const executeLifi = async ({ quote }: { quote: Route }) => {
         if (!quote || !quote?.fromChainId) {
             setError("Invalid quote. Please fetch a new quote before proceeding.");
             return;
@@ -189,11 +184,11 @@ const useLifiHook = () => {
 
             return new Promise((resolve, reject) => {
                 executeRoute(quote, { // route
-                    updateRouteHook(updatedRoute: any) {
-                        updatedRoute.steps.forEach((step: any) => {
-                            step.execution?.process.forEach((process: any) => {
+                    updateRouteHook(updatedRoute) {
+                        updatedRoute.steps.forEach((step) => {
+                            step.execution?.process.forEach((process) => {
                                 if (process.txHash && process.status === "PENDING") {
-                                    console.log("Transaction sent! TX Hash:", process.txHash);
+                                    // console.log("Transaction sent! TX Hash:", process.txHash);
 
                                     // ✅ Push execution to background
                                     updateRouteExecution(updatedRoute, { executeInBackground: true });
@@ -208,8 +203,8 @@ const useLifiHook = () => {
                     },
                 }) // If executionRoute throws, reject the promise can remove .catch(reject);
                     .then(resolve) // Ensure promise resolves if execution completes
-                    .catch((err: any) => {
-                        console.log("Err ---> 1 :", err)
+                    .catch((error: unknown) => {
+                        const err = error as TransactionError;
                         // ✅ Properly catch errors and set error message
                         if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                             setError("Transaction rejected by the user.");
@@ -225,8 +220,8 @@ const useLifiHook = () => {
                     });
             });
 
-        } catch (err: any) {
-            console.log("Err ---> 2 :", err)
+        } catch (error: unknown) {
+            const err = error as TransactionError;
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                 setError("Transaction rejected by the user.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {

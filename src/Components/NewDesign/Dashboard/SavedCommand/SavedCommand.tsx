@@ -2,7 +2,8 @@
 
 import { ReactNode } from "react";
 import { Button } from "@/Components/ui/button";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 interface SavedCommandProps {
   title: string;
   command: string;
@@ -16,7 +17,9 @@ export const SavedCommand = ({
   icon,
   agentId,
 }: SavedCommandProps) => {
+  const isMobile = useIsMobile();
   const router = useRouter();
+  const pathname = usePathname();
   const handleRunAgain = () => {
     // Redirect to the Playground page with the agentId and command as URL parameters
     router.push(
@@ -32,7 +35,7 @@ export const SavedCommand = ({
         <div>
           <h4 className="font-medium text-sm">{title}</h4>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {command.length > 25 ? `${command.slice(0, 25)}...` : command}
+            {pathname !== "/commands" && command.length > 25 ? `${command.slice(0, 25)}...` : isMobile ? `${command.slice(0, 30)}...` : command}
           </p>
         </div>
       </div>

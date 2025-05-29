@@ -38,14 +38,12 @@ const useFetchTransactions = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchTransactions = async ({
-    userId,
     agentId,
     searchQuery,
     filter,
     skip = 0,
     limit = 10,
   }: {
-    userId: string;
     agentId?: string;
     searchQuery?: string;
     filter?: string;
@@ -57,7 +55,6 @@ const useFetchTransactions = () => {
       setError(null);
 
       const params = new URLSearchParams({
-        user_id: userId,
         skip: skip.toString(),
         limit: limit.toString(),
       });
@@ -75,18 +72,17 @@ const useFetchTransactions = () => {
           },
         }
       );
-      console.log("Url >>>", response.url);
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);
       }
 
       const result: TransactionResponse = await response.json();
-      console.log("Transactions ---", result);
       setTransactions(result.data);
       return result;
-    } catch (err: any) {
-      console.error("Error fetching transactions:", err);
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error("Error fetching transactions:", error);
+      setError(error.message || "Something went wrong");
       return null;
     } finally {
       setIsLoading(false);
