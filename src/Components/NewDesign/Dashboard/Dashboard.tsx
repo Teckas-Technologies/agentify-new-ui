@@ -46,6 +46,7 @@ import useFetchSavedCommands from "@/hooks/useFetchSavedCommands";
 import { usePrivy } from "@privy-io/react-auth";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import useFetchLastCommand from "@/hooks/useFetchLastCommand";
+import { useToast } from "@/hooks/use-toast";
 
 type GasHistory = {
   day: string;
@@ -70,6 +71,7 @@ const Dashboard = () => {
   const router = useRouter();
   const { address } = useAccount();
   const { user } = usePrivy();
+  const { toast } = useToast();
   const { handleWalletConnect } = useWalletConnect();
   const { dashboardStats, loading, error, fetchDashboardStats } =
     useFetchDashboardHeader();
@@ -140,6 +142,12 @@ const Dashboard = () => {
         avgGas: data.average || 0,
         history: data.data || [],
       });
+    } else {
+      toast({
+        title: "Error!",
+        description: "Cannot fetch your gas usage.",
+        variant: "destructive"
+      })
     }
   }, [address]);
 
@@ -167,6 +175,12 @@ const Dashboard = () => {
       } else {
         setAgentUsageData([]);
       }
+    } else {
+      toast({
+        title: "Error!",
+        description: "Cannot fetch your agent usage.",
+        variant: "destructive"
+      })
     }
   }, [address]);
 
@@ -239,6 +253,12 @@ const Dashboard = () => {
       const res = await fetchSavedCommands();
       if (res?.data) {
         setSavedCommandsData(res.data);
+      } else {
+        toast({
+          title: "Error!",
+          description: "Cannot fetch your saved commands.",
+          variant: "destructive"
+        })
       }
     }
   }, [address]);
@@ -307,6 +327,12 @@ const Dashboard = () => {
             },
           ];
         });
+      } else {
+        toast({
+          title: "Error!",
+          description: "Cannot fetch your last run command.",
+          variant: "destructive"
+        })
       }
     };
 
@@ -325,7 +351,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="relative min-h-screen bg-background text-foreground">
       <Navbar />
 
       {/* Main Content */}
@@ -366,8 +392,8 @@ const Dashboard = () => {
                     ) : (
                       <span
                         className={`flex items-center gap-1 ${stats.transactionDifference >= 0
-                            ? "text-green-500"
-                            : "text-red-500"
+                          ? "text-green-500"
+                          : "text-red-500"
                           }`}
                       >
                         {stats.transactionDifference >= 0 ? (
@@ -413,8 +439,8 @@ const Dashboard = () => {
                     ) : (
                       <span
                         className={`flex items-center gap-1 ${stats.volumeDifference >= 0
-                            ? "text-green-500"
-                            : "text-red-500"
+                          ? "text-green-500"
+                          : "text-red-500"
                           }`}
                       >
                         {stats.volumeDifference >= 0 ? (
@@ -446,8 +472,8 @@ const Dashboard = () => {
                     ) : (
                       <span
                         className={`flex items-center gap-1 ${stats.chainsDifference >= 0
-                            ? "text-green-500"
-                            : "text-red-500"
+                          ? "text-green-500"
+                          : "text-red-500"
                           }`}
                       >
                         {stats.chainsDifference >= 0 ? (

@@ -53,7 +53,7 @@ export const useBeraSwap = () => {
       }
     };
   const validateTokenBalance = async (
-    chainId: any,
+    chainId: number,
     tokenAddress: string,
     amount: string
   ) => {

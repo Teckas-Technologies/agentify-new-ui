@@ -13,6 +13,7 @@ import { useChat } from "@/hooks/useChatHook";
 import { Agent } from "@/types/types";
 import { Input } from "@/Components/ui/input";
 import { Skeleton } from "@/Components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const agentIconMap: Record<string, JSX.Element> = {
   swapAgent: <ArrowLeftRight className="h-5 w-5" />,
@@ -40,6 +41,7 @@ export const AgentSelector = ({
   const [loading, setLoading] = useState(false);
   const { fetchAgents } = useChat();
   const [queryAgent, setQueryAgent] = useState<string>();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!hasInitialAgentsLoaded) {
@@ -80,13 +82,34 @@ export const AgentSelector = ({
 
   const fetchAllAgents = useCallback(async () => {
     setLoading(true);
-    const res = await fetchAgents({ page: page, search_query: search });
-    setAgents(res.data);
-    setTotalPages(res?.totalPages);
-    if (res?.data.length > 0 && !queryAgent) {
-      onSelectAgent(res?.data[0]);
+
+    try {
+      const res = await fetchAgents({ page: page, search_query: search });
+
+      if (res?.data?.length > 0) {
+        setAgents(res.data);
+        setTotalPages(res?.totalPages);
+
+        if (!queryAgent) {
+          onSelectAgent(res.data[0]);
+        }
+      } else {
+        setAgents([]);
+        toast({
+          title: "No Agents Found",
+          description: "Try adjusting your search query.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error!",
+        description: "Cannot fetch agents.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [page, search]);
 
   const handleSelectAgent = useCallback(
@@ -176,7 +199,7 @@ export const AgentSelector = ({
                   <p className="text-sm text-muted-foreground leading-relaxed truncate-1-lines">
                     {agent.description}
                   </p>
-                </div> 
+                </div>
               </div>
             ))}
         </CommandGroup>
