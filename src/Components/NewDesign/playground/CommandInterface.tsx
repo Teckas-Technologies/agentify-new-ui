@@ -34,6 +34,7 @@ import { marketConfigs } from "@/utils/markets";
 import { ChainType, EVM, config, createConfig, getChains } from "@lifi/sdk";
 import { useBeraSwap } from "@/hooks/useBeraSwap";
 import { AgentCommand } from "../Dashboard/Dashboard";
+import { useToast } from "@/hooks/use-toast";
 
 const MarkdownToJSX = dynamic(() => import("markdown-to-jsx"), { ssr: false });
 
@@ -63,6 +64,7 @@ export const CommandInterface = ({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const { address } = useAccount();
   const { user } = usePrivy();
+  const { toast } = useToast();
   const {
     chat,
     fetchChatHistory,
@@ -275,16 +277,41 @@ export const CommandInterface = ({
 
     } catch (error) {
       console.error("Error fetching history or commands:", error);
+
+      toast({
+        title: "Error!",
+        description: "Cannot fetch your chat history for this agent.",
+        variant: "destructive",
+      });
     }
   }, [address, selectedAgent, user]);
 
   const clearChatHistory = async () => {
     try {
       if (!address || !selectedAgent?.agentId) return;
-      await clearHistory(selectedAgent?.agentId);
-      setMessages([]);
+      const res = await clearHistory(selectedAgent?.agentId);
+      if (res?.success) {
+        setMessages([]);
+        toast({
+          title: "Chat History Cleared!",
+          description: "Chat history with this agent was cleared successfully.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Failed to Clear History",
+          description: "Unable to clear chat history. Please try again later.",
+          variant: "destructive",
+        });
+      }
+
     } catch (error) {
       console.error("Error clearing chat history:", error);
+      toast({
+        title: "Unexpected Error",
+        description: "An error occurred while clearing chat history.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -342,8 +369,7 @@ export const CommandInterface = ({
     const enrichedMessage = JSON.stringify({
       message: inputValue,
       context: {
-        fromAddress: address,
-        toAddress: address,
+        fromAddress: address
       },
     });
     // Set only the message part in the frontend message array
@@ -1010,7 +1036,7 @@ export const CommandInterface = ({
                 },
               ]);
               setExecutingLifi(true);
-              const response: any = await executeLifi({ quote });
+              const response = await executeLifi({ quote });
               if (response?.txHash) {
                 const agentId =
                   fromChainId.toString() === toChainId.toString()
@@ -1108,7 +1134,7 @@ export const CommandInterface = ({
                   new Date(),
                   fromToken.symbol,
                   fromAmount,
-                  response?.txHash,
+                  response?.txHash || "",
                   `${explorer}tx/${response?.txHash}`,
                   "FAILED",
                   fromAmountUSD,
@@ -1228,7 +1254,7 @@ export const CommandInterface = ({
               : "md:h-[calc(100vh-80px)] h-[calc(100vh-280px)]"
               }`}
           >
-            <div className=""> {/** p-3 md:p-6 */}
+            <div className={`${messages.length !== 0 && "px-2 md:px-3"}`}>
               {!isWalletConnected ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                   <div className="p-4 rounded-full bg-primary/5 ring-1 ring-primary/20 mb-2">

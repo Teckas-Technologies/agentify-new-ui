@@ -57,6 +57,7 @@ import {
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
+import { ChainId } from "@/types/types";
 // List of Wagmi connectors
 const connectors = [injected()];
 const queryClient = new QueryClient();
@@ -182,8 +183,8 @@ createConfig({
   providers: [
     EVM({
       getWalletClient: () => getWalletClient(wagmiConfig),
-      switchChain: async (chainId: any) => {
-        const chain = await switchChain(wagmiConfig, { chainId });
+      switchChain: async (chainId: number) => {
+        const chain = await switchChain(wagmiConfig, { chainId: chainId as ChainId });
         return getWalletClient(wagmiConfig, { chainId: chain.id });
       },
     }),

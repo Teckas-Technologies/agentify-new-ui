@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route } from "@lifi/sdk";
+import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route, ChainId } from "@lifi/sdk";
 import { useAccount } from "wagmi";
 import { TransactionError } from "./useAaveHook";
 
@@ -24,7 +24,7 @@ const useLifiHook = () => {
     // }
 
     // ✅ Validate Token Balance
-    const validateTokenBalance = async (chainId: any, tokenAddress: { address: string }, amount: string) => {
+    const validateTokenBalance = async (chainId: number, tokenAddress: { address: string }, amount: string) => {
         if (!address) {
             return;
         }
@@ -75,7 +75,7 @@ const useLifiHook = () => {
     };
 
     // ✅ Validate Available Bridges & Exchanges
-    const validateTools = async (chainId: any) => {
+    const validateTools = async (chainId: number) => {
         try {
             const tools = await getTools({ chains: [chainId] });
             if (!tools || tools.bridges.length === 0 || tools.exchanges.length === 0) {
@@ -158,7 +158,7 @@ const useLifiHook = () => {
     };
 
     // Execute swap & bridge
-    const executeLifi = async ({ quote }: { quote: Route }) => {
+    const executeLifi = async ({ quote }: { quote: Route }): Promise<{ txHash: string } | undefined> => {
         if (!quote || !quote?.fromChainId) {
             setError("Invalid quote. Please fetch a new quote before proceeding.");
             return;
@@ -183,12 +183,14 @@ const useLifiHook = () => {
             // const route = convertQuoteToRoute(quote);
 
             return new Promise((resolve, reject) => {
+                let resolved = false;
                 executeRoute(quote, { // route
                     updateRouteHook(updatedRoute) {
                         updatedRoute.steps.forEach((step) => {
                             step.execution?.process.forEach((process) => {
                                 if (process.txHash && process.status === "PENDING") {
                                     // console.log("Transaction sent! TX Hash:", process.txHash);
+                                    resolved = true;
 
                                     // ✅ Push execution to background
                                     updateRouteExecution(updatedRoute, { executeInBackground: true });
@@ -202,7 +204,9 @@ const useLifiHook = () => {
                         });
                     },
                 }) // If executionRoute throws, reject the promise can remove .catch(reject);
-                    .then(resolve) // Ensure promise resolves if execution completes
+                    .then(() => {
+                        if (!resolved) resolve(undefined); // fallback resolve
+                    })
                     .catch((error: unknown) => {
                         const err = error as TransactionError;
                         // ✅ Properly catch errors and set error message
