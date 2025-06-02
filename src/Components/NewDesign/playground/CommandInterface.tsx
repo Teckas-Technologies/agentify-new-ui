@@ -268,7 +268,7 @@ export const CommandInterface = ({
         (msg: Message) => msg.message.trim() !== "" && msg.role !== "tool"
       );
 
-      setMessages(filteredMessages);
+      setMessages(filteredMessages ?? []);
 
       const cmds = await getAgentCommands(selectedAgent.agentId);
       if (cmds && Array.isArray(cmds?.data?.data)) {

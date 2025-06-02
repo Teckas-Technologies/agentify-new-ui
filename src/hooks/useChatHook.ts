@@ -10,7 +10,17 @@ interface RequestFields {
   userId: string;
   isTransaction: boolean;
 }
+type ChatHistoryMessage = {
+  role: "human" | "ai" | "tool";
+  message: string;
+  message_id: string;
+};
 
+type ChatHistoryResponse = {
+  status: number;
+  message: ChatHistoryMessage[];
+  success: boolean;
+};
 export const useChat = () => {
   const { address } = useAccount();
   const [loading, setLoading] = useState<boolean>(false);
@@ -109,7 +119,7 @@ export const useChat = () => {
     }
   };
 
-  const fetchChatHistory = async (agentId: string) => {
+const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | undefined> => {
     if (!address) {
       return;
     }
@@ -130,7 +140,7 @@ export const useChat = () => {
       if (!response.ok) {
         throw new Error(`Error: ${response.statusText}`);
       }
-      const result = await response.json();
+      const result: ChatHistoryResponse = await response.json();
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

@@ -36,7 +36,7 @@ const useFetchLastCommand = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      const result: AgentCommandRequest = await response.json();
       setLastCommand(result);
       return result;
     } catch (err) {

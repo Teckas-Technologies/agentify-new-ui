@@ -36,7 +36,7 @@ const useFetchChainActivity = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      const result: ChainCount[] = await response.json();
       setChainActivity(result);
       return result;
     } catch (err) {

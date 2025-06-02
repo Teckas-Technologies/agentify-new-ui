@@ -56,7 +56,7 @@ const useFetchSavedCommands = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      const result: AgentCommandResponse = await response.json();
 
       // Store the response with pagination metadata
       setSavedCommands({
