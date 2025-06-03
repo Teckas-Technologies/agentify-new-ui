@@ -56,7 +56,7 @@ type GasHistory = {
 type AgentUsage = {
   agentName: string;
   percentage: number;
-}
+};
 
 export type AgentCommand = {
   _id: string;
@@ -76,16 +76,21 @@ const Dashboard = () => {
   const { dashboardStats, loading, error, fetchDashboardStats } =
     useFetchDashboardHeader();
   const fetchDashboardStatsMemoized = useCallback(async () => {
-    if (address) {
+    if (!address) return;
+
+    try {
       await fetchDashboardStats();
+    } catch (err) {
+      toast({
+        title: "Dashboard Error",
+        description: "Failed to load dashboard stats. Please try again later.",
+        variant: "destructive",
+      });
     }
   }, [address]);
 
-  // useEffect now calls the memoized function
   useEffect(() => {
-    if (address) {
-      fetchDashboardStatsMemoized();
-    }
+    fetchDashboardStatsMemoized();
   }, [address]);
   const stats = {
     commandsExecuted: dashboardStats?.totalTransaction ?? 0,
@@ -108,15 +113,21 @@ const Dashboard = () => {
   } = useFetchChainActivity();
 
   const fetchChainActivityMemoized = useCallback(async () => {
-    if (address) {
+    if (!address) return;
+
+    try {
       await fetchChainActivity(address);
+    } catch (err) {
+      toast({
+        title: "Chain Activity Error",
+        description: "Failed to load chain activity. Please try again later.",
+        variant: "destructive",
+      });
     }
   }, [address]);
 
   useEffect(() => {
-    if (address) {
-      fetchChainActivityMemoized();
-    }
+    fetchChainActivityMemoized();
   }, [address]);
   const {
     gasDetails,
@@ -146,8 +157,8 @@ const Dashboard = () => {
       toast({
         title: "Error!",
         description: "Cannot fetch your gas usage.",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
   }, [address]);
 
@@ -161,28 +172,36 @@ const Dashboard = () => {
   const { fetchAgentChart, loading: chartLoading } = useFetchAgentChart();
   const [agentUsageData, setAgentUsageData] = useState<AgentUsage[]>([]);
 
-  const loadAgentData = useCallback(async () => {
-    if (!address) return;
-    const data = await fetchAgentChart(address);
+ const loadAgentData = useCallback(async () => {
+  if (!address) return;
 
-    if (data) {
-      if (Array.isArray(data)) {
-        setAgentUsageData(data);
-      } else if (data.detail) {
-        setAgentUsageData([]);
-      } else if (Array.isArray(data.data)) {
-        setAgentUsageData(data.data);
-      } else {
-        setAgentUsageData([]);
-      }
-    } else {
-      toast({
-        title: "Error!",
-        description: "Cannot fetch your agent usage.",
-        variant: "destructive"
-      })
-    }
-  }, [address]);
+  const data = await fetchAgentChart(address);
+
+  if (!data) {
+    toast({
+      title: "Error!",
+      description: "Cannot fetch your agent usage.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (Array.isArray(data)) {
+    setAgentUsageData(data);
+  } else if ("data" in data && Array.isArray(data.data)) {
+    setAgentUsageData(data.data);
+  } else if ("detail" in data) {
+    toast({
+      title: "Error!",
+      description: data.detail || "Failed to fetch usage data.",
+      variant: "destructive",
+    });
+    setAgentUsageData([]);
+  } else {
+    setAgentUsageData([]);
+  }
+}, [address]);
+
 
   useEffect(() => {
     loadAgentData();
@@ -203,34 +222,46 @@ const Dashboard = () => {
 
   const [tab, setTab] = useState("all");
   // Always load 4 recent transactions regardless of tab
-  const loadRecentTransactions = useCallback(() => {
-    if (address) {
-      fetchRecentTransactions({
-        limit: 4,
-      });
-    }
-  }, [address, fetchRecentTransactions]);
+  const loadRecentTransactions = useCallback(async () => {
+  if (!address) return;
+
+  try {
+    await fetchRecentTransactions({ limit: 4 });
+  } catch (err) {
+    toast({
+      title: "Recent Transactions Error",
+      description: "Unable to load recent transactions. Please try again later.",
+      variant: "destructive",
+    });
+  }
+}, [address]);
 
   // 🔁 useCallback for fetching tab-specific transactions (with agentId)
-  const loadTabbedTransactions = useCallback(() => {
-    if (address) {
-      const agentMap: Record<string, string> = {
-        swap: "swapAgent",
-        bridge: "bridgeAgent",
-        lend: "lendingBorrowingAgent",
-      };
+ const loadTabbedTransactions = useCallback(async () => {
+  if (!address) return;
 
-      const params: { agentId?: string; limit: number } = {
-        limit: 4,
-      };
+  try {
+    const agentMap: Record<string, string> = {
+      swap: "swapAgent",
+      bridge: "bridgeAgent",
+      lend: "lendingBorrowingAgent",
+    };
 
-      if (tab !== "all") {
-        params.agentId = agentMap[tab];
-      }
+    const params: { agentId?: string; limit: number } = { limit: 4 };
 
-      fetchTabbedTransactions(params);
+    if (tab !== "all") {
+      params.agentId = agentMap[tab];
     }
-  }, [address, tab, fetchTabbedTransactions]);
+
+    await fetchTabbedTransactions(params);
+  } catch (err) {
+    toast({
+      title: "Transaction Log Error",
+      description: "Unable to load transactions for this tab. Please try again later.",
+      variant: "destructive",
+    });
+  }
+}, [address, tab]);
 
   // 👇 useEffect to trigger memoized fetches
   useEffect(() => {
@@ -245,7 +276,9 @@ const Dashboard = () => {
     fetchSavedCommands,
     loading: savedCmdLoading,
   } = useFetchSavedCommands();
-  const [savedCommandsData, setSavedCommandsData] = useState<AgentCommand[]>([]);
+  const [savedCommandsData, setSavedCommandsData] = useState<AgentCommand[]>(
+    []
+  );
 
   // useCallback to memoize fetch function
   const loadSavedCommands = useCallback(async () => {
@@ -257,12 +290,11 @@ const Dashboard = () => {
         toast({
           title: "Error!",
           description: "Cannot fetch your saved commands.",
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
       }
     }
   }, [address]);
-
 
   useEffect(() => {
     loadSavedCommands();
@@ -290,13 +322,18 @@ const Dashboard = () => {
     return mapping[type] || type;
   };
 
-  const { lastCommand, fetchLastCommand, loading: quickActionsLoading } = useFetchLastCommand();
+  const {
+    lastCommand,
+    fetchLastCommand,
+    loading: quickActionsLoading,
+  } = useFetchLastCommand();
   const [quickActions, setQuickActions] = useState([
     {
       title: "Quick Swap",
       description: "Swap tokens with minimal clicks",
       icon: Repeat2,
-      action: "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
+      action:
+        "/playground?agent=swapAgent&message=Swap 1 USDT to POL in Polygon",
     },
     {
       title: "Command History",
@@ -323,7 +360,9 @@ const Dashboard = () => {
               title: "Run Last Command",
               description: "Execute your most recent transaction",
               icon: PlayCircle,
-              action: `/playground?agent=${data.agent_id}&message=${encodeURIComponent(data.command)}`,
+              action: `/playground?agent=${
+                data.agent_id
+              }&message=${encodeURIComponent(data.command)}`,
             },
           ];
         });
@@ -331,8 +370,8 @@ const Dashboard = () => {
         toast({
           title: "Error!",
           description: "Cannot fetch your last run command.",
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
       }
     };
 
@@ -391,10 +430,11 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${stats.transactionDifference >= 0
-                          ? "text-green-500"
-                          : "text-red-500"
-                          }`}
+                        className={`flex items-center gap-1 ${
+                          stats.transactionDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
                       >
                         {stats.transactionDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -438,10 +478,11 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${stats.volumeDifference >= 0
-                          ? "text-green-500"
-                          : "text-red-500"
-                          }`}
+                        className={`flex items-center gap-1 ${
+                          stats.volumeDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
                       >
                         {stats.volumeDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -471,10 +512,11 @@ const Dashboard = () => {
                       <Skeleton className="w-12 h-4 bg-white/10 rounded" />
                     ) : (
                       <span
-                        className={`flex items-center gap-1 ${stats.chainsDifference >= 0
-                          ? "text-green-500"
-                          : "text-red-500"
-                          }`}
+                        className={`flex items-center gap-1 ${
+                          stats.chainsDifference >= 0
+                            ? "text-green-500"
+                            : "text-red-500"
+                        }`}
                       >
                         {stats.chainsDifference >= 0 ? (
                           <FaArrowUp className="inline-block" />
@@ -725,10 +767,10 @@ const Dashboard = () => {
                                 index === 0
                                   ? "bg-primary/20"
                                   : index === 1
-                                    ? "bg-accent/20"
-                                    : index === 2
-                                      ? "bg-success/20"
-                                      : "bg-secondary"
+                                  ? "bg-accent/20"
+                                  : index === 2
+                                  ? "bg-success/20"
+                                  : "bg-secondary"
                               }
                             />
                           ))}
@@ -771,9 +813,11 @@ const Dashboard = () => {
                           <SavedCommand
                             key={command._id}
                             title={command.agent_name}
-                            command={isJsonString(command.command)
-                              ? JSON.parse(command.command).message
-                              : command.command}
+                            command={
+                              isJsonString(command.command)
+                                ? JSON.parse(command.command).message
+                                : command.command
+                            }
                             agentId={command.agent_id}
                             icon={<PlayCircle className="h-4 w-4" />}
                           />

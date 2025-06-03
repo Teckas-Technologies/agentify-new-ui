@@ -40,7 +40,7 @@ const useFetchGasDetails = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      const result: WeeklyGasStats = await response.json();
       setGasDetails(result);
       return result;
     } catch (err) {

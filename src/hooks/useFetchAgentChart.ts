@@ -4,17 +4,22 @@ import { getAccessToken } from "@privy-io/react-auth";
 
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
-type AgentUsage = {
+export type AgentUsage = {
   agentName: string;
   percentage: number;
-}
+};
+
+type AgentUsageResponse =
+  | AgentUsage[]
+  | { data: AgentUsage[] }
+  | { detail: string };
 
 const useFetchAgentChart = () => {
   const [agentChartData, setAgentChartData] = useState<AgentUsage[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAgentChart = async (userId: string) => {
+  const fetchAgentChart = async (userId: string): Promise<AgentUsageResponse | null> => {
     try {
       setLoading(true);
       setError(null);
@@ -33,8 +38,8 @@ const useFetchAgentChart = () => {
         }
       );
 
-      const result = await response.json();
-      setAgentChartData(result);
+      const result: AgentUsageResponse = await response.json();
+      setAgentChartData(Array.isArray(result) ? result : null);
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Unknown error");

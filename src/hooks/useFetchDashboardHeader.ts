@@ -44,7 +44,7 @@ const useFetchDashboardHeader = () => {
         throw new Error(`Error: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      const result: AgentUsageStats = await response.json();
       setDashboardStats(result);
       return result;
     } catch (err) {
