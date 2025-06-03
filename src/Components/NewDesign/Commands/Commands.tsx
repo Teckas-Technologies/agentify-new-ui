@@ -46,13 +46,22 @@ const CommandsPage = () => {
   const limit = commandsPerPage;
 
   const loadSavedCommands = useCallback(async () => {
-    if (address) {
-      const res = await fetchSavedCommands(skip, limit);
-      if (res?.data) {
-        setSavedCommandsData(res.data);
-      }
+  if (address) {
+    const res = await fetchSavedCommands(skip, limit);
+    if (res?.data) {
+      const mappedData: Command[] = res.data.map((cmd) => ({
+        id: cmd._id, // map _id to id
+        user_id: cmd.user_id,
+        agent_id: cmd.agent_id,
+        agent_name: cmd.agent_name,
+        command: cmd.command,
+        created_at: cmd.created_at,
+      }));
+      setSavedCommandsData(mappedData);
     }
-  }, [address, skip, limit]);
+  }
+}, [address, skip, limit]);
+
 
   useEffect(() => {
     loadSavedCommands();

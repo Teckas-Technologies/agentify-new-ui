@@ -21,6 +21,22 @@ type ChatHistoryResponse = {
   message: ChatHistoryMessage[];
   success: boolean;
 };
+type ChatApiResponse = {
+  ai_message: string;
+  tool_response: string;
+};
+
+type ChatSuccessResponse = {
+  success: true;
+  data: ChatApiResponse;
+};
+
+type ChatErrorResponse = {
+  success: false;
+  message: string;
+};
+
+type ChatResponse = ChatSuccessResponse | ChatErrorResponse;
 export const useChat = () => {
   const { address } = useAccount();
   const [loading, setLoading] = useState<boolean>(false);
@@ -56,7 +72,9 @@ export const useChat = () => {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result: ChatApiResponse = await response.json();
+      
+      
       return { success: true, data: result };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

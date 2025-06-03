@@ -144,9 +144,9 @@ export const CommandInterface = ({
 
   const saveCommand = async (command: string, index: number) => {
     try {
-      if (!address || !selectedAgent) return;
+      if (!user?.id || !selectedAgent) return;
       const res = await sendAgentCommand(
-        address,
+        user?.id,
         selectedAgent?.agentId,
         selectedAgent?.name,
         command
@@ -171,9 +171,9 @@ export const CommandInterface = ({
 
   const deleteCommand = async (command: string) => {
     try {
-      if (!address || !selectedAgent) return;
+      if (!user?.id || !selectedAgent) return;
       const res = await deleteAgentCommand({
-        userId: address,
+        userId: user?.id ,
         agentId: selectedAgent?.agentId,
         command,
       });
@@ -386,11 +386,12 @@ export const CommandInterface = ({
       const response = await chat({
         inputMessage: enrichedMessage,
         agentName: selectedAgent?.agentId,
-        userId: address,
+        userId: user?.id ?? '',
         isTransaction: false,
       });
       if (response?.success) {
         if (response?.data?.tool_response !== "None") {
+          if (!response?.data?.tool_response) return;
           const toolMessage = JSON.parse(response?.data?.tool_response);
           if (toolMessage?.type === "berachain_swap") {
             const {
