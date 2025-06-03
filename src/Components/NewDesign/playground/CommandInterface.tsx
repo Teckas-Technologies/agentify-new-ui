@@ -173,7 +173,7 @@ export const CommandInterface = ({
     try {
       if (!user?.id || !selectedAgent) return;
       const res = await deleteAgentCommand({
-        userId: user?.id ,
+        userId: user?.id ?? '',
         agentId: selectedAgent?.agentId,
         command,
       });
@@ -484,9 +484,20 @@ export const CommandInterface = ({
 
               if (txHash) {
                 const explorerUrl = `https://berascan.com/tx/${txHash}`;
-
+if (
+  !user?.id ||
+  !fromToken ||
+  !txHash ||
+  !explorerUrl ||
+  !RPC_URL ||
+  !fromTokenDecimals ||
+  !toToken
+) {
+  console.error("Missing required data for transaction.");
+  return;
+}
                 await createTransv2(
-                  address,
+                  user?.id,
                   "berachainSwapAgent",
                   "SWAP",
                   `Swapped ${from} to ${to}`,
@@ -508,7 +519,7 @@ export const CommandInterface = ({
                 await chat({
                   inputMessage: statusMessage,
                   agentName: selectedAgent?.agentId,
-                  userId: address,
+                  userId: user?.id ?? '',
                   isTransaction: true,
                 });
                 updateLastAiMessage(statusMessage);
@@ -546,7 +557,7 @@ export const CommandInterface = ({
               ]);
               const explorerUrl = `https://berascan.com/tx`;
               await createTrans(
-                address,
+                user?.id ?? '',
                 "berachainSwapAgent",
                 "SWAP",
                 `Failed swap: ${from} to ${to}`,
@@ -607,7 +618,7 @@ export const CommandInterface = ({
               const { nativeTokenSymbol, rpcUrl, decimals, chainName } =
                 chainInfo;
               await createTransv2(
-                address,
+               user?.id ?? '',
                 "lendingBorrowingAgent",
                 "LEND",
                 `Lending ${amount} ${tokenSymbol} executed successfully`,
@@ -638,7 +649,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -647,7 +658,7 @@ export const CommandInterface = ({
               return;
             } else {
               await createTrans(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "LEND",
                 `Lending ${tokenSymbol} execution was failed`,
@@ -667,7 +678,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: res?.message || statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -714,7 +725,7 @@ export const CommandInterface = ({
               }
 
               await createTransv2(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "BORROW",
                 `Borrow ${amount} ${tokenSymbol} executed successfully`,
@@ -736,7 +747,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -745,7 +756,7 @@ export const CommandInterface = ({
               return;
             } else {
               await createTrans(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "BORROW",
                 `Borrow ${tokenSymbol} execution was failed`,
@@ -769,7 +780,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: res?.message || statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -818,7 +829,7 @@ export const CommandInterface = ({
               const { nativeTokenSymbol, rpcUrl, decimals, chainName } =
                 chainInfo;
               await createTransv2(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "WITHDRAW",
                 `Withdraw ${amount} ${tokenSymbol} executed successfully`,
@@ -840,7 +851,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -849,7 +860,7 @@ export const CommandInterface = ({
               return;
             } else {
               await createTrans(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "WITHDRAW",
                 `Withdraw ${amount} ${tokenSymbol} was failed!`,
@@ -868,7 +879,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: res?.message || statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -913,7 +924,7 @@ export const CommandInterface = ({
 
               const { nativeTokenSymbol, rpcUrl, decimals, chainName } = chainInfo;
               await createTransv2(
-                address,
+                user?.id ?? '',
                 "lendingBorrowingAgent",
                 "REPAY",
                 `Repayment of ${amount} ${tokenSymbol} executed successfully`,
@@ -936,7 +947,7 @@ export const CommandInterface = ({
               await chat({
                 inputMessage: statusMessage,
                 agentName: selectedAgent?.agentId,
-                userId: address,
+                userId: user?.id ?? '',
                 isTransaction: true,
               });
 
@@ -947,7 +958,7 @@ export const CommandInterface = ({
 
             // Repayment failed
             await createTrans(
-              address,
+              user?.id ?? '',
               "lendingBorrowingAgent",
               "REPAY",
               `Repayment of ${amount} ${tokenSymbol} failed!`,
@@ -973,7 +984,7 @@ export const CommandInterface = ({
             await chat({
               inputMessage: errorMessage,
               agentName: selectedAgent?.agentId,
-              userId: address,
+              userId: user?.id ?? '',
               isTransaction: true,
             });
 
@@ -1063,7 +1074,7 @@ export const CommandInterface = ({
                     : "Bridge Agent";
 
                 await createTrans(
-                  address,
+                  user?.id ?? '',
                   agentId,
                   transaction_type,
                   `${fromChainId.toString() === toChainId.toString()
@@ -1091,7 +1102,7 @@ export const CommandInterface = ({
                 await chat({
                   inputMessage: statusMessage,
                   agentName: selectedAgent?.agentId,
-                  userId: address,
+                  userId: user?.id ?? '',
                   isTransaction: true,
                 });
 
@@ -1123,7 +1134,7 @@ export const CommandInterface = ({
                 );
 
                 await createTrans(
-                  address,
+                 user?.id ?? '',
                   agentId,
                   transaction_type,
                   `${fromChainId.toString() === toChainId.toString()
@@ -1150,7 +1161,7 @@ export const CommandInterface = ({
                 await chat({
                   inputMessage: statusMessage,
                   agentName: selectedAgent?.agentId,
-                  userId: address,
+                  userId: user?.id ?? '',
                   isTransaction: true,
                 });
                 updateLastAiMessage(statusMessage);
