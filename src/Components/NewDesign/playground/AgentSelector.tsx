@@ -95,18 +95,18 @@ export const AgentSelector = ({
         }
       } else {
         setAgents([]);
-        toast({
-          title: "No Agents Found",
-          description: "Try adjusting your search query.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "No Agents Found",
+        //   description: "Try adjusting your search query.",
+        //   variant: "destructive",
+        // });
       }
     } catch (error) {
-      toast({
-        title: "Error!",
-        description: "Cannot fetch agents.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Error!",
+      //   description: "Cannot fetch agents.",
+      //   variant: "destructive",
+      // });
     } finally {
       setLoading(false);
     }

@@ -278,11 +278,11 @@ export const CommandInterface = ({
     } catch (error) {
       console.error("Error fetching history or commands:", error);
 
-      toast({
-        title: "Error!",
-        description: "Cannot fetch your chat history for this agent.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Error!",
+      //   description: "Cannot fetch your chat history for this agent.",
+      //   variant: "destructive",
+      // });
     }
   }, [address, selectedAgent, user]);
 
@@ -292,26 +292,26 @@ export const CommandInterface = ({
       const res = await clearHistory(selectedAgent?.agentId);
       if (res?.success) {
         setMessages([]);
-        toast({
-          title: "Chat History Cleared!",
-          description: "Chat history with this agent was cleared successfully.",
-          variant: "default",
-        });
+        // toast({
+        //   title: "Chat History Cleared!",
+        //   description: "Chat history with this agent was cleared successfully.",
+        //   variant: "default",
+        // });
       } else {
-        toast({
-          title: "Failed to Clear History",
-          description: "Unable to clear chat history. Please try again later.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Failed to Clear History",
+        //   description: "Unable to clear chat history. Please try again later.",
+        //   variant: "destructive",
+        // });
       }
 
     } catch (error) {
       console.error("Error clearing chat history:", error);
-      toast({
-        title: "Unexpected Error",
-        description: "An error occurred while clearing chat history.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Unexpected Error",
+      //   description: "An error occurred while clearing chat history.",
+      //   variant: "destructive",
+      // });
     }
   };
 

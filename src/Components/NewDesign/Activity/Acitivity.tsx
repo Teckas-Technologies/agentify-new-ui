@@ -119,18 +119,18 @@ const ActivityPage = () => {
         setCurrentPage(res.data.currentPage);
         setTotalPages(res.data.totalPages);
       } else {
-        toast({
-          title: "No Transactions Found!",
-          description: "Try adjusting your filters or search query.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "No Transactions Found!",
+        //   description: "Try adjusting your filters or search query.",
+        //   variant: "destructive",
+        // });
       }
     } catch (error) {
-      toast({
-        title: "Error!",
-        description: "Cannot fetch your transactions.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Error!",
+      //   description: "Cannot fetch your transactions.",
+      //   variant: "destructive",
+      // });
     }
   }
 

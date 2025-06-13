@@ -9,7 +9,7 @@ export default function Header() {
     <div className="flex items-center justify-between px-[60px] py-4 border-b border-[var(--shadow)]">
       <div className="flex items-center gap-2 text-lg font-semibold">
         <img
-          src="images/logo.png"
+          src="images/LOGO MARK.png"
           alt="Agentify Logo"
           className="w-6 h-6 object-contain"
         />
