@@ -81,11 +81,11 @@ const Dashboard = () => {
     try {
       await fetchDashboardStats();
     } catch (err) {
-      toast({
-        title: "Dashboard Error",
-        description: "Failed to load dashboard stats. Please try again later.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Dashboard Error",
+      //   description: "Failed to load dashboard stats. Please try again later.",
+      //   variant: "destructive",
+      // });
     }
   }, [address]);
 
@@ -118,11 +118,11 @@ const Dashboard = () => {
     try {
       await fetchChainActivity(address);
     } catch (err) {
-      toast({
-        title: "Chain Activity Error",
-        description: "Failed to load chain activity. Please try again later.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Chain Activity Error",
+      //   description: "Failed to load chain activity. Please try again later.",
+      //   variant: "destructive",
+      // });
     }
   }, [address]);
 
@@ -154,11 +154,11 @@ const Dashboard = () => {
         history: data.data || [],
       });
     } else {
-      toast({
-        title: "Error!",
-        description: "Cannot fetch your gas usage.",
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Error!",
+      //   description: "Cannot fetch your gas usage.",
+      //   variant: "destructive",
+      // });
     }
   }, [address]);
 
@@ -178,11 +178,11 @@ const Dashboard = () => {
   const data = await fetchAgentChart(address);
 
   if (!data) {
-    toast({
-      title: "Error!",
-      description: "Cannot fetch your agent usage.",
-      variant: "destructive",
-    });
+    // toast({
+    //   title: "Error!",
+    //   description: "Cannot fetch your agent usage.",
+    //   variant: "destructive",
+    // });
     return;
   }
 
@@ -191,11 +191,11 @@ const Dashboard = () => {
   } else if ("data" in data && Array.isArray(data.data)) {
     setAgentUsageData(data.data);
   } else if ("detail" in data) {
-    toast({
-      title: "Error!",
-      description: data.detail || "Failed to fetch usage data.",
-      variant: "destructive",
-    });
+    // toast({
+    //   title: "Error!",
+    //   description: data.detail || "Failed to fetch usage data.",
+    //   variant: "destructive",
+    // });
     setAgentUsageData([]);
   } else {
     setAgentUsageData([]);
@@ -228,11 +228,11 @@ const Dashboard = () => {
   try {
     await fetchRecentTransactions({ limit: 4 });
   } catch (err) {
-    toast({
-      title: "Recent Transactions Error",
-      description: "Unable to load recent transactions. Please try again later.",
-      variant: "destructive",
-    });
+    // toast({
+    //   title: "Recent Transactions Error",
+    //   description: "Unable to load recent transactions. Please try again later.",
+    //   variant: "destructive",
+    // });
   }
 }, [address]);
 
@@ -255,11 +255,11 @@ const Dashboard = () => {
 
     await fetchTabbedTransactions(params);
   } catch (err) {
-    toast({
-      title: "Transaction Log Error",
-      description: "Unable to load transactions for this tab. Please try again later.",
-      variant: "destructive",
-    });
+    // toast({
+    //   title: "Transaction Log Error",
+    //   description: "Unable to load transactions for this tab. Please try again later.",
+    //   variant: "destructive",
+    // });
   }
 }, [address, tab]);
 
@@ -287,11 +287,11 @@ const Dashboard = () => {
       if (res?.data) {
         setSavedCommandsData(res.data);
       } else {
-        toast({
-          title: "Error!",
-          description: "Cannot fetch your saved commands.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error!",
+        //   description: "Cannot fetch your saved commands.",
+        //   variant: "destructive",
+        // });
       }
     }
   }, [address]);
@@ -367,11 +367,11 @@ const Dashboard = () => {
           ];
         });
       } else {
-        toast({
-          title: "Error!",
-          description: "Cannot fetch your last run command.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error!",
+        //   description: "Cannot fetch your last run command.",
+        //   variant: "destructive",
+        // });
       }
     };
 

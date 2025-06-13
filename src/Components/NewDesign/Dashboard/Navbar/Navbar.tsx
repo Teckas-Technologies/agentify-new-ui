@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
             <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
               <div className="logo flex w-[1.7rem] h-[1.7rem] ">
                 <img
-                  src="images/icon.png"
+                  src="images/new-logo.png"
                   alt="Agentify Logo"
                   className="w-full h-full object-contain"
                 />
