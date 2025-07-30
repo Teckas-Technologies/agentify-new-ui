@@ -107,7 +107,10 @@ const supportedChains = [
 ]
 
 const transports: Record<number, Transport> = Object.fromEntries(
-  supportedChains.map((chain) => [chain.id, http()])
+  supportedChains.map((chain) => [chain.id, http(undefined, {
+    batch: false,
+    retryCount: 3,
+  })])
 );
 
 export const wagmiConfig = createWagmiConfig({
@@ -182,10 +185,25 @@ createConfig({
   integrator: "Agentify",
   providers: [
     EVM({
-      getWalletClient: () => getWalletClient(wagmiConfig),
+      getWalletClient: async () => {
+        const client = await getWalletClient(wagmiConfig);
+        if (!client) {
+          throw new Error("Wallet client not available. Please connect your wallet.");
+        }
+        return client;
+      },
       switchChain: async (chainId: number) => {
-        const chain = await switchChain(wagmiConfig, { chainId: chainId as ChainId });
-        return getWalletClient(wagmiConfig, { chainId: chain.id });
+        try {
+          const chain = await switchChain(wagmiConfig, { chainId: chainId as ChainId });
+          const client = await getWalletClient(wagmiConfig, { chainId: chain.id });
+          if (!client) {
+            throw new Error("Failed to get wallet client after chain switch.");
+          }
+          return client;
+        } catch (error) {
+          console.error("Chain switch failed:", error);
+          throw error;
+        }
       },
     }),
   ],
