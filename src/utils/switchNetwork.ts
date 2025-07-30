@@ -4,7 +4,7 @@ import { switchChain } from "@wagmi/core";
 
 export const switchNetwork = async (chainId: number) => {
     try {
-        const chain = await switchChain(wagmiConfig, {
+        const chain = await switchChain(wagmiConfig as any, {
             chainId: chainId as ChainId,
         });
     } catch (error) {

@@ -186,7 +186,7 @@ createConfig({
   providers: [
     EVM({
       getWalletClient: async () => {
-        const client = await getWalletClient(wagmiConfig);
+        const client = await getWalletClient(wagmiConfig as any);
         if (!client) {
           throw new Error("Wallet client not available. Please connect your wallet.");
         }
@@ -194,8 +194,8 @@ createConfig({
       },
       switchChain: async (chainId: number) => {
         try {
-          const chain = await switchChain(wagmiConfig, { chainId: chainId as ChainId });
-          const client = await getWalletClient(wagmiConfig, { chainId: chain.id });
+          const chain = await switchChain(wagmiConfig as any, { chainId: chainId as ChainId });
+          const client = await getWalletClient(wagmiConfig as any, { chainId: chain.id });
           if (!client) {
             throw new Error("Failed to get wallet client after chain switch.");
           }
