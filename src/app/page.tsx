@@ -1,10 +1,10 @@
 "use client";
 import Dashboard from "@/Components/NewDesign/Dashboard/Dashboard";
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAccount } from "wagmi";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 export default function Page() {
   const { address } = useAccount();
 

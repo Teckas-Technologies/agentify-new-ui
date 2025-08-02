@@ -1,10 +1,10 @@
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import { getAccessToken } from "@privy-io/react-auth";
 import { useState } from "react";
 
 const TRANSACTIONS_API_URL =
   "https://agentify-lifi-g9f2ghedephpgkeg.canadacentral-01.azurewebsites.net/api/transactions/";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
 export interface Transaction {

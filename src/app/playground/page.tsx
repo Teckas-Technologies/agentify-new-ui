@@ -1,8 +1,8 @@
 import Playground from '@/Components/NewDesign/playground/Playground';
-import { PYTHON_SERVER_URL } from '@/config/constants';
+// import { PYTHON_SERVER_URL } from '@/config/constants';
 import React from 'react';
 // import { PrivyClient } from "@privy-io/server-auth";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 async function fetchInitialAgents() {
   // const query = new URLSearchParams({
   //   skip: "0",
