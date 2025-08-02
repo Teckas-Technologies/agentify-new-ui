@@ -1,6 +1,6 @@
 import AgentsPage from "@/Components/NewDesign/Agents/Agents";
-import { PYTHON_SERVER_URL } from "@/config/constants";
-
+// import { PYTHON_SERVER_URL } from "@/config/constants";
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 async function fetchInitialAgents() {
   const query = new URLSearchParams({
     skip: "0",

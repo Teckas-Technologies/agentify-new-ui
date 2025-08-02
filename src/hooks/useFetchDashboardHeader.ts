@@ -1,7 +1,7 @@
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useState } from "react";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 const AGENTIFY_API_URL = PYTHON_SERVER_URL;
 
 type AgentUsageStats = {

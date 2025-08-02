@@ -1,10 +1,10 @@
 "use client";
 import CommandsPage from "@/Components/NewDesign/Commands/Commands";
 import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import React from "react";
 import { useAccount } from "wagmi";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 export default function Page() {
   const { address } = useAccount();
   //   let commands = [];

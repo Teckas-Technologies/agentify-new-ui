@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import { getAccessToken } from "@privy-io/react-auth";
 import { Agent } from "@/types/types";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 const useFetchAgents = (initialData: Agent[] = []) => {
   const [agentsData, setAgentsData] = useState<Agent[]>(initialData);
   const [loading, setLoading] = useState(false);

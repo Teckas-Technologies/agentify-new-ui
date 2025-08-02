@@ -1,9 +1,9 @@
-import { PYTHON_SERVER_URL } from "@/config/constants";
+// import { PYTHON_SERVER_URL } from "@/config/constants";
 import { Agent } from "@/types/types";
 import { getAccessToken } from "@privy-io/react-auth";
 import { useState } from "react";
 import { useAccount } from "wagmi";
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 interface RequestFields {
   inputMessage: string;
   agentName: string;

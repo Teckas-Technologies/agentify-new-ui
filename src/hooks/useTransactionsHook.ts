@@ -1,8 +1,8 @@
-import { PYTHON_SERVER_URL } from '@/config/constants';
+// import { PYTHON_SERVER_URL } from '@/config/constants';
 import { useState } from 'react';
 import { RequestFields, RequestFieldsv2 } from "@/types/types";
 import { getAccessToken } from '@privy-io/react-auth';
-
+const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 export const useTransactions = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
