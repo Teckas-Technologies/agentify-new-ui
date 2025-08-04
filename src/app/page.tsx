@@ -80,8 +80,10 @@ export default function Page() {
 
   useEffect(() => {
     if (!address) {
-      // Redirect to home page if address is not available
-      router.push("/");
+      // Redirect to home page if address is not available, preserving query parameters
+      const currentParams = new URLSearchParams(window.location.search);
+      const queryString = currentParams.toString();
+      router.push("/" + (queryString ? `?${queryString}` : ""));
     }
   }, [address, router]);
   return (

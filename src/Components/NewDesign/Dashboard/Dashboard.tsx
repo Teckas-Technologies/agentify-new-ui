@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { use, useCallback, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   Activity,
@@ -47,6 +47,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import useFetchLastCommand from "@/hooks/useFetchLastCommand";
 import { useToast } from "@/hooks/use-toast";
+import { useAirdrop } from "@/hooks/useAirdrop";
 
 type GasHistory = {
   day: string;
@@ -170,6 +171,7 @@ const Dashboard = () => {
     !address || !gasDetails || !gasDetails.data || gasDetails.data.length === 0;
 
   const { fetchAgentChart, loading: chartLoading } = useFetchAgentChart();
+  const { createUser } = useAirdrop();
   const [agentUsageData, setAgentUsageData] = useState<AgentUsage[]>([]);
 
  const loadAgentData = useCallback(async () => {
@@ -235,6 +237,35 @@ const Dashboard = () => {
     // });
   }
 }, [address]);
+
+  // Airdrop onboarding starts
+  useEffect(() => {
+    if (user) {
+      onboardUser();
+    }
+  }, [user])
+
+  const [referredBy, setReferredBy] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Runs only on client side
+    const params = new URLSearchParams(window.location.search);
+    setReferredBy(params.get('ref'));
+  }, []);
+
+  const onboardUser = async () => {
+    console.log("Onboarding user with ID:", user?.id);
+    if (user) {
+      if (referredBy) {
+        const result = await createUser({ privyId: user.id, referredBy: referredBy });
+        console.log("User created with referral:", result);
+      } else {
+        const result = await createUser({ privyId: user.id });
+        console.log("User created without referral:", result);
+      }
+    }
+  }
+  // Airdrop onboarding ends
 
   // 🔁 useCallback for fetching tab-specific transactions (with agentId)
  const loadTabbedTransactions = useCallback(async () => {
