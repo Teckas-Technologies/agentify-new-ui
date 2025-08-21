@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { CustomWagmiProvider } from "@/contexts/CustomWagmiProvider";
 import { ToastProvider } from "@/Components/ui/toast";
 import { Toaster } from "@/Components/ui/toaster";
+import { ConversationProvider } from "@/contexts/ConversationContext";
+import { SidebarProvider } from "@/Components/ui/sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,10 +37,14 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ConversationProvider>
+           <SidebarProvider>
         <Toaster />
         <CustomWagmiProvider>
           {children}
         </CustomWagmiProvider>
+        </SidebarProvider>
+        </ConversationProvider>
       </body>
     </html>
   );
