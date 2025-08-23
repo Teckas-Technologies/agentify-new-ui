@@ -1,13 +1,41 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, ArrowUp, Wallet, MessageSquare } from "lucide-react";
+import {
+  Sparkles,
+  ArrowUp,
+  Wallet,
+  MessageSquare,
+  ArrowRight,
+  Menu,
+  Plus,
+  PanelLeft,
+} from "lucide-react";
 import { useConversations, Message } from "@/contexts/ConversationContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { RightSidebar } from "./RightSidebar";
 import { ChatSidebar } from "./ChatSidebar";
-
+import { useOrchestratedAgent } from "@/hooks/orchestratedAgentHook";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { switchNetwork } from "@/utils/switchNetwork";
+import useLifiHook from "@/hooks/useLifiHook";
+import { useAccount } from "wagmi";
+import { useBeraSwap } from "@/hooks/useBeraSwap";
+import {
+  MarketType,
+  RequestFields,
+  RequestFieldsv2,
+  TransactionStatus,
+  TransactionType,
+} from "@/types/types";
+import { useTransactions } from "@/hooks/useTransactionsHook";
+import useAaveHook, { TransactionError } from "@/hooks/useAaveHook";
+import { ChainType, getChains } from "@lifi/sdk";
+import { formatUnits } from "ethers/lib/utils";
+import { marketConfigs } from "@/utils/markets";
+import { v4 as uuidv4 } from "uuid";
+import ReactMarkdown from 'react-markdown';
 const SUGGESTED_PROMPTS = [
   "Give me a list of 10 promising AI Agents between 10m and 30m market cap",
   "What are the best DeFi protocols to invest in right now?",
@@ -17,6 +45,8 @@ const SUGGESTED_PROMPTS = [
 
 interface ChatInterfaceProps {
   chatId: string;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (value: boolean) => void;
 }
 
 // Common Input Component
@@ -28,7 +58,13 @@ interface InputBoxProps {
   isCenter?: boolean;
 }
 
-function InputBox({ input, setInput, onSendMessage, isLoading, isCenter = false }: InputBoxProps) {
+function InputBox({
+  input,
+  setInput,
+  onSendMessage,
+  isLoading,
+  isCenter = false,
+}: InputBoxProps) {
   return (
     <div className="w-full max-w-2xl">
       <div
@@ -67,11 +103,15 @@ function InputBox({ input, setInput, onSendMessage, isLoading, isCenter = false 
   );
 }
 
-export function ChatInterface({ chatId }: ChatInterfaceProps) {
+export function ChatInterface({
+  chatId,
+  isSidebarCollapsed,
+  setIsSidebarCollapsed,
+}: ChatInterfaceProps) {
   const router = useRouter();
   const { getConversation, addMessage, setCurrentChat, createNewConversation } =
     useConversations();
-    
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -79,7 +119,100 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const conversation = chatId ? getConversation(chatId) : null;
+  const { orchestratedAgentChat, loading: hookLoading } =
+    useOrchestratedAgent();
+  const { user } = usePrivy();
+  const { executeLifi, validateTokenBalance } = useLifiHook();
+  const { wallets } = useWallets();
+  const wallet = wallets[0];
+  const { address } = useAccount();
+  const [isExecutingLifi, setExecutingLifi] = useState(false);
+  const [isExecutingAave, setExecutingAave] = useState(false);
+  const { createTransactions, createTransactionsv2 } = useTransactions();
+  const { supplyToAave, withdrawFromAave, borrowToAave, repayToAave } =
+    useAaveHook();
+  const {
+    swap,
+    txHash,
+    isSwapping,
+    error,
+    RPC_URL,
+    validateTokenBalance: validateBeraChainTokenBalance,
+    validateNativeTokenBalance,
+  } = useBeraSwap();
+  const createTrans = async (
+    user_id: string,
+    agent_id: string,
+    transaction_type: TransactionType,
+    description: string,
+    chain: string,
+    time: Date,
+    crypto: string,
+    amount: number,
+    transaction_hash: string,
+    explorer_url: string,
+    status: TransactionStatus,
+    amountUSD: number,
+    gasUSD: number,
+    agent_name: string
+  ) => {
+    const payload: RequestFields = {
+      user_id,
+      agent_id,
+      transaction_type,
+      description,
+      chain,
+      time,
+      crypto,
+      amount,
+      transaction_hash,
+      explorer_url,
+      status,
+      amountUSD,
+      gasUSD,
+      agent_name,
+    };
+    const data = await createTransactions(payload);
+  };
 
+  const createTransv2 = async (
+    user_id: string,
+    agent_id: string,
+    transaction_type: TransactionType,
+    description: string,
+    chain: string,
+    time: Date,
+    crypto: string,
+    amount: number,
+    transaction_hash: string,
+    explorer_url: string,
+    status: TransactionStatus,
+    rpcUrl: string,
+    symbol: string,
+    decimal: number,
+    token_symbol: string,
+    agent_name: string
+  ) => {
+    const payload: RequestFieldsv2 = {
+      user_id,
+      agent_id,
+      transaction_type,
+      description,
+      chain,
+      time,
+      crypto,
+      amount,
+      transaction_hash,
+      explorer_url,
+      status,
+      rpcUrl,
+      symbol,
+      decimal,
+      agent_name,
+      token_symbol,
+    };
+    const data = await createTransactionsv2(payload);
+  };
   // Refs for detecting outside clicks
   const chatSidebarRef = useRef<HTMLDivElement>(null);
   const walletSidebarRef = useRef<HTMLDivElement>(null);
@@ -105,11 +238,11 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Close sidebars when screen size changes to desktop
@@ -125,25 +258,255 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     const handleClickOutside = (event: MouseEvent) => {
       if (isMobile) {
         // Close chat sidebar if clicked outside
-        if (isChatOpen && chatSidebarRef.current && 
-            !chatSidebarRef.current.contains(event.target as Node)) {
+        if (
+          isChatOpen &&
+          chatSidebarRef.current &&
+          !chatSidebarRef.current.contains(event.target as Node)
+        ) {
           setIsChatOpen(false);
         }
-        
+
         // Close wallet sidebar if clicked outside
-        if (isWalletOpen && walletSidebarRef.current && 
-            !walletSidebarRef.current.contains(event.target as Node)) {
+        if (
+          isWalletOpen &&
+          walletSidebarRef.current &&
+          !walletSidebarRef.current.contains(event.target as Node)
+        ) {
           setIsWalletOpen(false);
         }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMobile, isChatOpen, isWalletOpen]);
+  const handleNewConversation = () => {
+    const id = createNewConversation();
+    router.push(`/chats/${id}`);
+  };
 
+  // const handleSendMessage = async (message: string) => {
+  //   if (!message.trim() || !chatId) return;
+
+  //   setInput("");
+  //   setIsLoading(true);
+
+  //   // Add user message
+  //   addMessage(chatId, {
+  //     content: message,
+  //     role: "user",
+  //   });
+
+  //   try {
+  //     // Call orchestrated agent API
+  //     const response = await orchestratedAgentChat({
+  //       agentName: "orchestratedAgent",
+  //       userId: user?.id ?? "", // fallback to wallet if no user id
+  //       message,
+  //       threadId: chatId,
+  //       isTransaction: false,
+  //     });
+
+  //     if (response.success && response.data) {
+  //       const { ai_message, tool_response } = response.data;
+
+  //       // Always show AI message
+  //       if (ai_message && ai_message !== "None") {
+  //         addMessage(chatId, {
+  //           content: ai_message,
+  //           role: "assistant",
+  //         });
+  //       }
+
+  //       // Handle tool responses
+  //       if (tool_response && tool_response !== "None") {
+  //         let toolMessage: any;
+  //         try {
+  //           toolMessage =
+  //             typeof tool_response === "string"
+  //               ? JSON.parse(tool_response)
+  //               : tool_response;
+  //         } catch {
+  //           toolMessage = tool_response;
+  //         }
+
+  //         /** ------------------------------
+  //          * Handle transaction tools
+  //          * ------------------------------ */
+  //         if (toolMessage?.type === "swap" || toolMessage?.type === "bridge") {
+  //           const { quote, explorer } = toolMessage;
+
+  //           if (!quote) {
+  //             addMessage(chatId, {
+  //               content: "❌ Missing swap/bridge quote data.",
+  //               role: "assistant",
+  //             });
+  //             return;
+  //           }
+
+  //           const { fromChainId, toChainId, fromToken, fromAmount } = quote;
+
+  //           // Switch network if needed
+  //           if (
+  //             wallet &&
+  //             fromChainId &&
+  //             parseInt(wallet.chainId.split(":")[1]) !== fromChainId
+  //           ) {
+  //             await switchNetwork(fromChainId);
+  //           }
+
+  //           // Validate balance
+  //           const isEnoughBalance = await validateTokenBalance(
+  //             fromChainId,
+  //             fromToken,
+  //             fromAmount
+  //           );
+  //           if (!isEnoughBalance) {
+  //             addMessage(chatId, {
+  //               content: `⚠️ Insufficient ${fromToken.symbol} balance.`,
+  //               role: "assistant",
+  //             });
+  //             return;
+  //           }
+
+  //           // Show execution message
+  //           addMessage(chatId, {
+  //             content: `🚀 Executing ${
+  //               fromChainId === toChainId ? "Swap" : "Bridge"
+  //             }...`,
+  //             role: "assistant",
+  //           });
+
+  //           setExecutingLifi(true);
+  //           try {
+  //             const txRes = await executeLifi({ quote });
+  //             console.log("txRes----",txRes);
+
+  //             if (txRes?.txHash) {
+  //               const statusMessage = `✅ ${
+  //                 fromChainId === toChainId ? "Swap" : "Bridge"
+  //               } successful! [View on Explorer](${explorer}tx/${
+  //                 txRes.txHash
+  //               })`;
+  //               addMessage(chatId, {
+  //                 content: statusMessage,
+  //                 role: "assistant",
+  //               });
+
+  //               // Notify AI that tx is done
+  //               await orchestratedAgentChat({
+  //                 agentName: "orchestratedAgent",
+  //                 userId: user?.id ?? address ?? "",
+  //                 message: statusMessage,
+  //                 threadId: chatId,
+  //                 isTransaction: true,
+  //               });
+  //             } else {
+  //               addMessage(chatId, {
+  //                 content: `❌ ${
+  //                   fromChainId === toChainId ? "Swap" : "Bridge"
+  //                 } failed.`,
+  //                 role: "assistant",
+  //               });
+  //             }
+  //           } catch (err) {
+  //             console.error("Lifi execution error:", err);
+  //             addMessage(chatId, {
+  //               content: `❌ Transaction execution error: ${
+  //                 (err as Error).message
+  //               }`,
+  //               role: "assistant",
+  //             });
+  //           } finally {
+  //             setExecutingLifi(false);
+  //           }
+  //           return;
+  //         }
+
+  //         // Future: add lend, borrow, repay, withdraw handling
+  //         if (toolMessage?.type === "lend") {
+  //           addMessage(chatId, {
+  //             content: "🛠️ Lend flow detected (hook into supplyToAave here).",
+  //             role: "assistant",
+  //           });
+  //           // same structure as old handleChat lend branch
+  //           return;
+  //         }
+
+  //         if (toolMessage?.type === "borrow") {
+  //           addMessage(chatId, {
+  //             content: "🛠️ Borrow flow detected (hook into borrowToAave here).",
+  //             role: "assistant",
+  //           });
+  //           return;
+  //         }
+
+  //         if (toolMessage?.type === "repay") {
+  //           addMessage(chatId, {
+  //             content: "🛠️ Repay flow detected (hook into repayToAave here).",
+  //             role: "assistant",
+  //           });
+  //           return;
+  //         }
+
+  //         if (toolMessage?.type === "withdraw") {
+  //           addMessage(chatId, {
+  //             content:
+  //               "🛠️ Withdraw flow detected (hook into withdrawFromAave here).",
+  //             role: "assistant",
+  //           });
+  //           return;
+  //         }
+
+  //         // If generic tool response
+  //         addMessage(chatId, {
+  //           content:
+  //             "📊 Tool Response:\n```json\n" +
+  //             JSON.stringify(toolMessage, null, 2) +
+  //             "\n```",
+  //           role: "assistant",
+  //         });
+  //       }
+  //     } else {
+  //       addMessage(chatId, {
+  //         content: response.message || "❌ Something went wrong.",
+  //         role: "assistant",
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error("Chat error:", error);
+  //     addMessage(chatId, {
+  //       content: "❌ Something went wrong while sending message.",
+  //       role: "assistant",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //     setExecutingLifi(false);
+  //     setExecutingAave(false);
+  //   }
+  // };
+
+  async function getChainInfoById(chainId: number) {
+    try {
+      const chains = await getChains({ chainTypes: [ChainType.EVM] });
+
+      const matched = chains.find((chain) => chain.id === chainId);
+
+      if (!matched || !matched.metamask || !matched.nativeToken) return null;
+
+      return {
+        nativeTokenSymbol: matched.nativeToken.symbol,
+        rpcUrl: matched.metamask.rpcUrls?.[0] || "",
+        decimals: matched.nativeToken.decimals,
+        chainName: matched.name,
+      };
+    } catch (error) {
+      console.error("Error fetching chain info:", error);
+      return null;
+    }
+  }
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || !chatId) return;
 
@@ -156,17 +519,644 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       role: "user",
     });
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(message);
+    try {
+      // Call orchestrated agent API
+      const response = await orchestratedAgentChat({
+        agentName: "orchestratedAgent",
+        userId: user?.id ?? "", // fallback to wallet if no user id
+        message,
+        threadId: chatId,
+        isTransaction: false,
+      });
+
+      if (response.success && response.data) {
+        const { ai_message, tool_response } = response.data;
+
+        // Always show AI message
+        if (ai_message && ai_message !== "None") {
+          addMessage(chatId, {
+            content: ai_message,
+            role: "assistant",
+          });
+        }
+
+        // Handle tool responses
+        if (tool_response && tool_response !== "None") {
+          let toolMessage: any;
+          try {
+            toolMessage =
+              typeof tool_response === "string"
+                ? JSON.parse(tool_response)
+                : tool_response;
+          } catch {
+            toolMessage = tool_response;
+          }
+
+          /** ------------------------------
+           * Handle transaction tools
+           * ------------------------------ */
+
+          // Berachain swap handling
+          if (toolMessage?.type === "berachain_swap") {
+            const {
+              fromAddress,
+              toAddress,
+              slippage,
+              fromToken,
+              toToken,
+              parsedFromAmount,
+              estimatedToAmount,
+              fromTokenAddress,
+              toTokenAddress,
+              fromTokenDecimals,
+              toTokenDecimals,
+              BerachainId,
+            } = toolMessage.details;
+
+            if (!fromAddress || !toAddress) {
+              addMessage(chatId, {
+                content: "❌ Missing swap parameters. Please try again.",
+                role: "assistant",
+              });
+              return;
+            }
+
+            const fromAmount = Number(parsedFromAmount) / 1e18;
+            const from = `${fromAmount} ${fromToken}`;
+            const to = `${estimatedToAmount} ${toToken}`;
+
+            try {
+              // Switch network if needed
+              if (
+                wallet &&
+                BerachainId &&
+                parseInt(wallet.chainId.split(":")[1]) !== BerachainId
+              ) {
+                await switchNetwork(BerachainId);
+              }
+
+              // Conditional balance validation based on the fromToken
+              let hasSufficientBalance;
+              if (fromToken === "BERA") {
+                // Use native token balance validation
+                hasSufficientBalance = await validateNativeTokenBalance(
+                  BigInt(parsedFromAmount)
+                );
+              } else {
+                // Use token balance validation for other tokens
+                hasSufficientBalance = await validateBeraChainTokenBalance(
+                  BerachainId,
+                  fromTokenAddress,
+                  parsedFromAmount
+                );
+              }
+
+              if (!hasSufficientBalance) {
+                addMessage(chatId, {
+                  content: `⚠️ Insufficient ${fromToken} balance to complete the swap.`,
+                  role: "assistant",
+                });
+                return;
+              }
+
+              // Show execution message
+              addMessage(chatId, {
+                content: `🔄 Executing swap: ${fromToken} → ${toToken}. Don't close the page...`,
+                role: "assistant",
+              });
+
+              const amountString = fromAmount.toString();
+              const txHash = await swap(
+                fromTokenAddress,
+                fromTokenDecimals,
+                fromToken,
+                toTokenAddress,
+                toTokenDecimals,
+                toToken,
+                amountString
+              );
+
+              if (txHash) {
+                const explorerUrl = `https://berascan.com/tx/${txHash}`;
+
+                // Create transaction record
+                if (
+                  user?.id &&
+                  fromToken &&
+                  txHash &&
+                  explorerUrl &&
+                  RPC_URL &&
+                  fromTokenDecimals &&
+                  toToken
+                ) {
+                  await createTransv2(
+                    user.id,
+                    "berachainSwapAgent",
+                    "SWAP",
+                    `Swapped ${from} to ${to}`,
+                    "Berachain",
+                    new Date(),
+                    fromToken,
+                    fromAmount,
+                    txHash,
+                    explorerUrl,
+                    "SUCCESS",
+                    RPC_URL,
+                    "BERA",
+                    fromTokenDecimals,
+                    toToken,
+                    "Berachain Swap Agent"
+                  );
+                }
+
+                const statusMessage = `Swap successful! 🎉 [View on Berascan](${explorerUrl})`;
+                addMessage(chatId, {
+                  content: statusMessage,
+                  role: "assistant",
+                });
+
+                // Notify AI that tx is done
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  isTransaction: true,
+                });
+              } else {
+                throw new Error("Swap failed (no transaction hash)");
+              }
+            } catch (err: unknown) {
+              const error = err as TransactionError;
+              console.error("Swap error:", error);
+
+              let errorMsg = "Something went wrong. Please try again later.";
+
+              if (
+                error?.code === "ACTION_REJECTED" ||
+                error?.message?.includes("user rejected transaction")
+              ) {
+                errorMsg = "Swap cancelled by user.";
+              } else if (
+                error?.code === "UNPREDICTABLE_GAS_LIMIT" ||
+                error?.message?.includes("cannot estimate gas")
+              ) {
+                errorMsg =
+                  "Swap failed due to gas limit issues. Please check your balance and try a smaller amount.";
+              } else if (
+                error?.message?.includes("No swap paths found") ||
+                error?.message?.toLowerCase().includes("low liquidity")
+              ) {
+                errorMsg =
+                  "Swap failed: No available swap path due to low liquidity. Try a different token pair or amount.";
+              }
+
+              addMessage(chatId, {
+                content: errorMsg,
+                role: "assistant",
+              });
+
+              // Create failed transaction record
+              const explorerUrl = `https://berascan.com/tx`;
+              await createTrans(
+                user?.id ?? "",
+                "berachainSwapAgent",
+                "SWAP",
+                `Failed swap: ${from} to ${to}`,
+                "Berachain",
+                new Date(),
+                fromToken,
+                fromAmount,
+                `failed_${uuidv4()}`,
+                `${explorerUrl}/tx/failed`,
+                "FAILED",
+                0,
+                0,
+                "Berachain Swap Agent"
+              );
+            }
+            return;
+          }
+
+          // Lifi swap/bridge handling
+          if (toolMessage?.type === "swap" || toolMessage?.type === "bridge") {
+            const { quote, explorer } = toolMessage;
+
+            if (!quote) {
+              addMessage(chatId, {
+                content: "❌ Missing swap/bridge quote data.",
+                role: "assistant",
+              });
+              return;
+            }
+
+            const {
+              fromChainId,
+              toChainId,
+              fromToken,
+              fromAmount,
+              fromAmountUSD,
+              gasCostUSD,
+            } = quote;
+
+            // Switch network if needed
+            if (
+              wallet &&
+              fromChainId &&
+              parseInt(wallet.chainId.split(":")[1]) !== fromChainId
+            ) {
+              await switchNetwork(fromChainId);
+            }
+
+            // Validate balance
+            const isEnoughBalance = await validateTokenBalance(
+              fromChainId,
+              fromToken,
+              fromAmount
+            );
+
+            const chainInfo = await getChainInfoById(fromChainId);
+            if (!chainInfo) {
+              console.error("Chain info not found for chainId:", fromChainId);
+              addMessage(chatId, {
+                content: "❌ Chain configuration error.",
+                role: "assistant",
+              });
+              return;
+            }
+
+            if (!isEnoughBalance) {
+              addMessage(chatId, {
+                content: `⚠️ Insufficient ${fromToken.symbol} balance.`,
+                role: "assistant",
+              });
+              return;
+            }
+
+            // Show execution message
+            addMessage(chatId, {
+              content: `🚀 Executing ${
+                fromChainId === toChainId ? "Swap" : "Bridge"
+              }...`,
+              role: "assistant",
+            });
+
+            setExecutingLifi(true);
+            try {
+              const txRes = await executeLifi({ quote });
+
+              if (txRes?.txHash) {
+                const agentId =
+                  fromChainId === toChainId ? "swapAgent" : "bridgeAgent";
+                const transaction_type =
+                  fromChainId === toChainId ? "SWAP" : "BRIDGE";
+                const agentName =
+                  fromChainId === toChainId ? "Swap Agent" : "Bridge Agent";
+
+                const formatedAmount = formatUnits(
+                  fromAmount,
+                  fromToken.decimals
+                );
+
+                // Create transaction record
+                await createTrans(
+                  user?.id ?? "",
+                  agentId,
+                  transaction_type,
+                  `${
+                    fromChainId === toChainId ? "Swap" : "Bridge"
+                  } ${formatedAmount} ${
+                    fromToken.symbol
+                  } executed successfully!`,
+                  chainInfo.chainName,
+                  new Date(),
+                  fromToken.symbol,
+                  Number(formatedAmount),
+                  txRes.txHash,
+                  `${explorer}tx/${txRes.txHash}`,
+                  "SUCCESS",
+                  fromAmountUSD,
+                  gasCostUSD,
+                  agentName
+                );
+
+                const statusMessage = `${
+                  fromChainId === toChainId ? "Swap" : "Bridge"
+                } successful! [View on Explorer](${explorer}tx/${
+                  txRes.txHash
+                })`;
+
+                addMessage(chatId, {
+                  content: statusMessage,
+                  role: "assistant",
+                });
+
+                // Notify AI that tx is done
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  isTransaction: true,
+                });
+              } else {
+                const agentId =
+                  fromChainId === toChainId ? "swapAgent" : "bridgeAgent";
+                const transaction_type =
+                  fromChainId === toChainId ? "SWAP" : "BRIDGE";
+                const agentName =
+                  fromChainId === toChainId ? "Swap Agent" : "Bridge Agent";
+                const formatedAmount = formatUnits(
+                  fromAmount,
+                  fromToken.decimals
+                );
+
+                // Create failed transaction record
+                await createTrans(
+                  user?.id ?? "",
+                  agentId,
+                  transaction_type,
+                  `${
+                    fromChainId === toChainId ? "Swap" : "Bridge"
+                  } ${formatedAmount} ${fromToken.symbol} execution failed!`,
+                  chainInfo.chainName,
+                  new Date(),
+                  fromToken.symbol,
+                  Number(formatedAmount),
+                  txRes?.txHash || "",
+                  `${explorer}tx/${txRes?.txHash || "failed"}`,
+                  "FAILED",
+                  fromAmountUSD,
+                  gasCostUSD,
+                  agentName
+                );
+
+                addMessage(chatId, {
+                  content: `❌ ${
+                    fromChainId === toChainId ? "Swap" : "Bridge"
+                  } failed.`,
+                  role: "assistant",
+                });
+              }
+            } catch (err) {
+              console.error("Lifi execution error:", err);
+              addMessage(chatId, {
+                content: `❌ Transaction execution error: ${
+                  (err as Error).message
+                }`,
+                role: "assistant",
+              });
+            } finally {
+              setExecutingLifi(false);
+            }
+            return;
+          }
+
+          // Aave lending operations
+          if (
+            ["lend", "borrow", "repay", "withdraw"].includes(toolMessage?.type)
+          ) {
+            const { market, tokenSymbol, amount, explorer, onBehalfOf } =
+              toolMessage;
+
+            if (!market || !tokenSymbol || !amount) {
+              addMessage(chatId, {
+                content: "❌ Required fields are incorrect or missing!",
+                role: "assistant",
+              });
+              return;
+            }
+
+            const marketType: MarketType = market;
+            const selectedMarket = marketConfigs[marketType];
+
+            // Show execution message
+            let actionText = "";
+            switch (toolMessage.type) {
+              case "lend":
+                actionText = "lending";
+                break;
+              case "borrow":
+                actionText = "borrowing";
+                break;
+              case "repay":
+                actionText = "repaying";
+                break;
+              case "withdraw":
+                actionText = "withdrawing";
+                break;
+            }
+
+            addMessage(chatId, {
+              content: `🔄 Executing ${actionText} for ${amount} ${tokenSymbol}, don't close the page until confirmations...`,
+              role: "assistant",
+            });
+
+            setExecutingAave(true);
+            try {
+              let res: any;
+              let transactionType: string;
+
+              switch (toolMessage.type) {
+                case "lend":
+                  res = await supplyToAave({
+                    market: MarketType[market as keyof typeof MarketType],
+                    tokenSymbol: tokenSymbol,
+                    amount: amount.toString(),
+                  });
+                  transactionType = "LEND";
+                  break;
+
+                case "borrow":
+                  res = await borrowToAave({
+                    market: MarketType[market as keyof typeof MarketType],
+                    tokenSymbol: tokenSymbol,
+                    amount: amount.toString(),
+                  });
+                  transactionType = "BORROW";
+                  break;
+
+                case "repay":
+                  res = await repayToAave({
+                    market,
+                    tokenSymbol,
+                    amount,
+                    onBehalfOf,
+                  });
+                  transactionType = "REPAY";
+                  break;
+
+                case "withdraw":
+                  res = await withdrawFromAave({
+                    market: MarketType[market as keyof typeof MarketType],
+                    tokenSymbol: tokenSymbol,
+                    amount: amount.toString(),
+                  });
+                  transactionType = "WITHDRAW";
+                  break;
+              }
+
+              const chainInfo = await getChainInfoById(selectedMarket.chainId);
+
+              if (res?.success && res?.txHashes && res.txHashes.length > 0) {
+                if (!chainInfo) {
+                  console.error(
+                    "Chain info not found for chainId:",
+                    selectedMarket.chainId
+                  );
+                  addMessage(chatId, {
+                    content: "❌ Chain configuration error.",
+                    role: "assistant",
+                  });
+                  return;
+                }
+                const toolType = toolMessage?.type as
+                  | TransactionType
+                  | undefined;
+                if (!toolType) {
+                  addMessage(chatId, {
+                    content: "❌ Unknown transaction type.",
+                    role: "assistant",
+                  });
+                  return;
+                }
+
+                const transactionType: TransactionType = toolType;
+                // Create transaction record
+                await createTransv2(
+                  user?.id ?? "",
+                  "lendingBorrowingAgent",
+                  transactionType,
+                  `${transactionType} ${amount} ${tokenSymbol} executed successfully`,
+                  chainInfo.chainName,
+                  new Date(),
+                  tokenSymbol,
+                  amount,
+                  res.txHashes[0],
+                  `${explorer}tx/${res.txHashes[0]}`,
+                  "SUCCESS",
+                  chainInfo.rpcUrl,
+                  chainInfo.nativeTokenSymbol,
+                  chainInfo.decimals,
+                  tokenSymbol,
+                  "Lend and Borrow agent"
+                );
+
+                const statusMessage = `✅ Your ${actionText} of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res.txHashes[0]}).`;
+
+                addMessage(chatId, {
+                  content: statusMessage,
+                  role: "assistant",
+                });
+
+                // Notify AI that tx is done
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  isTransaction: true,
+                });
+              } else {
+                const toolType = toolMessage?.type as
+                  | TransactionType
+                  | undefined;
+                if (!toolType) {
+                  addMessage(chatId, {
+                    content: "❌ Unknown transaction type.",
+                    role: "assistant",
+                  });
+                  return;
+                }
+
+                const transactionType: TransactionType = toolType;
+                // Create failed transaction record
+                await createTrans(
+                  user?.id ?? "",
+                  "lendingBorrowingAgent",
+                  transactionType,
+                  `${transactionType} ${tokenSymbol} execution was failed`,
+                  chainInfo?.chainName || "",
+                  new Date(),
+                  tokenSymbol,
+                  amount,
+                  `failed_${uuidv4()}`,
+                  `${explorer}tx/failed`,
+                  "FAILED",
+                  0,
+                  0,
+                  "Lend and Borrow agent"
+                );
+
+                let errorMessage = `❌ Oops! Your ${actionText} of ${amount} ${tokenSymbol} failed.`;
+
+                if (res?.message?.includes("UNPREDICTABLE_GAS_LIMIT")) {
+                  errorMessage = `❌ Transaction failed due to low gas funds. Please ensure your wallet has enough native tokens to cover gas fees.`;
+                }
+
+                addMessage(chatId, {
+                  content: res?.message || errorMessage,
+                  role: "assistant",
+                });
+              }
+            } catch (err) {
+              console.error("Aave operation error:", err);
+              addMessage(chatId, {
+                content: `❌ ${actionText} execution error: ${
+                  (err as Error).message
+                }`,
+                role: "assistant",
+              });
+            } finally {
+              setExecutingAave(false);
+            }
+            return;
+          }
+
+          // Handle tool errors
+          if (toolMessage?.error) {
+            if (toolMessage?.error?.includes("No routes found")) {
+              addMessage(chatId, {
+                content: `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊`,
+                role: "assistant",
+              });
+              return;
+            }
+
+            addMessage(chatId, {
+              content: `❌ ${toolMessage?.error}`,
+              role: "assistant",
+            });
+            return;
+          }
+
+          // If generic tool response
+          addMessage(chatId, {
+            content:
+              "📊 Tool Response:\n```json\n" +
+              JSON.stringify(toolMessage, null, 2) +
+              "\n```",
+            role: "assistant",
+          });
+        }
+      } else {
+        addMessage(chatId, {
+          content: response.message || "❌ Something went wrong.",
+          role: "assistant",
+        });
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
       addMessage(chatId, {
-        content: aiResponse,
+        content: "❌ Something went wrong while sending message.",
         role: "assistant",
       });
+    } finally {
       setIsLoading(false);
-    }, 1000 + Math.random() * 2000);
+      setExecutingLifi(false);
+      setExecutingAave(false);
+    }
   };
-
   const handleSuggestedPrompt = (prompt: string) => {
     setInput(prompt);
   };
@@ -190,15 +1180,19 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     return null;
   }
 
-  const hasMessages = conversation?.messages.length > 0;
+  const hasMessages = Array.isArray(conversation?.messages) && conversation!.messages.length > 0;
+
 
   return (
     <>
-      <div className={`flex flex-col h-screen bg-background relative transition-all duration-500 ${
-        // Push effect only on desktop
-        isWalletOpen && !isMobile ? "translate-x-[-160px] scale-95" : "translate-x-0 scale-100"
-      }`}>
-        
+      <div
+        className={`flex flex-col h-screen bg-background relative transition-all duration-500 ${
+          // Push effect only on desktop
+          isWalletOpen && !isMobile
+            ? "translate-x-[-160px] scale-95"
+            : "translate-x-0 scale-100"
+        }`}
+      >
         {/* Mobile Header Buttons */}
         {isMobile && (
           <div className="flex justify-between items-center p-4 border-b border-border">
@@ -210,7 +1204,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
               <MessageSquare className="w-4 h-4" />
               Chats
             </Button>
-            
+
             <Button
               onClick={() => setIsWalletOpen(true)}
               variant="outline"
@@ -223,19 +1217,48 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
         )}
 
         {/* Desktop Wallet Button */}
+        {/* Desktop Header Section */}
         {!isMobile && (
-          <div className="absolute top-4 right-6 z-30">
-            <Button
+          <div
+            className={cn(
+              "w-full flex items-center justify-between px-6 py-4 border-b border-border bg-background z-30 transition-all duration-500",
+              isWalletOpen
+                ? "opacity-0 scale-95 pointer-events-none"
+                : "opacity-100 scale-100"
+            )}
+          >
+            {/* Left side: Toggle + New Chat */}
+            <div className="flex items-center gap-4">
+              {/* Sidebar toggle */}
+              <button
+                className="p-2 hover:bg-muted rounded-lg"
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              >
+                <PanelLeft className="w-5 h-5" />
+              </button>
+
+              {/* New Chat */}
+              <button
+                className="flex items-center gap-2 font-medium hover:text-primary"
+                onClick={handleNewConversation}
+              >
+                <Plus className="w-4 h-4" />
+                New Chat
+              </button>
+            </div>
+
+            {/* Right side: Wallet */}
+            <button
               onClick={() => setIsWalletOpen(true)}
-              variant="outline"
-              className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-5 py-2 flex items-center gap-2 transition-all"
+              className="flex items-center gap-2 font-medium hover:text-primary"
             >
               <Wallet className="w-5 h-5" />
               Wallet
-            </Button>
+            </button>
           </div>
         )}
 
+        {/* Chat Messages */}
         {/* Chat Messages */}
         {hasMessages && (
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
@@ -267,44 +1290,27 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
 
         {/* Empty State */}
         {!hasMessages && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="flex flex-col items-center justify-center w-full mx-auto text-center space-y-8">
-              <div className="w-full flex justify-center px-8">
-                <InputBox
-                  input={input}
-                  setInput={setInput}
-                  onSendMessage={handleSendMessage}
-                  isLoading={isLoading}
-                  isCenter={true}
-                />
-              </div>
-            </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+            <h1 className="text-3xl font-bold">Welcome to Agentify</h1>
+            <p className="text-muted-foreground">
+              Start a conversation with your AI assistant
+            </p>
           </div>
         )}
 
-        {/* Fixed Bottom Input - Centered on desktop */}
-       {/* Fixed Bottom Input - Centered on desktop */}
-{hasMessages && (
-  <div className="fixed bottom-0 left-0 right-0 z-10 p-4 bg-background border-t border-border">
-    <div
-      className={cn(
-        "flex justify-center",
-        
-      )}
-    >
-      <div className="w-full max-w-2xl">
-        <InputBox
-          input={input}
-          setInput={setInput}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          isCenter={false}
-        />
-      </div>
-    </div>
-  </div>
-)}
-
+        {/* Fixed Bottom Input (always visible) */}
+        <div className="fixed bottom-0 left-0 right-0 z-10 p-4 bg-background">
+          <div className="flex justify-center">
+            <div className="w-full max-w-2xl">
+              <InputBox
+                input={input}
+                setInput={setInput}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Right Sidebar (Wallet) */}
@@ -314,7 +1320,10 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
           isWalletOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <RightSidebar isOpen={isWalletOpen} onClose={() => setIsWalletOpen(false)} />
+        <RightSidebar
+          isOpen={isWalletOpen}
+          onClose={() => setIsWalletOpen(false)}
+        />
       </div>
 
       {/* Left Sidebar (Chats) for mobile */}
@@ -325,15 +1334,6 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
             isChatOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="p-4 border-b border-border flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Chats</h2>
-            <button 
-              onClick={() => setIsChatOpen(false)}
-              className="p-2 rounded-full hover:bg-gray-800"
-            >
-              ✕
-            </button>
-          </div>
           {/* You'll need to pass the chat sidebar content here */}
           <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
         </div>
@@ -341,7 +1341,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
 
       {/* Overlay for mobile sidebars */}
       {isMobile && (isChatOpen || isWalletOpen) && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30"
           onClick={() => {
             setIsChatOpen(false);
@@ -370,8 +1370,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
         className={cn(
           "rounded-lg max-w-2xl overflow-hidden",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-card text-card-foreground"
+            ? "bg-primary/50 text-primary-foreground border border-white/10"
+            : "bg-white/5 hover:bg-primary/10 border border-white/10"
         )}
       >
         {/* Agent name header for AI messages */}
@@ -380,9 +1380,24 @@ function MessageBubble({ message }: MessageBubbleProps) {
             Agentify AI
           </div>
         )}
-        
+
         <div className="p-4">
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <ReactMarkdown
+            components={{
+              a: ({ href, children }) => (
+                <a 
+                  href={href} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline"
+                >
+                  {children}
+                </a>
+              )
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
           <div
             className={cn(
               "text-xs mt-2 opacity-70",

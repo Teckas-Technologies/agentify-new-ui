@@ -1,13 +1,23 @@
 "use client";
 
-import { Zap, Wallet, ArrowRight, X, WandSparkles, MessageSquare } from "lucide-react";
+import {
+  Zap,
+  Wallet,
+  ArrowRight,
+  X,
+  WandSparkles,
+  MessageSquare,
+} from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { useConversations } from "@/contexts/ConversationContext";
 import { useRouter } from "next/navigation";
 import { ChatSidebar } from "@/Components/NewDesign/ChatSidebar";
 import { useEffect, useState, useRef } from "react";
 import { RightSidebar } from "@/Components/NewDesign/RightSidebar";
-
+import { getAccessToken } from "@privy-io/react-auth";
+import { useWalletConnect } from "@/hooks/useWalletConnect";
+import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 // Animated Grid Background Component (keep this as is)
 const AnimatedGridBackground = () => {
   return (
@@ -98,7 +108,9 @@ export default function Playground() {
   const router = useRouter();
   const { createNewConversation } = useConversations();
   const [isLoaded, setIsLoaded] = useState(false);
-
+  const { handleWalletConnect, disconnectAll } = useWalletConnect();
+  const { user } = usePrivy();
+  const { address } = useAccount();
   // 🔹 Sidebar state
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -113,11 +125,11 @@ export default function Playground() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Close sidebars when screen size changes to desktop
@@ -133,34 +145,50 @@ export default function Playground() {
     const handleClickOutside = (event: MouseEvent) => {
       if (isMobile) {
         // Close chat sidebar if clicked outside
-        if (isChatOpen && chatSidebarRef.current && 
-            !chatSidebarRef.current.contains(event.target as Node)) {
+        if (
+          isChatOpen &&
+          chatSidebarRef.current &&
+          !chatSidebarRef.current.contains(event.target as Node)
+        ) {
           setIsChatOpen(false);
         }
-        
+
         // Close wallet sidebar if clicked outside
-        if (isWalletOpen && walletSidebarRef.current && 
-            !walletSidebarRef.current.contains(event.target as Node)) {
+        if (
+          isWalletOpen &&
+          walletSidebarRef.current &&
+          !walletSidebarRef.current.contains(event.target as Node)
+        ) {
           setIsWalletOpen(false);
         }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMobile, isChatOpen, isWalletOpen]);
 
   useEffect(() => {
     setIsLoaded(true);
+    getToken();
   }, []);
-
+  const getToken = async () => {
+    const accessToken = await getAccessToken();
+    console.log("Token---", accessToken);
+  };
   const handleTryAgentify = () => {
     const id = createNewConversation();
     router.push(`/chats/${id}`);
   };
-
+  const handleClick = () => {
+    if (!address || !user) {
+      handleWalletConnect();
+    } else {
+      disconnectAll();
+    }
+  };
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-hidden">
       {/* Animated Grid Background */}
@@ -183,7 +211,7 @@ export default function Playground() {
             <MessageSquare className="w-4 h-4" />
             Chats
           </Button>
-          
+
           <Button
             onClick={() => setIsWalletOpen(true)}
             variant="outline"
@@ -199,7 +227,10 @@ export default function Playground() {
       {!isMobile && (
         <div className="absolute top-4 right-6 z-30">
           <Button
-            onClick={() => setIsWalletOpen(!isWalletOpen)}
+            onClick={() => {
+              setIsWalletOpen(!isWalletOpen);
+             
+            }}
             variant="outline"
             className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-5 py-2 flex items-center justify-center gap-2 transition-all duration-300 group w-full"
           >
@@ -231,7 +262,10 @@ export default function Playground() {
         </div>
 
         {/* Wallet Content */}
-        <RightSidebar isOpen={isWalletOpen} onClose={() => setIsWalletOpen(false)} />
+        <RightSidebar
+          isOpen={isWalletOpen}
+          onClose={() => setIsWalletOpen(false)}
+        />
       </div>
 
       {/* 🔹 Left Sidebar (Chats) for mobile */}
@@ -242,7 +276,6 @@ export default function Playground() {
             isChatOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-         
           {/* You'll need to pass the chat sidebar content here */}
           <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
         </div>
@@ -251,7 +284,7 @@ export default function Playground() {
       {/* 🔹 Main Content with Push Effect - Only on Desktop */}
       <div
         className={`flex flex-1 relative z-10 transition-all duration-500 ${
-          !isMobile ? 'ml-60' : ''
+          !isMobile ? "ml-60" : ""
         } ${
           // Push effect only on desktop
           isWalletOpen && !isMobile
@@ -389,7 +422,7 @@ export default function Playground() {
 
       {/* 🔹 Overlay for mobile sidebars */}
       {isMobile && (isChatOpen || isWalletOpen) && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30"
           onClick={() => {
             setIsChatOpen(false);

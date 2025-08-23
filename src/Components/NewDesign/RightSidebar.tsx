@@ -3,13 +3,26 @@
 import { useState } from "react";
 import { Wallet, X } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-
+import { getAccessToken } from "@privy-io/react-auth";
+import { useWalletConnect } from "@/hooks/useWalletConnect";
+import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 interface RightSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) => {
+  const { handleWalletConnect, disconnectAll } = useWalletConnect();
+    const { user } = usePrivy();
+    const { address } = useAccount();
+    const handleClick = () => {
+    if (!address || !user) {
+      handleWalletConnect();
+    } else {
+      disconnectAll();
+    }
+  };
   return (
     <div
       className={`fixed top-0 right-0 h-full w-80 bg-[#101014] text-white shadow-lg transform transition-transform duration-500 z-40 ${
@@ -46,9 +59,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
               className="glow-border relative overflow-hidden w-full 
              bg-[#1d1d20] hover:bg-[#1a142a] 
              text-white rounded-lg py-2 text-sm 
-             shadow-md transition-all duration-300"
+             shadow-md transition-all duration-300" onClick={ handleClick}
             >
-              Connect
+               {address && user ? "Disconnect" : "Connect"}
             </Button>
           </div>
         </div>

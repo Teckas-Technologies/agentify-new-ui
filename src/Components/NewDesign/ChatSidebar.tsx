@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import {
-  Trash2,
-  FileEdit,
   ChevronDown,
   X,
   MessageSquare,
-  MessageCircle,
-  SquarePen,
+  Grid,
+  Activity,
+  Users,
+  Plus,
+  UserRound,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -25,11 +26,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import { useWalletConnect } from "@/hooks/useWalletConnect";
+import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+
 interface ChatSidebarProps {
   mobileView?: boolean;
   onSelectChat?: () => void;
+  collapsed?: boolean;
 }
-export function ChatSidebar({ mobileView = false, onSelectChat }: ChatSidebarProps) {
+
+export function ChatSidebar({
+  mobileView = false,
+  onSelectChat,
+  collapsed = false,
+}: ChatSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -39,11 +50,24 @@ export function ChatSidebar({ mobileView = false, onSelectChat }: ChatSidebarPro
     deleteAllConversations,
   } = useConversations();
   const [showSignIn, setShowSignIn] = useState(false);
+
+  // new states for delete flow
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<
     string | null
   >(null);
+
+  const { handleWalletConnect, disconnectAll } = useWalletConnect();
+  const { user } = usePrivy();
+  const { address } = useAccount();
+
+  const handleClick = () => {
+    if (!address || !user) {
+      handleWalletConnect();
+    } else {
+      disconnectAll();
+    }
+  };
 
   const handleNewConversation = () => {
     const id = createNewConversation();
@@ -53,16 +77,12 @@ export function ChatSidebar({ mobileView = false, onSelectChat }: ChatSidebarPro
   const handleDeleteConversation = (conversationId: string) => {
     deleteConversation(conversationId);
     if (pathname === `/chats/${conversationId}`) {
-      // Check if there are other conversations
       const remainingConversations = conversations.filter(
         (conv) => conv.id !== conversationId
       );
-
       if (remainingConversations.length > 0) {
-        // Navigate to the first remaining conversation
         router.push(`/chats/${remainingConversations[0].id}`);
       } else {
-        // No conversations left, navigate to playground
         router.push("/playground");
       }
     }
@@ -81,167 +101,168 @@ export function ChatSidebar({ mobileView = false, onSelectChat }: ChatSidebarPro
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDeleteAll = () => {
-    deleteAllConversations();
-    setDeleteAllDialogOpen(false);
-    router.push("/playground");
-  };
-
   const isActive = (conversationId: string) =>
     pathname === `/chats/${conversationId}`;
 
   return (
     <Sidebar
-      className="w-80 border-r border-sidebar-border bg-[#18181B] text-white"
+      className={cn(
+        "border-r border-sidebar-border bg-[#18181B] text-white transition-all duration-300",
+        collapsed ? "w-20" : "w-80"
+      )}
       collapsible="none"
     >
       {/* Header */}
-      <SidebarHeader className="p-4 border-b border-sidebar-border flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-lg">
-          <img
-            src="images/new-logo.png"
-            alt="Agentify Logo"
-            className="w-5 h-5 object-contain"
-          />
-          <span>Agentify</span>
-        </div>
-
-        <SquarePen
-          className="h-5 w-5 cursor-pointer text-gray-300 hover:text-white"
-          onClick={handleNewConversation}
+      <SidebarHeader className="p-4 border-b border-sidebar-border flex flex-row items-center gap-2 font-bold text-lg">
+        <img
+          src="/images/new-logo.png"
+          alt="Agentify Logo"
+          className="w-5 h-5 object-contain"
         />
+        {!collapsed && <span>Agentify</span>}
       </SidebarHeader>
 
       {/* Content */}
-      <SidebarContent className="p-4 flex flex-col justify-between h-full">
-        <div>
-          {/* Conversations header with Trash */}
-          <div className="flex items-center justify-between mb-3 text-sm font-medium text-gray-300">
-            <span>Conversations</span>
+      <SidebarContent className="p-4 flex flex-col justify-between h-full overflow-y-auto">
+        <div className="space-y-6">
+          {/* Navigation */}
+          <div>
+            {!collapsed && (
+              <span className="text-xs font-semibold text-gray-400 uppercase">
+                Navigation
+              </span>
+            )}
+            <div
+              className={cn(
+                "p-2 rounded hover:bg-[#111] cursor-pointer flex",
+                collapsed ? "justify-center" : "items-center gap-2"
+              )}
+            >
+              <Grid className="h-4 w-4 text-primary" />
+              {!collapsed && <span>Dashboard</span>}
+            </div>
 
             <div
-              className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20 cursor-pointer"
-              onClick={() => setDeleteAllDialogOpen(true)}
+              className={cn(
+                "p-2 rounded hover:bg-[#111] cursor-pointer flex",
+                collapsed ? "justify-center" : "items-center gap-2"
+              )}
             >
-              <Trash2 className="h-4 w-4 text-primary" />
+              <Activity className="h-4 w-4 text-primary" />
+              {!collapsed && <span>Activity</span>}
+            </div>
+
+            <div
+              className={cn(
+                "p-2 rounded hover:bg-[#111] cursor-pointer flex",
+                collapsed ? "justify-center" : "items-center gap-2"
+              )}
+            >
+              <Users className="h-4 w-4 text-primary" />
+              {!collapsed && <span>Agents</span>}
             </div>
           </div>
 
-          {/* If no conversations → Show New Conversation Button */}
-          {conversations.length === 0 ? (
-            <Button
-              onClick={handleNewConversation}
-              variant="outline"
-              className="neumorphic-sm hover:bg-primary/5 w-full font-medium mb-4 flex items-center justify-center"
-            >
-              <SquarePen className="h-4 w-4 mr-2" />
-              New Conversation
-            </Button>
-          ) : (
-            /* Else → Show conversation list with close icons */
-            <div className="space-y-2">
-              {conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  onClick={() => router.push(`/chats/${conversation.id}`)}
-                  className={cn(
-                    "flex items-center justify-between p-2 rounded cursor-pointer transition-colors",
-                    isActive(conversation.id)
-                      ? "bg-[#222] text-white"
-                      : "hover:bg-[#111]"
-                  )}
-                >
-                  {/* Left: conversation title */}
-                  <div className="flex items-center gap-2 truncate">
-                    <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
-                      <MessageCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    <span className="truncate">{conversation.title}</span>
-                  </div>
+          {/* Chat Threads */}
+          {/* Chat Threads */}
+{!collapsed && (
+  <>
+    <div className="flex items-center justify-between text-xs font-semibold text-gray-400 uppercase mb-3">
+      <span>Chat Threads</span>
+      <Plus
+        className="h-4 w-4 text-gray-400 hover:text-white cursor-pointer"
+        onClick={handleNewConversation}
+      />
+    </div>
 
-                  {/* Right: Close (X) icon */}
-                  <X
-                    className="h-4 w-4 text-gray-400 hover:text-red-500 cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenDeleteDialog(conversation.id);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+    <div className="space-y-1">
+      {conversations.map((conversation) => (
+        <div
+          key={conversation.id}
+          className={cn(
+            "flex items-center justify-between gap-2 p-2 rounded cursor-pointer text-sm truncate group",
+            isActive(conversation.id)
+              ? "bg-primary/10 text-primary"
+              : "hover:bg-[#111]"
           )}
+        >
+          <div
+            className="flex items-center gap-2 truncate"
+            onClick={() => router.push(`/chats/${conversation.id}`)}
+          >
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span className="truncate">{conversation.title}</span>
+          </div>
+          <X
+            className="h-4 w-4 text-gray-400 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenDeleteDialog(conversation.id);
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  </>
+)}
+
         </div>
 
-        {/* Bottom: Sign In + Anonymous */}
+        {/* Bottom Profile Section */}
         <div className="mt-4 flex flex-col gap-2">
           {showSignIn && (
             <Button
               variant="outline"
               className="neumorphic-sm hover:bg-primary/5 w-full rounded font-medium"
+              onClick={handleClick}
             >
-              Sign in
+              {address && user ? "Sign Out" : "Sign in"}
             </Button>
           )}
+
           <div
             onClick={() => setShowSignIn(!showSignIn)}
             className="flex items-center justify-between cursor-pointer text-sm text-gray-400 p-4 rounded hover:bg-[#111]"
           >
-            <span>Anonymous</span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform",
-                showSignIn && "rotate-180"
+            <div className="flex items-center gap-2">
+              <UserRound className="h-5 w-5 text-gray-400" />
+              {!collapsed && (
+                <span>
+                  {address && user
+                    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+                    : "Anonymous"}
+                </span>
               )}
-            />
+            </div>
+            {!collapsed && (
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  showSignIn && "rotate-180"
+                )}
+              />
+            )}
           </div>
         </div>
       </SidebarContent>
 
-      {/* Delete Single Conversation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-[#18181B] text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+            <AlertDialogTitle>Delete Chat</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this conversation? This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConversationToDelete(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete All Conversations Dialog */}
-      <AlertDialog
-        open={deleteAllDialogOpen}
-        onOpenChange={setDeleteAllDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Conversations</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete all conversations? This will
-              permanently remove all your chat history and cannot be undone.
+              Are you sure you want to delete this chat? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDeleteAll}
-              className="bg-red-500 hover:bg-red-600"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleConfirmDelete}
             >
-              Delete All
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
