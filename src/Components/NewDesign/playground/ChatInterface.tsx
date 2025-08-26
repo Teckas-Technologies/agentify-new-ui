@@ -10,12 +10,12 @@ import {
   Plus,
   PanelLeft,
 } from "lucide-react";
-import { useConversations, Message } from "@/contexts/ConversationContext";
+import { useConversations } from "@/contexts/ConversationContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 import { RightSidebar } from "./RightSidebar";
-import { ChatSidebar } from "./ChatSidebar";
+import { ChatSidebar, Thread } from "./ChatSidebar";
 import { useOrchestratedAgent } from "@/hooks/orchestratedAgentHook";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { switchNetwork } from "@/utils/switchNetwork";
@@ -35,7 +35,9 @@ import { ChainType, getChains } from "@lifi/sdk";
 import { formatUnits } from "ethers/lib/utils";
 import { marketConfigs } from "@/utils/markets";
 import { v4 as uuidv4 } from "uuid";
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from "react-markdown";
+import { useGetHistory } from "@/hooks/useGetThreadIdHistory";
+import { useGetThreadHistory } from "@/hooks/useGetThreadHistory";
 const SUGGESTED_PROMPTS = [
   "Give me a list of 10 promising AI Agents between 10m and 30m market cap",
   "What are the best DeFi protocols to invest in right now?",
@@ -66,7 +68,7 @@ function InputBox({
   isCenter = false,
 }: InputBoxProps) {
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-3xl">
       <div
         className="flex items-center bg-black border rounded-md px-4 py-4 transition-all duration-300"
         style={{
@@ -109,7 +111,7 @@ export function ChatInterface({
   setIsSidebarCollapsed,
 }: ChatInterfaceProps) {
   const router = useRouter();
-  const { getConversation, addMessage, setCurrentChat, createNewConversation } =
+  const { getConversation, addMessage, createNewConversation } =
     useConversations();
 
   const [input, setInput] = useState("");
@@ -216,22 +218,162 @@ export function ChatInterface({
   // Refs for detecting outside clicks
   const chatSidebarRef = useRef<HTMLDivElement>(null);
   const walletSidebarRef = useRef<HTMLDivElement>(null);
+  const { getThreadHistory } = useGetThreadHistory();
+  const { getHistory } = useGetHistory();
+
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [newChats, setNewChats] = useState<
+    Record<
+      string,
+      {
+        id: string;
+        messages: { id: string; role: string; content: string }[];
+        title: string;
+        timestamp: Date;
+      }
+    >
+  >({});
+  const [currentChat, setCurrentChat] = useState<{
+    id: string;
+    messages: { id: string; role: string; content: string }[];
+    title: string;
+    timestamp: Date;
+  } | null>(null);
+
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Helper function to add messages to current chat
+  const addMessageToCurrentChat = (role: string, content: string) => {
+    const newMessage = {
+      id: crypto.randomUUID(),
+      role,
+      content,
+    };
+
+    setCurrentChat((prev) => {
+      if (prev) {
+        return {
+          ...prev,
+          messages: [...prev.messages, newMessage],
+        };
+      }
+      return prev;
+    });
+
+    // Also update newChats for newly created chats
+    if (chatId && newChats[chatId]) {
+      setNewChats((prev) => ({
+        ...prev,
+        [chatId]: {
+          ...prev[chatId],
+          messages: [...prev[chatId].messages, newMessage],
+        },
+      }));
+    }
+  };
 
   useEffect(() => {
-    if (chatId) {
-      const conv = getConversation(chatId);
-      if (conv) {
-        setCurrentChat(conv);
-      } else {
-        // If conversation doesn't exist, redirect to playground
-        router.push("/playground");
+    const fetchThreads = async () => {
+      if (!user?.id) return;
+      const res = await getThreadHistory(user.id);
+      if (res.success && Array.isArray(res.message)) {
+        setThreads(res.message);
       }
-    }
-  }, [chatId, getConversation, setCurrentChat, router]);
+    };
+    fetchThreads();
+  }, [user?.id, address]);
+
+  useEffect(() => {
+    const fetchThreadMessages = async () => {
+      if (!chatId || !user?.id) return;
+
+      // Check if this is a new chat (not in threads yet)
+      const isNewChat = !threads.some((t) => t.thread_id === chatId);
+
+      if (isNewChat) {
+        // Initialize new chat
+        if (!newChats[chatId]) {
+          setNewChats((prev) => ({
+            ...prev,
+            [chatId]: {
+              id: chatId,
+              messages: [],
+              title: "New Chat",
+              timestamp: new Date(),
+            },
+          }));
+          setCurrentChat({
+            id: chatId,
+            messages: [],
+            title: "New Chat",
+            timestamp: new Date(),
+          });
+        } else {
+          // Use existing new chat data
+          setCurrentChat(newChats[chatId]);
+        }
+        return;
+      }
+
+      // Existing chat logic
+      const thread = threads.find((t) => t.thread_id === chatId);
+
+      if (thread) {
+        setLoadingMessages(true);
+        const res = await getHistory(thread.thread_id, user.id);
+
+        if (res.success && Array.isArray(res.message)) {
+          const parsedMessages = res.message
+            // 🟢 remove tool messages first
+            .filter((m) => m.role !== "tool")
+            .map((m) => {
+              let content = m.message;
+
+              if (m.role === "human") {
+                try {
+                  const parsed = JSON.parse(m.message);
+                  if (parsed?.message) {
+                    content = parsed.message;
+                  }
+                } catch (e) {
+                  console.warn("Failed to parse human message JSON", e);
+                }
+              }
+
+              return {
+                id: m.message_id ?? crypto.randomUUID(),
+                role: m.role === "human" ? "user" : m.role, // normalize
+                content,
+              };
+            });
+
+          setCurrentChat({
+            id: thread.thread_id,
+            messages: parsedMessages,
+            title: thread.preview || "Untitled Chat",
+            timestamp: new Date(thread.last_activity),
+          });
+        } else {
+          console.warn("No messages found for this thread");
+          setCurrentChat({
+            id: thread.thread_id,
+            messages: [],
+            title: thread.preview || "Untitled Chat",
+            timestamp: new Date(thread.last_activity),
+          });
+        }
+        setLoadingMessages(false);
+      } else {
+        console.warn("Thread not found in API, staying on page");
+      }
+    };
+
+    fetchThreadMessages();
+  }, [chatId, threads, user?.id, newChats, setCurrentChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages]);
+  }, [currentChat?.messages]);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -487,6 +629,7 @@ export function ChatInterface({
   //     setExecutingAave(false);
   //   }
   // };
+  console.log("id", user?.id);
 
   async function getChainInfoById(chainId: number) {
     try {
@@ -513,19 +656,23 @@ export function ChatInterface({
     setInput("");
     setIsLoading(true);
 
-    // Add user message
-    addMessage(chatId, {
-      content: message,
-      role: "user",
-    });
+    // Add user message to current chat state
+    addMessageToCurrentChat("user", message);
 
     try {
+      const messagePayload = JSON.stringify({
+        message,
+        context: {
+          fromAddress: address, // use connected wallet or user wallet
+        },
+      });
       // Call orchestrated agent API
       const response = await orchestratedAgentChat({
         agentName: "orchestratedAgent",
         userId: user?.id ?? "", // fallback to wallet if no user id
-        message,
+        message: messagePayload,
         threadId: chatId,
+        walletAddress: address ?? "",
         isTransaction: false,
       });
 
@@ -534,10 +681,7 @@ export function ChatInterface({
 
         // Always show AI message
         if (ai_message && ai_message !== "None") {
-          addMessage(chatId, {
-            content: ai_message,
-            role: "assistant",
-          });
+          addMessageToCurrentChat("assistant", ai_message);
         }
 
         // Handle tool responses
@@ -574,10 +718,10 @@ export function ChatInterface({
             } = toolMessage.details;
 
             if (!fromAddress || !toAddress) {
-              addMessage(chatId, {
-                content: "❌ Missing swap parameters. Please try again.",
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                "❌ Missing swap parameters. Please try again."
+              );
               return;
             }
 
@@ -612,18 +756,18 @@ export function ChatInterface({
               }
 
               if (!hasSufficientBalance) {
-                addMessage(chatId, {
-                  content: `⚠️ Insufficient ${fromToken} balance to complete the swap.`,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat(
+                  "assistant",
+                  `⚠️ Insufficient ${fromToken} balance to complete the swap.`
+                );
                 return;
               }
 
               // Show execution message
-              addMessage(chatId, {
-                content: `🔄 Executing swap: ${fromToken} → ${toToken}. Don't close the page...`,
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                `🔄 Executing swap: ${fromToken} → ${toToken}. Don't close the page...`
+              );
 
               const amountString = fromAmount.toString();
               const txHash = await swap(
@@ -670,10 +814,7 @@ export function ChatInterface({
                 }
 
                 const statusMessage = `Swap successful! 🎉 [View on Berascan](${explorerUrl})`;
-                addMessage(chatId, {
-                  content: statusMessage,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat("assistant", statusMessage);
 
                 // Notify AI that tx is done
                 await orchestratedAgentChat({
@@ -681,6 +822,7 @@ export function ChatInterface({
                   userId: user?.id ?? "",
                   message: statusMessage,
                   threadId: chatId,
+                  walletAddress: address ?? "",
                   isTransaction: true,
                 });
               } else {
@@ -711,10 +853,7 @@ export function ChatInterface({
                   "Swap failed: No available swap path due to low liquidity. Try a different token pair or amount.";
               }
 
-              addMessage(chatId, {
-                content: errorMsg,
-                role: "assistant",
-              });
+              addMessageToCurrentChat("assistant", errorMsg);
 
               // Create failed transaction record
               const explorerUrl = `https://berascan.com/tx`;
@@ -743,10 +882,10 @@ export function ChatInterface({
             const { quote, explorer } = toolMessage;
 
             if (!quote) {
-              addMessage(chatId, {
-                content: "❌ Missing swap/bridge quote data.",
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                "❌ Missing swap/bridge quote data."
+              );
               return;
             }
 
@@ -778,28 +917,26 @@ export function ChatInterface({
             const chainInfo = await getChainInfoById(fromChainId);
             if (!chainInfo) {
               console.error("Chain info not found for chainId:", fromChainId);
-              addMessage(chatId, {
-                content: "❌ Chain configuration error.",
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                "❌ Chain configuration error."
+              );
               return;
             }
 
             if (!isEnoughBalance) {
-              addMessage(chatId, {
-                content: `⚠️ Insufficient ${fromToken.symbol} balance.`,
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                `⚠️ Insufficient ${fromToken.symbol} balance.`
+              );
               return;
             }
 
             // Show execution message
-            addMessage(chatId, {
-              content: `🚀 Executing ${
-                fromChainId === toChainId ? "Swap" : "Bridge"
-              }...`,
-              role: "assistant",
-            });
+            addMessageToCurrentChat(
+              "assistant",
+              `🚀 Executing ${fromChainId === toChainId ? "Swap" : "Bridge"}...`
+            );
 
             setExecutingLifi(true);
             try {
@@ -846,10 +983,7 @@ export function ChatInterface({
                   txRes.txHash
                 })`;
 
-                addMessage(chatId, {
-                  content: statusMessage,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat("assistant", statusMessage);
 
                 // Notify AI that tx is done
                 await orchestratedAgentChat({
@@ -857,6 +991,7 @@ export function ChatInterface({
                   userId: user?.id ?? "",
                   message: statusMessage,
                   threadId: chatId,
+                  walletAddress: address ?? "",
                   isTransaction: true,
                 });
               } else {
@@ -891,21 +1026,17 @@ export function ChatInterface({
                   agentName
                 );
 
-                addMessage(chatId, {
-                  content: `❌ ${
-                    fromChainId === toChainId ? "Swap" : "Bridge"
-                  } failed.`,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat(
+                  "assistant",
+                  `❌ ${fromChainId === toChainId ? "Swap" : "Bridge"} failed.`
+                );
               }
             } catch (err) {
               console.error("Lifi execution error:", err);
-              addMessage(chatId, {
-                content: `❌ Transaction execution error: ${
-                  (err as Error).message
-                }`,
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                `❌ Transaction execution error: ${(err as Error).message}`
+              );
             } finally {
               setExecutingLifi(false);
             }
@@ -920,10 +1051,10 @@ export function ChatInterface({
               toolMessage;
 
             if (!market || !tokenSymbol || !amount) {
-              addMessage(chatId, {
-                content: "❌ Required fields are incorrect or missing!",
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                "❌ Required fields are incorrect or missing!"
+              );
               return;
             }
 
@@ -947,10 +1078,10 @@ export function ChatInterface({
                 break;
             }
 
-            addMessage(chatId, {
-              content: `🔄 Executing ${actionText} for ${amount} ${tokenSymbol}, don't close the page until confirmations...`,
-              role: "assistant",
-            });
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Executing ${actionText} for ${amount} ${tokenSymbol}, don't close the page until confirmations...`
+            );
 
             setExecutingAave(true);
             try {
@@ -1004,20 +1135,20 @@ export function ChatInterface({
                     "Chain info not found for chainId:",
                     selectedMarket.chainId
                   );
-                  addMessage(chatId, {
-                    content: "❌ Chain configuration error.",
-                    role: "assistant",
-                  });
+                  addMessageToCurrentChat(
+                    "assistant",
+                    "❌ Chain configuration error."
+                  );
                   return;
                 }
                 const toolType = toolMessage?.type as
                   | TransactionType
                   | undefined;
                 if (!toolType) {
-                  addMessage(chatId, {
-                    content: "❌ Unknown transaction type.",
-                    role: "assistant",
-                  });
+                  addMessageToCurrentChat(
+                    "assistant",
+                    "❌ Unknown transaction type."
+                  );
                   return;
                 }
 
@@ -1042,12 +1173,9 @@ export function ChatInterface({
                   "Lend and Borrow agent"
                 );
 
-                const statusMessage = `✅ Your ${actionText} of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res.txHashes[0]}).`;
+                const statusMessage = `Your ${actionText} of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res.txHashes[0]}).`;
 
-                addMessage(chatId, {
-                  content: statusMessage,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat("assistant", statusMessage);
 
                 // Notify AI that tx is done
                 await orchestratedAgentChat({
@@ -1055,6 +1183,7 @@ export function ChatInterface({
                   userId: user?.id ?? "",
                   message: statusMessage,
                   threadId: chatId,
+                  walletAddress: address ?? "",
                   isTransaction: true,
                 });
               } else {
@@ -1062,10 +1191,10 @@ export function ChatInterface({
                   | TransactionType
                   | undefined;
                 if (!toolType) {
-                  addMessage(chatId, {
-                    content: "❌ Unknown transaction type.",
-                    role: "assistant",
-                  });
+                  addMessageToCurrentChat(
+                    "assistant",
+                    "❌ Unknown transaction type."
+                  );
                   return;
                 }
 
@@ -1094,19 +1223,17 @@ export function ChatInterface({
                   errorMessage = `❌ Transaction failed due to low gas funds. Please ensure your wallet has enough native tokens to cover gas fees.`;
                 }
 
-                addMessage(chatId, {
-                  content: res?.message || errorMessage,
-                  role: "assistant",
-                });
+                addMessageToCurrentChat(
+                  "assistant",
+                  res?.message || errorMessage
+                );
               }
             } catch (err) {
               console.error("Aave operation error:", err);
-              addMessage(chatId, {
-                content: `❌ ${actionText} execution error: ${
-                  (err as Error).message
-                }`,
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                `❌ ${actionText} execution error: ${(err as Error).message}`
+              );
             } finally {
               setExecutingAave(false);
             }
@@ -1116,41 +1243,37 @@ export function ChatInterface({
           // Handle tool errors
           if (toolMessage?.error) {
             if (toolMessage?.error?.includes("No routes found")) {
-              addMessage(chatId, {
-                content: `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊`,
-                role: "assistant",
-              });
+              addMessageToCurrentChat(
+                "assistant",
+                `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊`
+              );
               return;
             }
 
-            addMessage(chatId, {
-              content: `❌ ${toolMessage?.error}`,
-              role: "assistant",
-            });
+            addMessageToCurrentChat("assistant", `❌ ${toolMessage?.error}`);
             return;
           }
 
           // If generic tool response
-          addMessage(chatId, {
-            content:
-              "📊 Tool Response:\n```json\n" +
+          addMessageToCurrentChat(
+            "assistant",
+            "📊 Tool Response:\n```json\n" +
               JSON.stringify(toolMessage, null, 2) +
-              "\n```",
-            role: "assistant",
-          });
+              "\n```"
+          );
         }
       } else {
-        addMessage(chatId, {
-          content: response.message || "❌ Something went wrong.",
-          role: "assistant",
-        });
+        addMessageToCurrentChat(
+          "assistant",
+          response.message || "❌ Something went wrong."
+        );
       }
     } catch (error) {
       console.error("Chat error:", error);
-      addMessage(chatId, {
-        content: "❌ Something went wrong while sending message.",
-        role: "assistant",
-      });
+      addMessageToCurrentChat(
+        "assistant",
+        "❌ Something went wrong while sending message."
+      );
     } finally {
       setIsLoading(false);
       setExecutingLifi(false);
@@ -1180,8 +1303,9 @@ export function ChatInterface({
     return null;
   }
 
-  const hasMessages = Array.isArray(conversation?.messages) && conversation!.messages.length > 0;
+  const hasMessages = currentChat?.messages && currentChat.messages.length > 0;
 
+  console.log("hasMess", hasMessages);
 
   return (
     <>
@@ -1199,18 +1323,18 @@ export function ChatInterface({
             <Button
               onClick={() => setIsChatOpen(true)}
               variant="outline"
-              className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
+              className="text-white neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="text-white w-4 h-4" />
               Chats
             </Button>
 
             <Button
               onClick={() => setIsWalletOpen(true)}
               variant="outline"
-              className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
+              className="text-white neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
             >
-              <Wallet className="w-4 h-4" />
+              <Wallet className="text-white w-4 h-4" />
               Wallet
             </Button>
           </div>
@@ -1263,7 +1387,7 @@ export function ChatInterface({
         {hasMessages && (
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
             <div className="max-w-3xl mx-auto space-y-6">
-              {conversation?.messages.map((message) => (
+              {currentChat?.messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
               ))}
               {isLoading && (
@@ -1291,7 +1415,9 @@ export function ChatInterface({
         {/* Empty State */}
         {!hasMessages && (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
-            <h1 className="text-3xl font-bold">Welcome to Agentify</h1>
+            <h1 className="text-white text-3xl font-bold">
+              Welcome to Agentify
+            </h1>
             <p className="text-muted-foreground">
               Start a conversation with your AI assistant
             </p>
@@ -1301,7 +1427,7 @@ export function ChatInterface({
         {/* Fixed Bottom Input (always visible) */}
         <div className="fixed bottom-0 left-0 right-0 z-10 p-4 bg-background">
           <div className="flex justify-center">
-            <div className="w-full max-w-2xl">
+            <div className="w-full max-w-3xl">
               <InputBox
                 input={input}
                 setInput={setInput}
@@ -1352,7 +1478,11 @@ export function ChatInterface({
     </>
   );
 }
-
+interface Message {
+  id: string;
+  role: string;
+  content: string;
+}
 interface MessageBubbleProps {
   message: Message;
 }
@@ -1368,15 +1498,17 @@ function MessageBubble({ message }: MessageBubbleProps) {
     <div className={cn("flex", isUser && "justify-end")}>
       <div
         className={cn(
-          "rounded-lg max-w-2xl overflow-hidden",
+          "rounded-lg max-w-3xl overflow-hidden",
           isUser
             ? "bg-primary/50 text-primary-foreground border border-white/10"
-            : "bg-white/5 hover:bg-primary/10 border border-white/10"
+            : "bg-white/5 hover:bg-primary/10 border border-white/10 text-white" // Added text-white for AI messages
         )}
       >
         {/* Agent name header for AI messages */}
         {!isUser && (
-          <div className="bg-primary/20 m-3 rounded px-4 py-3 text-sm font-medium text-primary-foreground">
+          <div className="bg-primary/20 m-3 rounded px-4 py-3 text-sm font-medium text-white">
+            {" "}
+            {/* Changed to text-white */}
             Agentify AI
           </div>
         )}
@@ -1385,27 +1517,19 @@ function MessageBubble({ message }: MessageBubbleProps) {
           <ReactMarkdown
             components={{
               a: ({ href, children }) => (
-                <a 
-                  href={href} 
-                  target="_blank" 
+                <a
+                  href={href}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:underline"
                 >
                   {children}
                 </a>
-              )
+              ),
             }}
           >
             {message.content}
           </ReactMarkdown>
-          <div
-            className={cn(
-              "text-xs mt-2 opacity-70",
-              isUser ? "text-primary-foreground/70" : "text-muted-foreground"
-            )}
-          >
-            {message.timestamp.toLocaleTimeString()}
-          </div>
         </div>
       </div>
     </div>

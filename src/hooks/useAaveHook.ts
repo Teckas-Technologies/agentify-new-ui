@@ -273,6 +273,8 @@ const useAaveHook = () => {
             return { success: true, txHashes: txHashes };
         } catch (error: unknown) {
             const err = error as TransactionError;
+            console.log('err',err);
+            
             if (
                 err.message?.includes("User denied transaction signature") ||
                 err.name === "UserRejectedRequestError"
@@ -387,6 +389,7 @@ const useAaveHook = () => {
             return { success: true, txHashes: txHashes };
         } catch (error: unknown) {
             const err = error as TransactionError;
+            console.log('err',err);
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                 const errorMsg = "Transaction rejected by the user.";
                 setError(errorMsg);

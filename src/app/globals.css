@@ -474,3 +474,28 @@ body {
   background: unset !important;
   color: unset !important;
 }
+
+
+/* Custom Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px; /* thin scrollbar */
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent; /* no background */
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(120, 120, 120, 0.5); /* subtle gray */
+  border-radius: 9999px; /* rounded pill */
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(160, 160, 160, 0.7); /* darker on hover */
+}
+
+/* For Firefox */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 120, 0.5) transparent;
+}

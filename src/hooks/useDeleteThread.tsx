@@ -1,33 +1,25 @@
-// orchestratedAgentHook.tsx
+// useDeleteThread.tsx
 "use client";
 
 import { getAccessToken } from "@privy-io/react-auth";
 import { useState } from "react";
 import { useAccount } from "wagmi";
+
+interface DeleteThreadResponse {
+  success: boolean;
+  message?: string | boolean;
+  status?: number;
+}
 const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_NEW_PYTHON_SERVER_URL;
-interface RequestFields {
-  agentName: string;
-  userId: string;
-  message: string; // already a JSON string
-  threadId: string;
-  walletAddress: string;
-  isTransaction: boolean;
-}
-
-interface OrchestratedAgentResponse {
-  success?: boolean;
-  data?: any;
-  message?: string;
-}
-
-export const useOrchestratedAgent = () => {
+export const useDeleteThread = () => {
   const { address } = useAccount();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const orchestratedAgentChat = async (
-    data: RequestFields
-  ): Promise<OrchestratedAgentResponse> => {
+  const deleteThread = async (
+    threadId: string,
+    userId: string
+  ): Promise<DeleteThreadResponse> => {
     if (!address) {
       return { success: false, message: "Wallet address not connected" };
     }
@@ -39,21 +31,15 @@ export const useOrchestratedAgent = () => {
 
     try {
       const response = await fetch(
-        `${PYTHON_SERVER_URL}/api/chat`,
+        `${PYTHON_SERVER_URL}/api/history/thread?thread_id=${encodeURIComponent(
+          threadId
+        )}&user_id=${encodeURIComponent(userId)}`,
         {
-          method: "POST",
+          method: "DELETE",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({
-            agentName: data.agentName, // "orchestratedAgent"
-            userId: data.userId,
-            message: data.message,
-            threadId: data.threadId,
-            walletAddress: data.walletAddress ?? address, // fallback to connected address
-            isTransaction: data.isTransaction,
-          }),
         }
       );
 
@@ -62,7 +48,13 @@ export const useOrchestratedAgent = () => {
       }
 
       const result = await response.json();
-      return { success: true, data: result };
+      console.log("Delete thread result:", result);
+
+      return {
+        success: result.success ?? true,
+        message: result.message,
+        status: result.status ?? response.status,
+      };
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "An error occurred";
@@ -74,7 +66,7 @@ export const useOrchestratedAgent = () => {
   };
 
   return {
-    orchestratedAgentChat,
+    deleteThread,
     loading,
     error,
   };

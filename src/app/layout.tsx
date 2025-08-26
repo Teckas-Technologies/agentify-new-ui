@@ -37,14 +37,10 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ConversationProvider>
-           <SidebarProvider>
         <Toaster />
         <CustomWagmiProvider>
-          {children}
+          <ConversationProvider>{children}</ConversationProvider>
         </CustomWagmiProvider>
-        </SidebarProvider>
-        </ConversationProvider>
       </body>
     </html>
   );

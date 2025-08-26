@@ -1,11 +1,12 @@
 'use client'
+import { useDeleteThread } from '@/hooks/useDeleteThread';
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 export interface Message {
   id: string;
   content: string;
   role: 'user' | 'assistant';
-  timestamp: Date;
+
 }
 
 export interface Conversation {
@@ -47,7 +48,7 @@ interface ConversationProviderProps {
 export const ConversationProvider: React.FC<ConversationProviderProps> = ({ children }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentChat, setCurrentChat] = useState<Conversation | null>(null);
-
+  const { deleteThread } = useDeleteThread();
   const createNewConversation = useCallback((): string => {
     const id = generateId();
     const newConversation: Conversation = {
@@ -110,13 +111,25 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     );
   }, []);
 
-  const deleteConversation = useCallback((conversationId: string) => {
-    setConversations(prev => prev.filter(conv => conv.id !== conversationId));
-    
-    if (currentChat?.id === conversationId) {
-      setCurrentChat(null);
-    }
-  }, [currentChat]);
+ const deleteConversation = useCallback(
+    async (conversationId: string) => {
+      // call API first
+      const res = await deleteThread(conversationId);
+
+      if (res.success) {
+        setConversations((prev) =>
+          prev.filter((conv) => conv.id !== conversationId)
+        );
+
+        if (currentChat?.id === conversationId) {
+          setCurrentChat(null);
+        }
+      } else {
+        console.error('Failed to delete conversation:', res.message);
+      }
+    },
+    [currentChat, deleteThread]
+  );
 
   const deleteAllConversations = useCallback(() => {
     setConversations([]);

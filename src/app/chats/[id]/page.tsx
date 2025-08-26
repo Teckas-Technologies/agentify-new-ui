@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { useParams } from 'next/navigation';
-import { ChatSidebar } from '@/Components/NewDesign/ChatSidebar';
-import { ChatInterface } from '@/Components/NewDesign/ChatInterface';
-import { useState, useEffect } from 'react';
+import { useParams } from "next/navigation";
+import { ChatSidebar } from "@/Components/NewDesign/playground/ChatSidebar";
+import { ChatInterface } from "@/Components/NewDesign/playground/ChatInterface";
+import { useState, useEffect } from "react";
 
 export default function ChatPage() {
   const params = useParams();
@@ -19,17 +19,15 @@ export default function ChatPage() {
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
 
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   return (
     <div className="h-screen flex w-full bg-background overflow-hidden">
       {/* Sidebar (only on desktop) */}
-      {!isMobile && (
-        <ChatSidebar collapsed={isSidebarCollapsed} />
-      )}
+      {!isMobile && <ChatSidebar collapsed={isSidebarCollapsed} />}
 
       {/* Main chat area */}
       <main className="flex-1 overflow-hidden">

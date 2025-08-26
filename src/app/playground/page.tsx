@@ -11,9 +11,9 @@ import {
 import { Button } from "@/Components/ui/button";
 import { useConversations } from "@/contexts/ConversationContext";
 import { useRouter } from "next/navigation";
-import { ChatSidebar } from "@/Components/NewDesign/ChatSidebar";
+import { ChatSidebar } from "@/Components/NewDesign/playground/ChatSidebar";
 import { useEffect, useState, useRef } from "react";
-import { RightSidebar } from "@/Components/NewDesign/RightSidebar";
+import { RightSidebar } from "@/Components/NewDesign/playground/RightSidebar";
 import { getAccessToken } from "@privy-io/react-auth";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import { usePrivy } from "@privy-io/react-auth";
@@ -206,18 +206,18 @@ export default function Playground() {
           <Button
             onClick={() => setIsChatOpen(true)}
             variant="outline"
-            className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
+            className="text-white neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="text-white w-4 h-4" />
             Chats
           </Button>
 
           <Button
             onClick={() => setIsWalletOpen(true)}
             variant="outline"
-            className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
+            className="text-white neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-4 py-2 flex items-center gap-2"
           >
-            <Wallet className="w-4 h-4" />
+            <Wallet className="text-white w-4 h-4" />
             Wallet
           </Button>
         </div>
@@ -229,7 +229,6 @@ export default function Playground() {
           <Button
             onClick={() => {
               setIsWalletOpen(!isWalletOpen);
-             
             }}
             variant="outline"
             className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-5 py-2 flex items-center justify-center gap-2 transition-all duration-300 group w-full"
