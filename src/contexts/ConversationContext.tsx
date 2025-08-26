@@ -1,5 +1,6 @@
 'use client'
 import { useDeleteThread } from '@/hooks/useDeleteThread';
+import { usePrivy } from '@privy-io/react-auth';
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 export interface Message {
@@ -49,6 +50,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentChat, setCurrentChat] = useState<Conversation | null>(null);
   const { deleteThread } = useDeleteThread();
+  const { user } = usePrivy();
   const createNewConversation = useCallback((): string => {
     const id = generateId();
     const newConversation: Conversation = {
@@ -73,7 +75,6 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     const newMessage: Message = {
       ...message,
       id: messageId,
-      timestamp: new Date(),
     };
 
     setConversations(prev => 
@@ -114,7 +115,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
  const deleteConversation = useCallback(
     async (conversationId: string) => {
       // call API first
-      const res = await deleteThread(conversationId);
+      const res = await deleteThread(conversationId,user?.id ?? "");
 
       if (res.success) {
         setConversations((prev) =>
