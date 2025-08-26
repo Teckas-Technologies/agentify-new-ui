@@ -350,7 +350,7 @@ export function ChatInterface({
           setCurrentChat({
             id: thread.thread_id,
             messages: parsedMessages,
-            title: thread.preview || "Untitled Chat",
+            title: thread.message || "Untitled Chat",
             timestamp: new Date(thread.last_activity),
           });
         } else {
@@ -358,7 +358,7 @@ export function ChatInterface({
           setCurrentChat({
             id: thread.thread_id,
             messages: [],
-            title: thread.preview || "Untitled Chat",
+            title: thread.message || "Untitled Chat",
             timestamp: new Date(thread.last_activity),
           });
         }
