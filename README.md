@@ -1,7 +1,7 @@
 # Agentify AI – DeFi Agents On Chat
 
 ## Introduction
-
+ 
 [Agentify AI](https://app.agentifyai.xyz/) is an intelligent, chat-based DeFi assistant platform that simplifies complex blockchain operations using **AI agents**. Users can perform cross-chain swaps, bridge assets, lend/borrow tokens, and more—simply by chatting with domain-specific agents.
 
 [![Visit App](https://img.shields.io/badge/Try%20Now-Agentify-brightgreen)](https://app.agentifyai.xyz/)
