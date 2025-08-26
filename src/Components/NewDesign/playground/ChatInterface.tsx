@@ -350,7 +350,7 @@ export function ChatInterface({
           setCurrentChat({
             id: thread.thread_id,
             messages: parsedMessages,
-            title: thread.message || "Untitled Chat",
+            title: JSON.parse(thread.preview).message || "Untitled Chat", // parsedMessages[0].content
             timestamp: new Date(thread.last_activity),
           });
         } else {
@@ -358,7 +358,7 @@ export function ChatInterface({
           setCurrentChat({
             id: thread.thread_id,
             messages: [],
-            title: thread.message || "Untitled Chat",
+            title: JSON.parse(thread.preview).message || "Untitled Chat",
             timestamp: new Date(thread.last_activity),
           });
         }
@@ -1305,7 +1305,7 @@ export function ChatInterface({
 
   const hasMessages = currentChat?.messages && currentChat.messages.length > 0;
 
-  console.log("hasMess", hasMessages);
+  // console.log("hasMess", hasMessages);
 
   return (
     <>
