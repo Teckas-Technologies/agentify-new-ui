@@ -38,7 +38,7 @@ interface ChatSidebarProps {
 }
 export interface Thread {
   thread_id: string;
-  preview: string;
+  message: string; // Changed from preview to message
   last_activity: number;
   message_count: number;
 }
@@ -230,16 +230,30 @@ export function ChatSidebar({
                     }
                   >
                     <MessageSquare className="h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                      {(() => {
-                        try {
-                          const parsed = JSON.parse(conversation.preview);
-                          return parsed.message || "No preview available";
-                        } catch {
-                          return conversation.preview || "No preview available";
-                        }
-                      })()}
-                    </span>
+                   <span className="truncate">
+          {(() => {
+            try {
+              // Parse the message field to extract the actual content
+              const messageData = JSON.parse(conversation.message);
+              
+              // Handle different message structures
+              if (messageData.message) {
+                return messageData.message;
+              } else if (typeof messageData === 'string') {
+                return messageData;
+              } else {
+                return "No preview available";
+              }
+            } catch (e) {
+              // If parsing fails, check if it's already a string
+              if (typeof conversation.message === 'string') {
+                return conversation.message;
+              }
+              return "No preview available";
+            }
+          })()}
+        </span>
+
                   </div>
                   <X
                     className="h-4 w-4 text-gray-400 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 shrink-0"
