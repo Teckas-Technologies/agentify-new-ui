@@ -115,6 +115,7 @@ export default function Playground() {
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
 
   // Refs for detecting outside clicks
   const chatSidebarRef = useRef<HTMLDivElement>(null);
@@ -196,7 +197,7 @@ export default function Playground() {
       {/* ChatSidebar - Fixed position, not affected by wallet animation */}
       {!isMobile && (
         <div className="fixed left-0 top-0 h-full z-30">
-          <ChatSidebar />
+          <ChatSidebar refreshKey={threadsRefreshKey} />
         </div>
       )}
 
@@ -276,7 +277,7 @@ export default function Playground() {
           }`}
         >
           {/* You'll need to pass the chat sidebar content here */}
-          <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
+          <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} refreshKey={threadsRefreshKey} />
         </div>
       )}
 

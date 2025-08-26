@@ -49,6 +49,8 @@ interface ChatInterfaceProps {
   chatId: string;
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (value: boolean) => void;
+  onThreadChange: () => void;
+  threadsRefreshKey: number;
 }
 
 // Common Input Component
@@ -66,6 +68,7 @@ function InputBox({
   onSendMessage,
   isLoading,
   isCenter = false,
+
 }: InputBoxProps) {
   return (
     <div className="w-full max-w-3xl">
@@ -109,6 +112,8 @@ export function ChatInterface({
   chatId,
   isSidebarCollapsed,
   setIsSidebarCollapsed,
+  onThreadChange,
+  threadsRefreshKey
 }: ChatInterfaceProps) {
   const router = useRouter();
   const { getConversation, addMessage, createNewConversation } =
@@ -678,6 +683,7 @@ export function ChatInterface({
 
       if (response.success && response.data) {
         const { ai_message, tool_response } = response.data;
+        onThreadChange();
 
         // Always show AI message
         if (ai_message && ai_message !== "None") {
@@ -1461,7 +1467,7 @@ export function ChatInterface({
           }`}
         >
           {/* You'll need to pass the chat sidebar content here */}
-          <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
+          <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} refreshKey={threadsRefreshKey} />
         </div>
       )}
 

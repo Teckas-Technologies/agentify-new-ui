@@ -11,6 +11,8 @@ export default function ChatPage() {
 
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [threadsRefreshKey, setThreadsRefreshKey] = useState(0);
+  const triggerThreadsRefresh = () => setThreadsRefreshKey((k) => k + 1);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -27,14 +29,16 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex w-full bg-background overflow-hidden">
       {/* Sidebar (only on desktop) */}
-      {!isMobile && <ChatSidebar collapsed={isSidebarCollapsed} />}
-
+      {!isMobile && <ChatSidebar collapsed={isSidebarCollapsed} refreshKey={threadsRefreshKey}/>}
       {/* Main chat area */}
       <main className="flex-1 overflow-hidden">
         <ChatInterface
           chatId={chatId}
           isSidebarCollapsed={isSidebarCollapsed}
           setIsSidebarCollapsed={setIsSidebarCollapsed}
+          onThreadChange={triggerThreadsRefresh}
+          // also pass the current key so it can forward to the mobile sidebar instance
+          threadsRefreshKey={threadsRefreshKey}
         />
       </main>
     </div>

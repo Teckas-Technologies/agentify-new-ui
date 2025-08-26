@@ -35,6 +35,7 @@ interface ChatSidebarProps {
   mobileView?: boolean;
   onSelectChat?: () => void;
   collapsed?: boolean;
+  refreshKey?: number;
 }
 export interface Thread {
   thread_id: string;
@@ -46,6 +47,7 @@ export function ChatSidebar({
   mobileView = false,
   onSelectChat,
   collapsed = false,
+  refreshKey = 0
 }: ChatSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -131,7 +133,7 @@ export function ChatSidebar({
       }
     };
     fetchThreads();
-  }, [address]);
+  }, [address, refreshKey]);
   const isActive = (conversationId: string) =>
     pathname === `/chats/${conversationId}`;
   const params = useParams();
