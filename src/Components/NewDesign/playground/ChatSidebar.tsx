@@ -30,6 +30,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import { useGetThreadHistory } from "@/hooks/useGetThreadHistory";
 import { useDeleteThread } from "@/hooks/useDeleteThread";
+import { Skeleton } from "@/Components/ui/skeleton";
 
 interface ChatSidebarProps {
   mobileView?: boolean;
@@ -47,7 +48,7 @@ export function ChatSidebar({
   mobileView = false,
   onSelectChat,
   collapsed = false,
-  refreshKey = 0
+  refreshKey = 0,
 }: ChatSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -141,19 +142,19 @@ export function ChatSidebar({
   return (
     <div
       className={cn(
-        "border-r border-sidebar-border h-full bg-[#18181B] text-white transition-all duration-300 flex flex-col",
+        "border-r border-sidebar-border h-full bg-[#101014] text-white transition-all duration-300 flex flex-col",
         collapsed ? "w-20" : "w-80"
       )}
     >
       {/* Header */}
       <div
-        className={`p-4 border-b border-sidebar-border flex items-center gap-2 font-bold text-lg 
+        className={`px-6 py-5 border-b border-sidebar-border flex items-center gap-2 font-bold text-lg 
     ${collapsed ? "justify-center" : "justify-start"}`}
       >
         <img
           src="/images/new-logo.png"
           alt="Agentify Logo"
-          className="w-5 h-5 object-contain"
+          className={`w-5 h-5 object-contain ${collapsed ? "h-7" : ""}`}
         />
         {!collapsed && <span>Agentify</span>}
       </div>
@@ -214,54 +215,66 @@ export function ChatSidebar({
               />
             </div>
 
-            <div className="space-y-1 overflow-y-auto custom-scroll">
-              {threads.map((conversation) => (
-                <div
-                  key={conversation.thread_id}
-                  className={cn(
-                    "flex items-center justify-between gap-2 p-2 rounded cursor-pointer text-sm truncate group",
-                    params.id === conversation.thread_id
-                      ? "bg-primary/10 text-primary"
-                      : "hover:bg-[#111]"
-                  )}
-                >
-                  <div
-                    className="flex items-center gap-2 truncate"
-                    onClick={() =>
-                      router.push(`/chats/${conversation.thread_id}`)
-                    }
-                  >
-                    <MessageSquare className="h-4 w-4 shrink-0" />
-                   <span className="truncate">
-                      {(() => {
-                        console.log("CONVERSATION:", conversation)
-                        try {
-                          const parsed = JSON.parse(conversation.preview.toString());
-                          return parsed.message || "No preview available";
-                        } catch {
-                          console.log("CATCH BLOCK")
-                          return conversation.preview || "No preview available";
-                        }
-                      })()}
-                    </span>
+           <div className="space-y-1 overflow-y-auto custom-scroll">
+  {loading ? (
+    // Single skeleton with same row height
+   <div className="p-2 space-y-2">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Skeleton key={i} className="h-8 w-full rounded" />
+    ))}
+  </div>
+  ) : threads.length === 0 ? (
+    // Empty state
+    <div className="text-gray-400 text-sm italic p-4 text-center">
+      No conversations found
+    </div>
+  ) : (
+    // Threads list
+    threads.map((conversation) => (
+      <div
+        key={conversation.thread_id}
+        className={cn(
+          "flex items-center justify-between gap-2 p-2 rounded cursor-pointer text-sm truncate group",
+          params.id === conversation.thread_id
+            ? "bg-primary/10 text-primary"
+            : "hover:bg-[#111]"
+        )}
+      >
+        <div
+          className="flex items-center gap-2 truncate"
+          onClick={() => router.push(`/chats/${conversation.thread_id}`)}
+        >
+          <MessageSquare className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            {(() => {
+              try {
+                const parsed = JSON.parse(conversation.preview.toString());
+                return parsed.message || "No preview available";
+              } catch {
+                return conversation.preview || "No preview available";
+              }
+            })()}
+          </span>
+        </div>
+        <X
+          className="h-4 w-4 text-gray-400 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpenDeleteDialog(conversation.thread_id);
+          }}
+        />
+      </div>
+    ))
+  )}
+</div>
 
-                  </div>
-                  <X
-                    className="h-4 w-4 text-gray-400 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenDeleteDialog(conversation.thread_id);
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+
           </div>
         )}
       </div>
 
       {/* Bottom Profile Section (fixed at bottom) */}
-      <div className="p-4 border-t border-sidebar-border flex flex-col gap-2">
+      <div className="p-4 border-t border-sidebar-border flex flex-col gap-2" >
         {showSignIn && (
           <Button
             variant="outline"

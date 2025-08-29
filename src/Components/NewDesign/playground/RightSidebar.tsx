@@ -15,14 +15,23 @@ interface RightSidebarProps {
 export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) => {
   const { handleWalletConnect, disconnectAll } = useWalletConnect();
     const { user } = usePrivy();
-    const { address } = useAccount();
-    const handleClick = () => {
-    if (!address || !user) {
-      handleWalletConnect();
-    } else {
-      disconnectAll();
-    }
-  };
+    const { address,isConnected } = useAccount();
+const handleClick = async () => {
+  if (!address || !user) {
+    await handleWalletConnect();
+
+    // ✅ Once wallet is connected, close the sidebar
+    setTimeout(() => {
+      onClose();
+    }, 300); // small delay for smooth animation
+  } else {
+    disconnectAll();
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  }
+};
+
   return (
     <div
       className={`fixed top-0 right-0 h-full w-80 bg-[#101014] text-white shadow-lg transform transition-transform duration-500 z-40 ${
