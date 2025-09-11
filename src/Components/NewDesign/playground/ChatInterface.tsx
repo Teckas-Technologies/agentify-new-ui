@@ -687,8 +687,7 @@ export function ChatInterface({
         };
         
         // Alert to check if the updated text is added to the newChats array
-        alert(`New chat message updated successfully!\nChat ID: ${chatId}\nTotal messages in new chat: ${updatedMessages.length}\nLast AI message content: ${updatedMessages.find(m => m.role === "assistant") ? updatedMessages.filter(m => m.role === "assistant").pop()?.content : "No AI messages found"}`);
-        
+      
         return updatedNewChats;
       });
     }

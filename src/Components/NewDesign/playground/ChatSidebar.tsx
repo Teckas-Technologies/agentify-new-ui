@@ -68,6 +68,8 @@ export function ChatSidebar({
 
   const { handleWalletConnect, disconnectAll } = useWalletConnect();
   const { user } = usePrivy();
+  console.log("user--",user);
+  
   const { address } = useAccount();
 
   const handleClick = () => {
