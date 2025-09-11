@@ -56,8 +56,9 @@ import {
 } from "@privy-io/wagmi";
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
+import { PrivyClientConfig } from "@privy-io/react-auth";
 import { ChainId } from "@/types/types";
+import { CleanPrivyProvider } from "@/Components/CleanPrivyProvider";
 // List of Wagmi connectors
 const connectors = [injected()];
 const queryClient = new QueryClient();
@@ -163,18 +164,20 @@ export const wagmiConfig = createWagmiConfig({
   // },
 });
 const privyConfig: PrivyClientConfig = {
+  // Completely disable embedded wallets to avoid recovery issues
   embeddedWallets: {
-    createOnLogin: "users-without-wallets",
-    requireUserPasswordOnCreate: false, // Disable password requirement to avoid recovery issues
+    createOnLogin: "off", // Turn off embedded wallet creation entirely
+    requireUserPasswordOnCreate: false,
   },
   defaultChain: mainnet,
   supportedChains: supportedChains,
-  loginMethods: ["wallet", "email", "sms", "google"],
+  // Only allow external wallet connections to avoid embedded wallet recovery
+  loginMethods: ["wallet"],
   appearance: {
     walletChainType: "ethereum-only",
-    showWalletLoginFirst: true, // Prefer external wallets over embedded ones
+    showWalletLoginFirst: true, // Force external wallets only
     landingHeader: 'Welcome to Agentify',
-    // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
+    loginMessage: 'Connect your external wallet to continue',
     theme: "dark",
     accentColor: "#676FFF",
     logo: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo-orange.png",
@@ -227,7 +230,7 @@ function ChainFetcher({ children }: { children: ReactNode }) {
 
 export const CustomWagmiProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <PrivyProvider
+    <CleanPrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       config={privyConfig}
     >
@@ -236,6 +239,6 @@ export const CustomWagmiProvider = ({ children }: { children: ReactNode }) => {
           <ChainFetcher>{children}</ChainFetcher>
         </WagmiProvider>
       </QueryClientProvider>
-    </PrivyProvider>
+    </CleanPrivyProvider>
   );
 };
