@@ -165,7 +165,7 @@ export const wagmiConfig = createWagmiConfig({
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
     createOnLogin: "users-without-wallets",
-    requireUserPasswordOnCreate: true,
+    requireUserPasswordOnCreate: false, // Set to false to avoid recovery issues
   },
   defaultChain: mainnet,
   supportedChains: supportedChains,

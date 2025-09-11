@@ -664,7 +664,7 @@ export function ChatInterface({
       const updatedChat = { ...prev, messages: updatedMessages };
       
       // Alert to check if the updated text is added to the messages array
-      alert(`Message updated successfully!\nTotal messages: ${updatedMessages.length}\nLast AI message content: ${updatedMessages.find(m => m.role === "assistant") ? updatedMessages.filter(m => m.role === "assistant").pop()?.content : "No AI messages found"}`);
+     
       
       return updatedChat;
     });
