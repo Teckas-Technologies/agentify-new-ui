@@ -56,9 +56,8 @@ import {
 } from "@privy-io/wagmi";
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PrivyClientConfig } from "@privy-io/react-auth";
+import { PrivyClientConfig, PrivyProvider } from "@privy-io/react-auth";
 import { ChainId } from "@/types/types";
-import { CleanPrivyProvider } from "@/Components/CleanPrivyProvider";
 // List of Wagmi connectors
 const connectors = [injected()];
 const queryClient = new QueryClient();
@@ -164,20 +163,18 @@ export const wagmiConfig = createWagmiConfig({
   // },
 });
 const privyConfig: PrivyClientConfig = {
-  // Completely disable embedded wallets to avoid recovery issues
   embeddedWallets: {
-    createOnLogin: "off", // Turn off embedded wallet creation entirely
-    requireUserPasswordOnCreate: false,
+    createOnLogin: "users-without-wallets",
+    requireUserPasswordOnCreate: true,
   },
   defaultChain: mainnet,
   supportedChains: supportedChains,
-  // Only allow external wallet connections to avoid embedded wallet recovery
-  loginMethods: ["wallet"],
+  loginMethods: ["wallet", "email", "sms", "google"],
   appearance: {
     walletChainType: "ethereum-only",
-    showWalletLoginFirst: true, // Force external wallets only
+    showWalletLoginFirst: false,
     landingHeader: 'Welcome to Agentify',
-    loginMessage: 'Connect your external wallet to continue',
+    // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
     theme: "dark",
     accentColor: "#676FFF",
     logo: "https://gfxvsstorage.blob.core.windows.net/gfxvscontainer/agentify-logo-orange.png",
@@ -230,15 +227,18 @@ function ChainFetcher({ children }: { children: ReactNode }) {
 
 export const CustomWagmiProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <CleanPrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
+    <PrivyProvider
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
       config={privyConfig}
     >
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
+        <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
           <ChainFetcher>{children}</ChainFetcher>
         </WagmiProvider>
       </QueryClientProvider>
-    </CleanPrivyProvider>
+    </PrivyProvider>
   );
 };

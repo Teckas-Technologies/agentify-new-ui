@@ -1,7 +1,7 @@
 // import { PYTHON_SERVER_URL } from '@/config/constants';
 import { useState } from 'react';
 import { RequestFields, RequestFieldsv2 } from "@/types/types";
-import { safeGetAccessToken } from '@/utils/privyErrorHandler';
+import { getAccessToken } from '@privy-io/react-auth';
 const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 export const useTransactions = () => {
     const [loading, setLoading] = useState<boolean>(false);
@@ -10,7 +10,7 @@ export const useTransactions = () => {
     const fetchTransactions = async (search_query: string, skip: number, limit: number, activityType = "") => {
         setLoading(true);
         setError(null)
-        const accessToken = await safeGetAccessToken();
+        const accessToken = await getAccessToken();
         try {
             const filterQuery = activityType ? `&filter=${activityType}` : "";
             const response = await fetch(
@@ -42,7 +42,7 @@ export const useTransactions = () => {
     const createTransactions = async (data: RequestFields) => {
         setLoading(true);
         setError(null)
-        const accessToken = await safeGetAccessToken();
+        const accessToken = await getAccessToken();
         try {
             const response = await fetch(`${PYTHON_SERVER_URL}/api/transactions/`, {
                 method: 'POST',
@@ -86,7 +86,7 @@ export const useTransactions = () => {
     const createTransactionsv2 = async (data: RequestFieldsv2) => {
         setLoading(true);
         setError(null);
-        const accessToken = await safeGetAccessToken();
+        const accessToken = await getAccessToken();
 
         const requestBody = {
             user_id: data.user_id,

@@ -1,6 +1,6 @@
 // import { PYTHON_SERVER_URL } from "@/config/constants";
 import { Agent } from "@/types/types";
-import { safeGetAccessToken } from "@/utils/privyErrorHandler";
+import { getAccessToken } from "@privy-io/react-auth";
 import { useState } from "react";
 import { useAccount } from "wagmi";
 const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
@@ -49,7 +49,7 @@ export const useChat = () => {
     }
     setLoading(true);
     setError(null);
-    const accessToken = await safeGetAccessToken();
+    const accessToken = await getAccessToken();
 
     try {
       const response = await fetch(`${PYTHON_SERVER_URL}/api/chat`, {
@@ -108,7 +108,7 @@ export const useChat = () => {
         is_favourite: is_favourite.toString(),
         search_query,
       });
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/v1/agents/list-agents/?${queryParams.toString()}`,
         {
@@ -144,7 +144,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
     try {
       setLoading(true);
       setError(null);
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
@@ -176,7 +176,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
     try {
       setLoading(true);
       setError(null);
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
@@ -209,7 +209,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
     setError(null);
 
     try {
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/history/${agentId}`,
         {
@@ -247,7 +247,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
     setError(null);
 
     try {
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(`${PYTHON_SERVER_URL}/api/agentCommands/`, {
         method: "POST",
         headers: {
@@ -286,7 +286,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
     setError(null);
 
     try {
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/agentCommands/?agent_id=${agentId}&skip=${skip}&limit=${limit}`,
         {
@@ -330,7 +330,7 @@ const fetchChatHistory = async (agentId: string): Promise<ChatHistoryResponse | 
         agent_id: agentId,
         command: command,
       });
-      const accessToken = await safeGetAccessToken();
+      const accessToken = await getAccessToken();
       const response = await fetch(
         `${PYTHON_SERVER_URL}/api/agentCommands?${queryParams.toString()}`,
         {

@@ -14,8 +14,6 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { erc20Abi } from "viem";
 import { ChainKey, getToken, getTokenBalance } from "@lifi/sdk";
 import { useAccount } from "wagmi";
-import { safeGetEthereumProvider } from "@/utils/privyErrorHandler";
-import { safeExecuteTransaction } from "@/utils/transactionHelper";
 
 const RPC_URL = "https://rpc.berachain.com/";
 const CHAIN_ID = 80094;
@@ -46,7 +44,7 @@ export const useBeraSwap = () => {
       }
 
       try {
-        const ethereumProvider = await safeGetEthereumProvider(matchedWallet);
+        const ethereumProvider = await matchedWallet.getEthereumProvider();
         return new ethers.providers.Web3Provider(ethereumProvider);
       } catch (err) {
         console.error("Error getting provider:", err);
