@@ -402,7 +402,7 @@ const Dashboard = () => {
             variant="outline"
             size="sm"
             className="neumorphic-sm flex items-center gap-2"
-            onClick={() => router.push("/playground")}
+            onClick={() => router.push("/")}
           >
             <Terminal className="h-4 w-4" />
             Go to Playground
