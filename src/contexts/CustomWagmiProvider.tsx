@@ -228,14 +228,11 @@ function ChainFetcher({ children }: { children: ReactNode }) {
 export const CustomWagmiProvider = ({ children }: { children: ReactNode }) => {
   return (
     <PrivyProvider
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       config={privyConfig}
     >
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+        <WagmiProvider config={wagmiConfig} reconnectOnMount={true}>
           <ChainFetcher>{children}</ChainFetcher>
         </WagmiProvider>
       </QueryClientProvider>
