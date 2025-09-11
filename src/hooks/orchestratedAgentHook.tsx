@@ -1,7 +1,7 @@
 // orchestratedAgentHook.tsx
 "use client";
 
-import { getAccessToken } from "@privy-io/react-auth";
+import { safeGetAccessToken } from "@/utils/privyErrorHandler";
 import { useState } from "react";
 import { useAccount } from "wagmi";
 const PYTHON_SERVER_URL = process.env.NEXT_PUBLIC_NEW_PYTHON_SERVER_URL;
@@ -35,7 +35,7 @@ export const useOrchestratedAgent = () => {
     setLoading(true);
     setError(null);
 
-    const accessToken = await getAccessToken();
+    const accessToken = await safeGetAccessToken();
 
     try {
       const response = await fetch(
