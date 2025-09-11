@@ -165,14 +165,14 @@ export const wagmiConfig = createWagmiConfig({
 const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
     createOnLogin: "users-without-wallets",
-    requireUserPasswordOnCreate: true,
+    requireUserPasswordOnCreate: false, // Disable password requirement to avoid recovery issues
   },
   defaultChain: mainnet,
   supportedChains: supportedChains,
   loginMethods: ["wallet", "email", "sms", "google"],
   appearance: {
     walletChainType: "ethereum-only",
-    showWalletLoginFirst: false,
+    showWalletLoginFirst: true, // Prefer external wallets over embedded ones
     landingHeader: 'Welcome to Agentify',
     // loginMessage: 'Sign in with your wallet or Google to swap, bridge tokens, or lend & borrow across chains with ease.',
     theme: "dark",

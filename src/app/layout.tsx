@@ -9,6 +9,7 @@ import { Toaster } from "@/Components/ui/toaster";
 import { ConversationProvider } from "@/contexts/ConversationContext";
 import { SidebarProvider } from "@/Components/ui/sidebar";
 import { suppressRecoveryErrors } from "@/utils/privyErrorHandler";
+import { WalletConnectionWrapper } from "@/Components/WalletConnectionWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,7 +53,9 @@ export default async function RootLayout({
         />
         <Toaster />
         <CustomWagmiProvider>
-          <ConversationProvider>{children}</ConversationProvider>
+          <WalletConnectionWrapper>
+            <ConversationProvider>{children}</ConversationProvider>
+          </WalletConnectionWrapper>
         </CustomWagmiProvider>
       </body>
     </html>

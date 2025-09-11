@@ -15,6 +15,7 @@ import { erc20Abi } from "viem";
 import { ChainKey, getToken, getTokenBalance } from "@lifi/sdk";
 import { useAccount } from "wagmi";
 import { safeGetEthereumProvider } from "@/utils/privyErrorHandler";
+import { safeExecuteTransaction } from "@/utils/transactionHelper";
 
 const RPC_URL = "https://rpc.berachain.com/";
 const CHAIN_ID = 80094;
