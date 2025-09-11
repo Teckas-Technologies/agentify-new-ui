@@ -974,23 +974,24 @@ if (
               "Lend and Borrow agent"
             );
 
-            const errorMessage =
-              typeof repayResult === "object" &&
-                !Array.isArray(repayResult) &&
-                "message" in repayResult
-                ? repayResult.message
-                : `Repayment of ${amount} ${tokenSymbol} failed.`;
+const errorMessage: string =
+  typeof repayResult === "object" &&
+  !Array.isArray(repayResult) &&
+  "message" in repayResult
+    ? (repayResult.message as string) ?? `Repayment of ${amount} ${tokenSymbol} failed.`
+    : `Repayment of ${amount} ${tokenSymbol} failed.`;
 
-            await chat({
-              inputMessage: errorMessage,
-              agentName: selectedAgent?.agentId,
-              userId: user?.id ?? '',
-              isTransaction: true,
-            });
+await chat({
+  inputMessage: errorMessage,
+  agentName: selectedAgent?.agentId,
+  userId: user?.id ?? '',
+  isTransaction: true,
+});
 
-            updateLastAiMessage(errorMessage);
-            setExecutingAave(false);
-            return;
+updateLastAiMessage(errorMessage);
+setExecutingAave(false);
+return;
+
           } else if (
             toolMessage?.type === "swap" ||
             toolMessage?.type === "bridge"
