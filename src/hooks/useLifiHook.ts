@@ -5,6 +5,24 @@ import { TransactionError } from "./useAaveHook";
 
 // import { customSwitchNetwork } from "../wagmiConfig"; // Uncomment if network switching is needed
 
+// Utility to normalize error objects to prevent SDK parsing issues
+const normalizeError = (error: any): any => {
+    if (!error) return error;
+
+    // If error has a cause with non-string details, normalize it
+    if (error.cause && error.cause.details !== undefined && typeof error.cause.details !== 'string') {
+        return {
+            ...error,
+            cause: {
+                ...error.cause,
+                details: error.cause.details ? String(error.cause.details) : ''
+            }
+        };
+    }
+
+    return error;
+};
+
 const useLifiHook = () => {
     const { address, isConnected } = useAccount();
     const [loading, setLoading] = useState(false);
@@ -184,48 +202,129 @@ const useLifiHook = () => {
 
             return new Promise((resolve, reject) => {
                 let resolved = false;
-                executeRoute(quote, { // route
-                    updateRouteHook(updatedRoute) {
-                        updatedRoute.steps.forEach((step) => {
-                            step.execution?.process.forEach((process) => {
-                                if (process.txHash && process.status === "PENDING") {
-                                    // console.log("Transaction sent! TX Hash:", process.txHash);
-                                    resolved = true;
 
-                                    // ✅ Push execution to background
-                                    updateRouteExecution(updatedRoute, { executeInBackground: true });
+                // Wrap executeRoute with error normalization
+                // Store original unhandledrejection handler
+                const originalHandler = window.onunhandledrejection;
+                let sdkErrorCaught = false;
 
-                                    // ✅ Resolve immediately with TX hash
-                                    resolve({ txHash: process.txHash });
+                // Temporarily intercept unhandled rejections to catch SDK internal errors
+                window.onunhandledrejection = (event: PromiseRejectionEvent) => {
+                    const err = event.reason;
 
-                                    return;
-                                }
-                            });
-                        });
-                    },
-                }) // If executionRoute throws, reject the promise can remove .catch(reject);
-                    .then(() => {
-                        if (!resolved) resolve(undefined); // fallback resolve
-                    })
-                    .catch((error: unknown) => {
-                        const err = error as any;
-                        // ✅ Properly catch errors and set error message
+                    // Check if this is the LiFi SDK error we're trying to catch
+                    if (err && err.stack && err.stack.includes('executeStep')) {
+                        event.preventDefault(); // Prevent default error handling
+                        sdkErrorCaught = true;
 
-                        // Handle MetaMask specific errors
+                        console.error("Caught SDK internal error:", err);
+
+                        let errorMessage = "An unexpected error occurred.";
+
+                        // Try to extract MetaMask error info
                         if (err?.code === 5730 || err?.message?.includes("No matching bundle found")) {
-                            setError("MetaMask error: No matching bundle found. Please try again.");
-                        } else if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
-                            setError("Transaction rejected by the user.");
-                        } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
-                            setError("Insufficient balance. Please check your wallet and try again.");
-                        } else if (err.name === "TransactionExecutionError") {
-                            setError("Transaction execution failed. Please try again.");
-                        } else {
-                            setError(err.message || "An unexpected error occurred.");
+                            errorMessage = "MetaMask error: No matching bundle found. Please try again.";
+                        } else if (err?.cause?.code === 5730 || err?.cause?.message?.includes("No matching bundle found")) {
+                            errorMessage = "MetaMask error: No matching bundle found. Please try again.";
+                        } else if (err.message) {
+                            errorMessage = err.message;
                         }
 
-                        reject(err); // Reject promise so caller knows execution failed
+                        setError(errorMessage);
+                        reject(err);
+
+                        // Restore original handler
+                        window.onunhandledrejection = originalHandler;
+                        return;
+                    }
+
+                    // Not our error, call original handler
+                    if (originalHandler) {
+                        originalHandler(event);
+                    }
+                };
+
+                // Wrap executeRoute in a try-catch to handle SDK internal errors
+                try {
+                    const routePromise = executeRoute(quote, { // route
+                        updateRouteHook(updatedRoute) {
+                            try {
+                                updatedRoute.steps.forEach((step) => {
+                                    step.execution?.process.forEach((process) => {
+                                        if (process.txHash && process.status === "PENDING") {
+                                            // console.log("Transaction sent! TX Hash:", process.txHash);
+                                            resolved = true;
+
+                                            // ✅ Push execution to background
+                                            updateRouteExecution(updatedRoute, { executeInBackground: true });
+
+                                            // ✅ Resolve immediately with TX hash
+                                            resolve({ txHash: process.txHash });
+
+                                            // Restore handler
+                                            window.onunhandledrejection = originalHandler;
+                                            return;
+                                        }
+                                    });
+                                });
+                            } catch (hookError: any) {
+                                console.error("Error in updateRouteHook:", hookError);
+                                // Don't reject here, let the main catch handle it
+                            }
+                        },
                     });
+
+                    routePromise
+                        .then(() => {
+                            // Restore handler on success
+                            window.onunhandledrejection = originalHandler;
+                            if (!resolved) resolve(undefined); // fallback resolve
+                        })
+                        .catch((error: unknown) => {
+                            // Restore handler
+                            window.onunhandledrejection = originalHandler;
+
+                            const err = error as any;
+                            console.error("executeRoute error:", err);
+
+                            // ✅ Properly catch errors and set error message
+                            let errorMessage = "An unexpected error occurred.";
+
+                            // Handle MetaMask specific errors
+                            if (err?.code === 5730 || err?.message?.includes("No matching bundle found")) {
+                                errorMessage = "MetaMask error: No matching bundle found. Please try again.";
+                            } else if (err?.cause?.code === 5730 || err?.cause?.message?.includes("No matching bundle found")) {
+                                errorMessage = "MetaMask error: No matching bundle found. Please try again.";
+                            } else if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
+                                errorMessage = "Transaction rejected by the user.";
+                            } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
+                                errorMessage = "Insufficient balance. Please check your wallet and try again.";
+                            } else if (err.name === "TransactionExecutionError") {
+                                errorMessage = "Transaction execution failed. Please try again.";
+                            } else if (err.message) {
+                                errorMessage = err.message;
+                            }
+
+                            setError(errorMessage);
+                            reject(err); // Reject promise so caller knows execution failed
+                        });
+                } catch (syncError: any) {
+                    // Restore handler
+                    window.onunhandledrejection = originalHandler;
+
+                    // Catch any synchronous errors from executeRoute
+                    console.error("Synchronous error in executeRoute:", syncError);
+
+                    let errorMessage = "An unexpected error occurred.";
+                    if (syncError?.code === 5730 || syncError?.message?.includes("No matching bundle found")) {
+                        errorMessage = "MetaMask error: No matching bundle found. Please try again.";
+                    } else if (syncError.message) {
+                        errorMessage = syncError.message;
+                    }
+
+                    setError(errorMessage);
+                    reject(syncError);
+                }
             });
 
         } catch (error: unknown) {
