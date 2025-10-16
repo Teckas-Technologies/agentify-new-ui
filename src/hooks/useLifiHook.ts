@@ -240,7 +240,7 @@ const useLifiHook = () => {
 
                     // Not our error, call original handler
                     if (originalHandler) {
-                        originalHandler(event);
+                        originalHandler.call(window, event);
                     }
                 };
 
