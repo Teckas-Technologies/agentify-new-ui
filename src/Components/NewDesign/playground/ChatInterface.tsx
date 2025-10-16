@@ -1105,26 +1105,17 @@ export function ChatInterface({
               }
             } catch (err) {
               console.error("Lifi execution error:", err);
-              const error = err as any;
-              const errorMessage = error?.message || "";
-              const errorCode = error?.code;
+              const errorMessage = (err as Error).message || "";
 
               let userFriendlyMessage = "Transaction failed. Please try again.";
 
-              // Special case: MetaMask bundle error
-              if (errorCode === 5730 || errorMessage.includes("No matching bundle found")) {
-                userFriendlyMessage = "Transaction failed due to a MetaMask error. Please try again or check your MetaMask settings.";
-              }
               // Special case: user rejected
-              else if (
+              if (
                 errorMessage.toLowerCase().includes("user denied") ||
                 errorMessage.toLowerCase().includes("user rejected")
               ) {
-                userFriendlyMessage = "Transaction cancelled by user.";
-              }
-              // Generic error
-              else if (errorMessage) {
-                userFriendlyMessage = `Transaction failed: ${errorMessage}`;
+                userFriendlyMessage =
+                  "Something went wrong!.Please Try again later..";
               }
 
               updateLastAiMessage(userFriendlyMessage);
