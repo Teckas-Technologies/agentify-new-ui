@@ -208,9 +208,13 @@ const useLifiHook = () => {
                         if (!resolved) resolve(undefined); // fallback resolve
                     })
                     .catch((error: unknown) => {
-                        const err = error as TransactionError;
+                        const err = error as any;
                         // ✅ Properly catch errors and set error message
-                        if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
+
+                        // Handle MetaMask specific errors
+                        if (err?.code === 5730 || err?.message?.includes("No matching bundle found")) {
+                            setError("MetaMask error: No matching bundle found. Please try again.");
+                        } else if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                             setError("Transaction rejected by the user.");
                         } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
                             setError("Insufficient balance. Please check your wallet and try again.");
@@ -225,8 +229,12 @@ const useLifiHook = () => {
             });
 
         } catch (error: unknown) {
-            const err = error as TransactionError;
-            if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
+            const err = error as any;
+
+            // Handle MetaMask specific errors
+            if (err?.code === 5730 || err?.message?.includes("No matching bundle found")) {
+                setError("MetaMask error: No matching bundle found. Please try again.");
+            } else if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
                 setError("Transaction rejected by the user.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
                 setError("Insufficient balance. Please check your wallet and try again.");
