@@ -1,9 +1,18 @@
 import { useState } from "react";
-import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route, ChainId } from "@lifi/sdk";
+import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route, ChainId } from "@lifi/sdk";
 import { useAccount } from "wagmi";
 import { TransactionError } from "./useAaveHook";
+import { readContract, getBalance } from '@wagmi/core';
+import { wagmiConfig } from "@/contexts/CustomWagmiProvider";
+import { erc20Abi } from 'viem';
 
 // import { customSwitchNetwork } from "../wagmiConfig"; // Uncomment if network switching is needed
+
+// Native token addresses used by LiFi SDK (all represent native gas tokens)
+const NATIVE_TOKEN_ADDRESSES = [
+    '0x0000000000000000000000000000000000000000',
+    '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+].map(addr => addr.toLowerCase());
 
 const useLifiHook = () => {
     const { address, isConnected } = useAccount();
@@ -23,23 +32,61 @@ const useLifiHook = () => {
     //     })
     // }
 
-    // ✅ Validate Token Balance
+    // ✅ Validate Token Balance - Using Wagmi instead of LiFi to avoid provider issues
+    // Supports both native tokens (ETH, MATIC, BNB, etc.) and ERC20 tokens
     const validateTokenBalance = async (chainId: number, tokenAddress: { address: string }, amount: string) => {
         if (!address) {
-            return;
+            return false;
         }
         try {
+            // Get token info from LiFi
             const token = await getToken(chainId, tokenAddress.address);
-            const tokenBalance = await getTokenBalance(address, token);
-            const userBalance = BigInt(tokenBalance?.amount || "0");
+
+            // Check if it's a native token (ETH, MATIC, BNB, etc.)
+            const isNativeToken = NATIVE_TOKEN_ADDRESSES.includes(tokenAddress.address.toLowerCase());
+
+            let userBalance: bigint;
+
+            if (isNativeToken) {
+                // ✅ Native token: Use getBalance (ETH, MATIC, BNB, AVAX, etc.)
+                const nativeBalance = await getBalance(wagmiConfig as any, {
+                    address: address as `0x${string}`,
+                    chainId: chainId as any,
+                });
+                userBalance = nativeBalance.value;
+            } else {
+                // ✅ ERC20 token: Use readContract with balanceOf (USDT, USDC, DAI, etc.)
+                const erc20Balance = await readContract(wagmiConfig as any, {
+                    address: tokenAddress.address as `0x${string}`,
+                    abi: erc20Abi,
+                    functionName: 'balanceOf',
+                    args: [address as `0x${string}`],
+                    chainId: chainId as any,
+                });
+                userBalance = BigInt(erc20Balance?.toString() || "0");
+            }
+
             const requiredAmount = BigInt(amount);
+
             if (userBalance < requiredAmount) {
-                setError("Insufficient token balance. Please check your wallet balance");
+                const available = Number(userBalance) / Math.pow(10, token.decimals);
+                const required = Number(requiredAmount) / Math.pow(10, token.decimals);
+                setError(`You have ${available} ${token.symbol}, but you need ${required} ${token.symbol} for this transaction. Please add more funds or reduce the amount.`);
                 return false;
             }
+
             return true;
         } catch (err) {
-            setError("Failed to fetch token balance. Please try again.");
+            const errorMessage = (err as Error).message || '';
+
+            // Provide more specific error messages
+            if (errorMessage.includes('execution reverted') || errorMessage.includes('call revert')) {
+                setError("Unable to fetch token balance. The token contract may not be valid.");
+            } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+                setError("Network error. Please check your connection and try again.");
+            } else {
+                setError("Failed to fetch token balance. Please try again.");
+            }
             return false;
         }
     };
@@ -211,11 +258,11 @@ const useLifiHook = () => {
                         const err = error as TransactionError;
                         // ✅ Properly catch errors and set error message
                         if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
-                            setError("Transaction rejected by the user.");
+                            setError("Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.");
                         } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
-                            setError("Insufficient balance. Please check your wallet and try again.");
+                            setError("It looks like your wallet doesn't have enough balance for this transaction. Please add more funds or reduce the amount and try again.");
                         } else if (err.name === "TransactionExecutionError") {
-                            setError("Transaction execution failed. Please try again.");
+                            setError("The transaction couldn't be completed. This might be due to network issues or gas price changes. Please try again.");
                         } else {
                             setError(err.message || "An unexpected error occurred.");
                         }
@@ -227,11 +274,11 @@ const useLifiHook = () => {
         } catch (error: unknown) {
             const err = error as TransactionError;
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
-                setError("Transaction rejected by the user.");
+                setError("Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
-                setError("Insufficient balance. Please check your wallet and try again.");
+                setError("It looks like your wallet doesn't have enough balance for this transaction. Please add more funds or reduce the amount and try again.");
             } else if (err.name === "TransactionExecutionError") {
-                setError("Transaction execution failed. Please try again.");
+                setError("The transaction couldn't be completed. This might be due to network issues or gas price changes. Please try again.");
             } else {
                 setError(err.message || "An unexpected error occurred.");
             }

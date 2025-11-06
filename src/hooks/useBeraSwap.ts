@@ -67,7 +67,7 @@ export const useBeraSwap = () => {
       const requiredAmount = BigInt(amount);
       if (userBalance < requiredAmount) {
         setError(
-          "Insufficient token balance. Please check your wallet balance"
+          "It looks like you don't have enough tokens in your wallet for this swap. Please check your balance and either reduce the amount or add more funds."
         );
         return false;
       }
@@ -90,7 +90,7 @@ export const useBeraSwap = () => {
       const requiredAmount = BigNumber.from(amount.toString()); // Convert bigint to BigNumber
 
       if (balance.lt(requiredAmount)) {
-        setError("Insufficient native token balance.");
+        setError("Your wallet doesn't have enough of the native token (for gas fees) to complete this transaction. Please add more funds to your wallet.");
         return false;
       }
 

@@ -46,6 +46,135 @@ const SUGGESTED_PROMPTS = [
   "How to create a successful NFT collection in 2024?",
 ];
 
+// Error handling map with natural AI responses
+interface ErrorHandler {
+  pattern: RegExp;
+  generateMessage: (match: RegExpMatchArray) => string;
+}
+
+const ERROR_HANDLING_MAP: ErrorHandler[] = [
+  {
+    // Check for BOTH tokens invalid first
+    pattern: /Invalid token\(s\): fromToken '([^']+)', toToken '([^']+)'/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `Both tokens are invalid: "${match[1]}" (from) and "${match[2]}" (to). Please check the spelling and provide correct token symbols.`,
+  },
+  {
+    // Then check for only toToken invalid
+    pattern: /Invalid token\(s\):.*toToken '([^']+)'/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `I couldn't find the token "${match[1]}" you mentioned. Could you please check the spelling and provide the correct "To Token" symbol?`,
+  },
+  {
+    // Then check for only fromToken invalid
+    pattern: /Invalid token\(s\):.*fromToken '([^']+)'/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The token "${match[1]}" you want to swap/bridge from doesn't seem to be valid. Could you please verify and provide the correct "From Token" symbol?`,
+  },
+  {
+    // Generic invalid token fallback
+    pattern: /Invalid token\(s\):.*'([^']+)'/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The token "${match[1]}" is not recognized. Please double-check the token symbol or try using the token's contract address instead.`,
+  },
+  {
+    pattern: /Invalid token\(s\) provided/i,
+    generateMessage: () =>
+      `The tokens you specified couldn't be found. Please check the token symbols and try again.`,
+  },
+  {
+    pattern: /Source chain '([^']+)' not found/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `I couldn't find the source blockchain "${match[1]}" you mentioned. Please check the chain name and make sure you're using a supported network like Ethereum, Polygon, Arbitrum, Base, BNB Chain, or others.`,
+  },
+  {
+    pattern: /Destination chain '([^']+)' not found/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `I couldn't find the destination blockchain "${match[1]}" you specified. Please verify the chain name and use a supported network like Ethereum, Polygon, Arbitrum, Base, BNB Chain, or others.`,
+  },
+  {
+    pattern: /No routes found/i,
+    generateMessage: () =>
+      `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination!`,
+  },
+  {
+    pattern: /LiFi route fetch failed.*'NoneType' object has no attribute 'get'/i,
+    generateMessage: () =>
+      `Oops! There was a temporary issue connecting to the swap service. This is usually a brief service interruption. Please wait a moment and try again. If the issue persists, the service might be undergoing maintenance.`,
+  },
+  {
+    pattern: /Failed to fetch routes from Li\.Fi API|LiFi API.*failed/i,
+    generateMessage: () =>
+      `I'm having trouble connecting to the Li.Fi swap service right now. This could be due to a network issue or temporary service unavailability. Please check your internet connection and try again in a moment.`,
+  },
+  {
+    pattern: /insufficient.*balance/i,
+    generateMessage: () =>
+      `I noticed your wallet doesn't have enough balance to complete this transaction. Please check your balance and either reduce the amount or add more funds to your wallet before trying again.`,
+  },
+  {
+    pattern: /slippage.*exceeded/i,
+    generateMessage: () =>
+      `The price moved too much (slippage exceeded). Try increasing your slippage tolerance or wait a moment and try again.`,
+  },
+  {
+    pattern: /user.*reject/i,
+    generateMessage: () =>
+      `Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.`,
+  },
+  {
+    pattern: /network.*error/i,
+    generateMessage: () =>
+      `There seems to be a network connectivity issue. Please check your internet connection and try again.`,
+  },
+  {
+    pattern: /gas.*too.*high/i,
+    generateMessage: () =>
+      `Gas fees are quite high right now. You might want to wait a bit or adjust your gas settings before trying again.`,
+  },
+  {
+    pattern: /chain.*not.*support/i,
+    generateMessage: () =>
+      `This blockchain network is not supported for this operation. Please try with a different network.`,
+  },
+  {
+    pattern: /toLowerCase is not a function|cannot read.*toLowerCase/i,
+    generateMessage: () =>
+      `There was an issue processing the transaction details. This is usually a temporary problem with the bridge service. Please try again in a moment, or try with a different amount.`,
+  },
+  {
+    pattern: /execution.*failed|transaction.*failed/i,
+    generateMessage: () =>
+      `The transaction execution failed. This could be due to network congestion, insufficient gas, or a temporary service issue. Please check your wallet balance and try again.`,
+  },
+  {
+    pattern: /CALL_EXCEPTION|call exception/i,
+    generateMessage: () =>
+      `The transaction was sent to the blockchain but failed during execution. This usually happens when there isn't enough collateral, the amount exceeds your available balance, or the transaction would put your position at risk. Please check your balance and try again with a different amount.`,
+  },
+  {
+    pattern: /"status"\s*:\s*0|status.*0|receipt.*status.*0/i,
+    generateMessage: () =>
+      `The transaction was processed by the blockchain but was reverted. This could be due to insufficient funds, market conditions, or transaction requirements not being met. Please verify your balance and the transaction details before trying again.`,
+  },
+];
+
+// Fallback message for unknown errors
+const FALLBACK_ERROR_MESSAGE = "Something went wrong! Please try again later.";
+
+/**
+ * Matches error string against ERROR_HANDLING_MAP and returns natural AI response
+ */
+const getErrorMessage = (errorString: string): string => {
+  for (const errorHandler of ERROR_HANDLING_MAP) {
+    const match = errorString.match(errorHandler.pattern);
+    if (match) {
+      return errorHandler.generateMessage(match);
+    }
+  }
+  return FALLBACK_ERROR_MESSAGE;
+};
+
 interface ChatInterfaceProps {
   chatId: string;
   isSidebarCollapsed: boolean;
@@ -75,12 +204,12 @@ function InputBox({
   return (
     <div className="w-full max-w-3xl">
       <div
-        className="flex items-center bg-black border rounded-md px-4 py-4 transition-all duration-300"
+        className="flex items-center bg-black border rounded-md px-2 py-2 transition-all duration-300"
         style={{
           borderColor: "#1a142a",
           boxShadow:
             "0 0 40px 10px rgba(26, 20, 42, 0.8), 0 0 80px 20px rgba(26, 20, 42, 0.5) inset",
-          minHeight: "90px",
+          minHeight: "60px",
         }}
       >
         <input
@@ -830,17 +959,31 @@ export function ChatInterface({
               }
 
               if (!hasSufficientBalance) {
-                addMessageToCurrentChat(
-                  "assistant",
-                  `⚠️ Insufficient ${fromToken} balance to complete the swap.`
-                );
+                const errorMessage = `Oops! It looks like you don't have enough ${fromToken} in your wallet to complete this swap. Please check your balance and try again with a smaller amount, or add more ${fromToken} to your wallet.`;
+
+                addMessageToCurrentChat("assistant", errorMessage);
+
+                // Notify backend about the transaction failure
+                try {
+                  await orchestratedAgentChat({
+                    agentName: "orchestratedAgent",
+                    userId: user?.id ?? "",
+                    message: `${errorMessage}`,
+                    threadId: chatId,
+                    walletAddress: address ?? "",
+                    isTransaction: true, // Mark as transaction status update
+                  });
+                } catch (notifyError) {
+                  console.error("Failed to notify backend about insufficient balance:", notifyError);
+                }
+
                 return;
               }
 
               // Show execution message
               addMessageToCurrentChat(
                 "assistant",
-                `🔄 Executing swap: ${fromToken} → ${toToken}. Don't close the page...`
+                `🔄 Swapping ${fromToken} → ${toToken}. Don't close the page...`
               );
 
               const amountString = fromAmount.toString();
@@ -947,6 +1090,20 @@ export function ChatInterface({
                 0,
                 "Berachain Swap Agent"
               );
+
+              // Notify backend about the transaction failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMsg}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true, // Mark as transaction status update
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about swap failure:", notifyError);
+              }
             }
             return;
           }
@@ -956,10 +1113,23 @@ export function ChatInterface({
             const { quote, explorer } = toolMessage;
 
             if (!quote) {
-              addMessageToCurrentChat(
-                "assistant",
-                "Something went wrong!.Please Try again later."
-              );
+              const errorMessage = "I couldn't fetch the swap/bridge details from the service. This might be a temporary issue. Please try again in a moment.";
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              // Notify backend about the failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about missing quote:", notifyError);
+              }
+
               return;
             }
 
@@ -991,25 +1161,53 @@ export function ChatInterface({
             const chainInfo = await getChainInfoById(fromChainId);
             if (!chainInfo) {
               console.error("Chain info not found for chainId:", fromChainId);
-              addMessageToCurrentChat(
-                "assistant",
-                "Something went wrong!.Please Try again later."
-              );
+              const errorMessage = "I couldn't retrieve information about the blockchain network. This might be a temporary service issue. Please try again shortly.";
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              // Notify backend about the failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about chain info error:", notifyError);
+              }
+
               return;
             }
 
-            if (!isEnoughBalance) {
-              addMessageToCurrentChat(
-                "assistant",
-                `⚠️ Insufficient ${fromToken.symbol} balance.`
-              );
+            if (isEnoughBalance === false) {
+              const formattedAmount = Number(fromAmount) / Math.pow(10, fromToken.decimals);
+              const errorMessage = `I see that you need ${formattedAmount} ${fromToken.symbol} for this transaction, but it looks like you don't have enough balance. Please check your wallet and either reduce the amount or add more ${fromToken.symbol} to continue.`;
+
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              // Notify backend about the transaction failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true, // Mark as transaction status update
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about insufficient balance:", notifyError);
+              }
+
               return;
             }
 
             // Show execution message
             addMessageToCurrentChat(
               "assistant",
-              `🚀 Executing ${fromChainId === toChainId ? "Swap" : "Bridge"}...`
+              `🚀 ${fromChainId === toChainId ? "Swapping" : "Bridging"}...`
             );
 
             setExecutingLifi(true);
@@ -1100,14 +1298,35 @@ export function ChatInterface({
                   agentName
                 );
 
-                
-                updateLastAiMessage("Something went wrong!.Please Try again later.");
+                const errorMsg = "The swap/bridge transaction was initiated but didn't complete successfully. This could be due to network congestion or a temporary service issue. Please check your wallet and try again.";
+                updateLastAiMessage(errorMsg);
+
+                // Notify backend about the transaction failure
+                try {
+                  await orchestratedAgentChat({
+                    agentName: "orchestratedAgent",
+                    userId: user?.id ?? "",
+                    message: `${errorMsg}`,
+                    threadId: chatId,
+                    walletAddress: address ?? "",
+                    isTransaction: true, // Mark as transaction status update
+                  });
+                } catch (notifyError) {
+                  console.error("Failed to notify backend about LiFi failure:", notifyError);
+                }
               }
             } catch (err) {
               console.error("Lifi execution error:", err);
               const errorMessage = (err as Error).message || "";
+              const errorString = JSON.stringify(err);
 
-              let userFriendlyMessage = "Transaction failed. Please try again.";
+              // Try to match error with error handling map
+              let userFriendlyMessage = getErrorMessage(errorMessage);
+
+              // If no match found in message, try matching the full error string
+              if (userFriendlyMessage === FALLBACK_ERROR_MESSAGE) {
+                userFriendlyMessage = getErrorMessage(errorString);
+              }
 
               // Special case: user rejected
               if (
@@ -1115,10 +1334,24 @@ export function ChatInterface({
                 errorMessage.toLowerCase().includes("user rejected")
               ) {
                 userFriendlyMessage =
-                  "Something went wrong!.Please Try again later..";
+                  "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
               }
 
               updateLastAiMessage(userFriendlyMessage);
+
+              // Notify backend about the transaction failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${userFriendlyMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true, // Mark as transaction status update
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about LiFi catch error:", notifyError);
+              }
             } finally {
               setExecutingLifi(false);
             }
@@ -1147,28 +1380,34 @@ export function ChatInterface({
             let actionText = "";
             switch (toolMessage.type) {
               case "lend":
-                actionText = "lending";
+                actionText = "Lending";
                 break;
               case "borrow":
-                actionText = "borrowing";
+                actionText = "Borrowing";
                 break;
               case "repay":
-                actionText = "repaying";
+                actionText = "Repaying";
                 break;
               case "withdraw":
-                actionText = "withdrawing";
+                actionText = "Withdrawing";
                 break;
             }
 
+            // Display user-friendly amount (convert -1 to "the full amount of" only for repay/withdraw)
+            const displayAmount =
+              (toolMessage.type === "repay" || toolMessage.type === "withdraw") &&
+              (amount === "-1" || amount === -1 || String(amount) === "-1")
+                ? "the full amount of"
+                : amount;
             addMessageToCurrentChat(
               "assistant",
-              `🔄 Executing ${actionText} for ${amount} ${tokenSymbol}, don't close the page until confirmations...`
+              `🔄 ${actionText} ${displayAmount} ${tokenSymbol}, don't close the page until confirmation...`
             );
 
             setExecutingAave(true);
             try {
               let res: any;
-              let transactionType: string;
+              let transactionType: TransactionType = "LEND"; // Default value
 
               switch (toolMessage.type) {
                 case "lend":
@@ -1207,6 +1446,11 @@ export function ChatInterface({
                   });
                   transactionType = "WITHDRAW";
                   break;
+
+                default:
+                  console.error("Unknown Aave operation type:", toolMessage.type);
+                  updateLastAiMessage("I encountered an unexpected operation type. Please try again.");
+                  return;
               }
 
               const chainInfo = await getChainInfoById(selectedMarket.chainId);
@@ -1217,24 +1461,39 @@ export function ChatInterface({
                     "Chain info not found for chainId:",
                     selectedMarket.chainId
                   );
-                 updateLastAiMessage("Something went wrong!.Please Try again later--1.");
-                  return;
-                }
-                const toolType = toolMessage?.type as
-                  | TransactionType
-                  | undefined;
-                if (!toolType) {
-                  updateLastAiMessage("Something went wrong!.Please Try again later--2.");
+                  const errorMessage = "I encountered an issue retrieving the blockchain network details. Please try your transaction again.";
+                  updateLastAiMessage(errorMessage);
+
+                  // Notify backend about the failure
+                  try {
+                    await orchestratedAgentChat({
+                      agentName: "orchestratedAgent",
+                      userId: user?.id ?? "",
+                      message: `${errorMessage}`,
+                      threadId: chatId,
+                      walletAddress: address ?? "",
+                      isTransaction: true,
+                    });
+                  } catch (notifyError) {
+                    console.error("Failed to notify backend about Aave chain info error:", notifyError);
+                  }
+
                   return;
                 }
 
-                const transactionType: TransactionType = toolType;
+                // transactionType is already set in the switch statement above
                 // Create transaction record
+                // Use display-friendly amount in description
+                const txDescAmount =
+                  (toolMessage.type === "repay" || toolMessage.type === "withdraw") &&
+                  (amount === "-1" || amount === -1 || String(amount) === "-1")
+                    ? "full amount"
+                    : amount;
                 await createTransv2(
                   user?.id ?? "",
                   "lendingBorrowingAgent",
                   transactionType,
-                  `${transactionType} ${amount} ${tokenSymbol} executed successfully`,
+                  `${transactionType} ${txDescAmount} ${tokenSymbol} executed successfully`,
                   chainInfo.chainName,
                   new Date(),
                   tokenSymbol,
@@ -1249,7 +1508,21 @@ export function ChatInterface({
                   "Lend and Borrow agent"
                 );
 
-                const statusMessage = `Your ${actionText} of ${amount} ${tokenSymbol} was successful. 🎉 You can check the transaction on the [explorer](${explorer}tx/${res.txHashes[0]}).`;
+                // Convert action text to past tense for success message
+                const actionPastTense = actionText === "Lending" ? "deposit"
+                  : actionText === "Borrowing" ? "borrow"
+                  : actionText === "Withdrawing" ? "withdrawal"
+                  : actionText === "Repaying" ? "repayment"
+                  : actionText;
+
+                // Use displayAmount for success message (same logic as execution message)
+                const successDisplayAmount =
+                  (toolMessage.type === "repay" || toolMessage.type === "withdraw") &&
+                  (amount === "-1" || amount === -1 || String(amount) === "-1")
+                    ? "the full amount of"
+                    : amount;
+
+                const statusMessage = `Your ${actionPastTense} of ${successDisplayAmount} ${tokenSymbol} was successful! 🎉 You can check the transaction on the [block explorer](${explorer}tx/${res.txHashes[0]}).`;
 
                 updateLastAiMessage(statusMessage);
 
@@ -1263,17 +1536,7 @@ export function ChatInterface({
                   isTransaction: true,
                 });
               } else {
-                const toolType = toolMessage?.type as
-                  | TransactionType
-                  | undefined;
-                  console.log("tool type--",toolType);
-                  
-                if (!toolType) {
-                 updateLastAiMessage("Something went wrong!.Please Try again later--3.");
-                  return;
-                }
-
-                const transactionType: TransactionType = toolType;
+                // transactionType is already set in the switch statement above
                 // Create failed transaction record
                 await createTrans(
                   user?.id ?? "",
@@ -1292,30 +1555,75 @@ export function ChatInterface({
                   "Lend and Borrow agent"
                 );
 
-                let errorMessage = `Something went wrong!.Please Try again later.`;
-
-                if (res?.message?.includes("UNPREDICTABLE_GAS_LIMIT")) {
-                  errorMessage = `Transaction failed due to low gas funds. Please ensure your wallet has enough native tokens to cover gas fees.`;
-                }
+                // ✅ Use the natural error message from the hook if available
+                let errorMessage = res?.message || `The lending/borrowing transaction couldn't be completed. This might be due to insufficient funds, network congestion, or market conditions. Please check your wallet balance and try again.`;
 
                updateLastAiMessage(errorMessage);
+
+               // Notify backend about the transaction failure
+               try {
+                 await orchestratedAgentChat({
+                   agentName: "orchestratedAgent",
+                   userId: user?.id ?? "",
+                   message: `${errorMessage}`,
+                   threadId: chatId,
+                   walletAddress: address ?? "",
+                   isTransaction: true, // Mark as transaction status update
+                 });
+               } catch (notifyError) {
+                 console.error("Failed to notify backend about Aave failure:", notifyError);
+               }
               }
             } catch (err) {
               console.error("Aave operation error:", err);
-              const errorMessage = (err as Error).message || "";
+              const error = err as any;
+              const errorMessage = error?.message || "";
 
-              let userFriendlyMessage = "Transaction failed. Please try again.";
+              // Check for specific error codes and types
+              let userFriendlyMessage = "";
 
+              // Check for CALL_EXCEPTION or on-chain transaction failure
+              if (error?.code === "CALL_EXCEPTION" || errorMessage.includes("CALL_EXCEPTION")) {
+                userFriendlyMessage = "The transaction was sent to the blockchain but failed during execution. This usually happens when there isn't enough collateral, the amount exceeds your available balance, or the transaction would put your position at risk. Please check your balance and try again with a different amount.";
+              }
+              // Check if receipt shows status: 0 (failed on-chain)
+              else if (error?.receipt?.status === 0) {
+                userFriendlyMessage = "The transaction was processed by the blockchain but was reverted. This could be due to insufficient funds, market conditions, or transaction requirements not being met. Please verify your balance and the transaction details before trying again.";
+              }
               // Special case: user rejected
-              if (
+              else if (
                 errorMessage.toLowerCase().includes("user denied") ||
                 errorMessage.toLowerCase().includes("user rejected")
               ) {
-                userFriendlyMessage =
-                  "Something went wrong!.Please Try again later..";
+                userFriendlyMessage = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
+              }
+              // Try to match error with error handling map
+              else {
+                userFriendlyMessage = getErrorMessage(errorMessage);
+
+                // If no match found in message, try with a simpler error check (avoid full JSON)
+                if (userFriendlyMessage === FALLBACK_ERROR_MESSAGE) {
+                  // Only check the error code and name, not the full object to avoid huge messages
+                  const simpleErrorInfo = `${error?.code} ${error?.name} ${errorMessage}`;
+                  userFriendlyMessage = getErrorMessage(simpleErrorInfo);
+                }
               }
 
               updateLastAiMessage(userFriendlyMessage);
+
+              // Notify backend about the transaction failure
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${userFriendlyMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true, // Mark as transaction status update
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about Aave catch error:", notifyError);
+              }
             } finally {
               setExecutingAave(false);
             }
@@ -1324,22 +1632,26 @@ export function ChatInterface({
 
           // Handle tool errors
           if (toolMessage?.error) {
-            if (
-              toolMessage.error.includes("No routes found") ||
-              toolMessage.error.includes(
-                "LiFi route fetch failed: 'NoneType' object has no attribute 'get'"
-              )
-            ) {
-              // addMessageToCurrentChat(
-              //   "assistant",
-              //   `Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊`
-              // );
-              updateLastAiMessage("Hey! It looks like there are no available routes right now. This can happen if there's low liquidity, the amount you selected is too small, gas fees are too high, or the token pair doesn't have a valid route. Try adjusting the amount or selecting a different combination and see if that helps! 😊");
-              return;
+            // Get natural AI response based on error pattern
+            const naturalErrorMessage = getErrorMessage(toolMessage.error);
+
+            // Add AI error message to chat
+            addMessageToCurrentChat("assistant", naturalErrorMessage);
+
+            // Notify backend about the transaction failure with natural message
+            try {
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: `${naturalErrorMessage}`,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true, // Mark as transaction status update
+              });
+            } catch (error) {
+              console.error("Failed to notify backend about transaction failure:", error);
             }
 
-            // addMessageToCurrentChat("assistant", `Something went wrong!.Please Try again later.`);
-            updateLastAiMessage("Something went wrong!.Please Try again later.");
             return;
           }
 
@@ -1352,12 +1664,41 @@ export function ChatInterface({
           );
         }
       } else {
-         updateLastAiMessage("Something went wrong!.Please Try again later.");
-        
+        const errorMessage = "I encountered an issue processing your request. This might be a temporary service problem. Could you please try again in a moment?";
+        addMessageToCurrentChat("assistant", errorMessage);
+
+        // Notify backend about the failure
+        try {
+          await orchestratedAgentChat({
+            agentName: "orchestratedAgent",
+            userId: user?.id ?? "",
+            message: `${errorMessage}`,
+            threadId: chatId,
+            walletAddress: address ?? "",
+            isTransaction: true,
+          });
+        } catch (notifyError) {
+          console.error("Failed to notify backend about response error:", notifyError);
+        }
       }
     } catch (error) {
       console.error("Chat error:", error);
-      updateLastAiMessage("Something went wrong!.Please Try again later.");
+      const errorMessage = "Oops! Something unexpected happened. This could be a network issue or temporary service interruption. Please try again in a moment.";
+      addMessageToCurrentChat("assistant", errorMessage);
+
+      // Notify backend about the failure
+      try {
+        await orchestratedAgentChat({
+          agentName: "orchestratedAgent",
+          userId: user?.id ?? "",
+          message: `${errorMessage}`,
+          threadId: chatId,
+          walletAddress: address ?? "",
+          isTransaction: true,
+        });
+      } catch (notifyError) {
+        console.error("Failed to notify backend about catch error:", notifyError);
+      }
     } finally {
       setIsLoading(false);
       setIsMessageSending(false);
@@ -1453,7 +1794,7 @@ export function ChatInterface({
         )}
 
         {hasMessages && user?.id && address && (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-32">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20">
             <div className="max-w-3xl mx-auto space-y-6">
               {currentChat?.messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
@@ -1620,7 +1961,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
       >
         {/* Agent name header for AI messages */}
         {!isUser && (
-          <div className="bg-primary/20 m-3 rounded px-4 py-3 text-sm font-medium text-white">
+          <div className="bg-primary/20 mx-3 mt-3 rounded px-4 py-3 text-sm font-medium text-white">
             {" "}
             {/* Changed to text-white */}
             Agentify AI
@@ -1639,6 +1980,19 @@ function MessageBubble({ message }: MessageBubbleProps) {
                 >
                   {children}
                 </a>
+              ),
+              ol: ({ children }) => (
+                <ol className="list-decimal list-inside space-y-1 my-2">
+                  {children}
+                </ol>
+              ),
+              ul: ({ children }) => (
+                <ul className="list-disc list-inside space-y-1 my-2">
+                  {children}
+                </ul>
+              ),
+              li: ({ children }) => (
+                <li className="ml-2">{children}</li>
               ),
             }}
           >

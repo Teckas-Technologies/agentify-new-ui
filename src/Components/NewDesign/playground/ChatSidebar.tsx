@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   ChevronDown,
   X,
@@ -69,8 +69,29 @@ export function ChatSidebar({
   const { handleWalletConnect, disconnectAll } = useWalletConnect();
   const { user } = usePrivy();
   console.log("user--",user);
-  
+
   const { address } = useAccount();
+  const signOutDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        signOutDropdownRef.current &&
+        !signOutDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowSignIn(false);
+      }
+    };
+
+    if (showSignIn) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSignIn]);
 
   const handleClick = () => {
     if (!address || !user) {
@@ -127,13 +148,36 @@ export function ChatSidebar({
   };
   const { getThreadHistory, loading, error } = useGetThreadHistory();
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [prevAddress, setPrevAddress] = useState(address);
+  const [prevRefreshKey, setPrevRefreshKey] = useState(refreshKey);
 
   useEffect(() => {
     const fetchThreads = async () => {
+      // Determine if this is an address change or just a refresh
+      const isAddressChange = prevAddress !== address;
+      const isRefreshKeyChange = prevRefreshKey !== refreshKey && prevAddress === address;
+
+      // Show skeleton for initial load or address change
+      // Show spinner for refresh key change
+      if (!isInitialLoad && !isAddressChange) {
+        setIsRefreshing(true);
+      }
+
+      setIsFetching(true);
+
       const res = await getThreadHistory(user?.id ?? "");
       if (res.success && Array.isArray(res.message)) {
         setThreads(res.message);
       }
+
+      setIsInitialLoad(false);
+      setIsFetching(false);
+      setIsRefreshing(false);
+      setPrevAddress(address);
+      setPrevRefreshKey(refreshKey);
     };
     fetchThreads();
   }, [address, refreshKey]);
@@ -210,7 +254,12 @@ export function ChatSidebar({
         {!collapsed && (
           <div className="flex-1 min-h-0 mt-6 flex flex-col">
             <div className="flex items-center justify-between text-xs font-semibold text-gray-400 uppercase mb-3">
-              <span>Chat Threads</span>
+              <div className="flex items-center gap-2">
+                <span>Chat Threads</span>
+                {isRefreshing && (
+                  <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                )}
+              </div>
               <Plus
                 className="h-4 w-4 text-gray-400 hover:text-white cursor-pointer"
                 onClick={handleNewConversation}
@@ -218,15 +267,15 @@ export function ChatSidebar({
             </div>
 
            <div className="space-y-1 overflow-y-auto custom-scroll">
-  {loading ? (
-    // Single skeleton with same row height
+  {isFetching && threads.length === 0 ? (
+    // Show skeleton only when fetching AND no threads exist yet
    <div className="p-2 space-y-2">
     {Array.from({ length: 5 }).map((_, i) => (
       <Skeleton key={i} className="h-8 w-full rounded" />
     ))}
   </div>
   ) : threads.length === 0 ? (
-    // Empty state
+    // Empty state (only after fetch completes and no threads found)
     <div className="text-gray-400 text-sm italic p-4 text-center">
       No conversations found
     </div>
@@ -276,7 +325,7 @@ export function ChatSidebar({
       </div>
 
       {/* Bottom Profile Section (fixed at bottom) */}
-      <div className="p-4 border-t border-sidebar-border flex flex-col gap-2" >
+      {/* <div className="p-4 border-t border-sidebar-border flex flex-col gap-2" ref={signOutDropdownRef}>
         {showSignIn && (
           <Button
             variant="outline"
@@ -310,7 +359,7 @@ export function ChatSidebar({
             />
           )}
         </div>
-      </div>
+      </div> */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-[#18181B] text-white">
           <AlertDialogHeader>
