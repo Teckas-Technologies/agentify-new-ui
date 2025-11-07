@@ -983,7 +983,7 @@ export function ChatInterface({
               // Show execution message
               addMessageToCurrentChat(
                 "assistant",
-                `🔄 Swapping ${fromToken} → ${toToken}. Don't close the page...`
+                `🔄 Swapping ${fromAmount} ${fromToken} to ${toToken}, don't close the page until confirmation...`
               );
 
               const amountString = fromAmount.toString();
@@ -1030,7 +1030,7 @@ export function ChatInterface({
                   );
                 }
 
-                const statusMessage = `Swap successful! 🎉 [View on Berascan](${explorerUrl})`;
+                const statusMessage = `Your swap of ${fromAmount} ${fromToken} to ${toToken} was successful! 🎉 You can check the transaction on the [block explorer](${explorerUrl}).`;
                 updateLastAiMessage(statusMessage);
 
                 // Notify AI that tx is done
@@ -1205,9 +1205,10 @@ export function ChatInterface({
             }
 
             // Show execution message
+            const formatedAmountDisplay = formatUnits(fromAmount, fromToken.decimals);
             addMessageToCurrentChat(
               "assistant",
-              `🚀 ${fromChainId === toChainId ? "Swapping" : "Bridging"}...`
+              `🔄 ${fromChainId === toChainId ? "Swapping" : "Bridging"} ${formatedAmountDisplay} ${fromToken.symbol}${fromChainId !== toChainId ? ` to ${quote.toToken?.symbol || 'destination token'}` : ''}, don't close the page until confirmation...`
             );
 
             setExecutingLifi(true);
@@ -1249,11 +1250,8 @@ export function ChatInterface({
                   agentName
                 );
 
-                const statusMessage = `${
-                  fromChainId === toChainId ? "Swap" : "Bridge"
-                } successful! [View on Explorer](${explorer}tx/${
-                  txRes.txHash
-                })`;
+                const actionType = fromChainId === toChainId ? "swap" : "bridge";
+                const statusMessage = `Your ${actionType} of ${formatedAmount} ${fromToken.symbol}${fromChainId !== toChainId ? ` to ${quote.toToken?.symbol || 'destination token'}` : ''} was successful! 🎉 You can check the transaction on the [block explorer](${explorer}tx/${txRes.txHash}).`;
 
                 updateLastAiMessage(statusMessage);
 

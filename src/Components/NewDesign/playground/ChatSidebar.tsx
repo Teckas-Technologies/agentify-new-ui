@@ -206,7 +206,7 @@ export function ChatSidebar({
       </div>
 
       {/* Main Content (Navigation + Threads) */}
-      <div className="flex-1 flex flex-col p-4 min-h-0">
+      <div className="flex-1 flex flex-col py-4 pl-4 min-h-0">
         {/* Navigation (fixed at top inside content) */}
         <div className="space-y-6">
           <div>
@@ -253,7 +253,7 @@ export function ChatSidebar({
         {/* Chat Threads (scrollable area) */}
         {!collapsed && (
           <div className="flex-1 min-h-0 mt-6 flex flex-col">
-            <div className="flex items-center justify-between text-xs font-semibold text-gray-400 uppercase mb-3">
+            <div className="flex items-center justify-between text-xs font-semibold text-gray-400 uppercase mb-3 mr-4">
               <div className="flex items-center gap-2">
                 <span>Chat Threads</span>
                 {isRefreshing && (
