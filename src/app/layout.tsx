@@ -8,6 +8,7 @@ import { ToastProvider } from "@/Components/ui/toast";
 import { Toaster } from "@/Components/ui/toaster";
 import { ConversationProvider } from "@/contexts/ConversationContext";
 import { SidebarProvider } from "@/Components/ui/sidebar";
+import { TokenBalanceRefreshProvider } from "@/contexts/TokenBalanceRefreshContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,7 +40,9 @@ export default async function RootLayout({
       >
         <Toaster />
         <CustomWagmiProvider>
-          <ConversationProvider>{children}</ConversationProvider>
+          <TokenBalanceRefreshProvider>
+            <ConversationProvider>{children}</ConversationProvider>
+          </TokenBalanceRefreshProvider>
         </CustomWagmiProvider>
       </body>
     </html>

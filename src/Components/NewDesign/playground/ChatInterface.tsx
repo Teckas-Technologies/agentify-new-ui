@@ -1152,7 +1152,7 @@ export function ChatInterface({
             }
 
             // Validate balance
-            const isEnoughBalance = await validateTokenBalance(
+            const balanceValidation = await validateTokenBalance(
               fromChainId,
               fromToken,
               fromAmount
@@ -1181,9 +1181,18 @@ export function ChatInterface({
               return;
             }
 
-            if (isEnoughBalance === false) {
-              const formattedAmount = Number(fromAmount) / Math.pow(10, fromToken.decimals);
-              const errorMessage = `I see that you need ${formattedAmount} ${fromToken.symbol} for this transaction, but it looks like you don't have enough balance. Please check your wallet and either reduce the amount or add more ${fromToken.symbol} to continue.`;
+            if (!balanceValidation.isValid) {
+              let errorMessage: string;
+
+              if (balanceValidation.isNearMax && balanceValidation.suggestedAmount) {
+                // User is trying to use max balance - provide suggested amount
+                errorMessage = `You have ${balanceValidation.actualBalance} ${balanceValidation.tokenSymbol}, but the transaction requires ${balanceValidation.requiredAmount} ${balanceValidation.tokenSymbol}. Try using ${balanceValidation.suggestedAmount} ${balanceValidation.tokenSymbol} instead.`;
+              } else {
+                const shortfallMsg = balanceValidation.shortfall
+                  ? ` You're short by ${balanceValidation.shortfall} ${balanceValidation.tokenSymbol}.`
+                  : '';
+                errorMessage = `I see that you need ${balanceValidation.requiredAmount} ${balanceValidation.tokenSymbol} for this transaction, but you only have ${balanceValidation.actualBalance} ${balanceValidation.tokenSymbol}.${shortfallMsg} Please add more funds or reduce the amount to continue.`;
+              }
 
               addMessageToCurrentChat("assistant", errorMessage);
 
@@ -1792,7 +1801,7 @@ export function ChatInterface({
         )}
 
         {hasMessages && user?.id && address && (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20 custom-scroll">
             <div className="max-w-3xl mx-auto space-y-6">
               {currentChat?.messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />

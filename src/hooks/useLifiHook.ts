@@ -4,7 +4,8 @@ import { useAccount } from "wagmi";
 import { TransactionError } from "./useAaveHook";
 import { readContract, getBalance } from '@wagmi/core';
 import { wagmiConfig } from "@/contexts/CustomWagmiProvider";
-import { erc20Abi } from 'viem';
+import { erc20Abi, formatUnits } from 'viem';
+import { useTokenBalanceRefresh } from "@/contexts/TokenBalanceRefreshContext";
 
 // import { customSwitchNetwork } from "../wagmiConfig"; // Uncomment if network switching is needed
 
@@ -16,6 +17,7 @@ const NATIVE_TOKEN_ADDRESSES = [
 
 const useLifiHook = () => {
     const { address, isConnected } = useAccount();
+    const { triggerRefresh } = useTokenBalanceRefresh();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ const useLifiHook = () => {
     // Supports both native tokens (ETH, MATIC, BNB, etc.) and ERC20 tokens
     const validateTokenBalance = async (chainId: number, tokenAddress: { address: string }, amount: string) => {
         if (!address) {
-            return false;
+            return { isValid: false, actualBalance: "0", requiredAmount: "0", tokenSymbol: "" };
         }
         try {
             // Get token info from LiFi
@@ -68,14 +70,64 @@ const useLifiHook = () => {
 
             const requiredAmount = BigInt(amount);
 
+            // Use formatUnits for proper precision handling (full 18 decimals)
+            const available = formatUnits(userBalance, token.decimals);
+            const required = formatUnits(requiredAmount, token.decimals);
+
+            console.log('Balance check:', {
+                userBalance: userBalance.toString(),
+                requiredAmount: requiredAmount.toString(),
+                available,
+                required,
+                symbol: token.symbol,
+                difference: (userBalance - requiredAmount).toString()
+            });
+
+            // Exact comparison - no buffer
             if (userBalance < requiredAmount) {
-                const available = Number(userBalance) / Math.pow(10, token.decimals);
-                const required = Number(requiredAmount) / Math.pow(10, token.decimals);
-                setError(`You have ${available} ${token.symbol}, but you need ${required} ${token.symbol} for this transaction. Please add more funds or reduce the amount.`);
-                return false;
+                const shortfall = requiredAmount - userBalance;
+                const shortfallFormatted = formatUnits(shortfall, token.decimals);
+
+                // Calculate percentage difference
+                const percentDiff = (Number(shortfall) / Number(requiredAmount)) * 100;
+
+                // If trying to use nearly all balance (shortfall < 0.01%), provide helpful message
+                let errorMsg: string;
+                let suggestedAmount: string | undefined;
+
+                if (percentDiff < 0.01) {
+                    // Very tiny shortfall - user is trying to use max balance
+                    // Subtract shortfall * 10 to give a tiny safety margin (or minimum 1000 wei)
+                    const safetyMargin = shortfall * BigInt(10);
+                    const minMargin = BigInt(1000);
+                    const margin = safetyMargin > minMargin ? safetyMargin : minMargin;
+                    const safeMaxAmount = userBalance - margin;
+                    const safeMaxFormatted = formatUnits(safeMaxAmount, token.decimals);
+                    suggestedAmount = safeMaxFormatted;
+
+                    errorMsg = `You have ${available} ${token.symbol}, but the transaction requires ${required} ${token.symbol}. Try using ${safeMaxFormatted} ${token.symbol} instead.`;
+                } else {
+                    errorMsg = `You have ${available} ${token.symbol}, but you need ${required} ${token.symbol} for this transaction. You're short by ${shortfallFormatted} ${token.symbol}. Please add more funds or reduce the amount.`;
+                }
+
+                setError(errorMsg);
+                return {
+                    isValid: false,
+                    actualBalance: available,
+                    requiredAmount: required,
+                    tokenSymbol: token.symbol,
+                    shortfall: shortfallFormatted,
+                    isNearMax: percentDiff < 0.01,
+                    suggestedAmount
+                };
             }
 
-            return true;
+            return {
+                isValid: true,
+                actualBalance: available,
+                requiredAmount: required,
+                tokenSymbol: token.symbol
+            };
         } catch (err) {
             const errorMessage = (err as Error).message || '';
 
@@ -87,7 +139,7 @@ const useLifiHook = () => {
             } else {
                 setError("Failed to fetch token balance. Please try again.");
             }
-            return false;
+            return { isValid: false, actualBalance: "0", requiredAmount: "0", tokenSymbol: "" };
         }
     };
 
@@ -221,7 +273,8 @@ const useLifiHook = () => {
             return;
         }
 
-        if (!(await validateTokenBalance(fromChainId, fromToken, fromAmount))) return;
+        const balanceCheck = await validateTokenBalance(fromChainId, fromToken, fromAmount);
+        if (!balanceCheck.isValid) return;
 
         try {
             setLoading(true);
@@ -231,12 +284,15 @@ const useLifiHook = () => {
 
             return new Promise((resolve, reject) => {
                 let resolved = false;
+                let txSubmitted = false;
                 executeRoute(quote, { // route
                     updateRouteHook(updatedRoute) {
                         updatedRoute.steps.forEach((step) => {
                             step.execution?.process.forEach((process) => {
-                                if (process.txHash && process.status === "PENDING") {
+                                // When transaction is submitted (PENDING)
+                                if (process.txHash && process.status === "PENDING" && !txSubmitted) {
                                     // console.log("Transaction sent! TX Hash:", process.txHash);
+                                    txSubmitted = true;
                                     resolved = true;
 
                                     // ✅ Push execution to background
@@ -244,8 +300,15 @@ const useLifiHook = () => {
 
                                     // ✅ Resolve immediately with TX hash
                                     resolve({ txHash: process.txHash });
+                                }
 
-                                    return;
+                                // When transaction is completed (DONE)
+                                if (process.txHash && process.status === "DONE") {
+                                    console.log("✅ Transaction confirmed! Refreshing balances...");
+                                    // ✅ Trigger token balance refresh after confirmation
+                                    setTimeout(() => {
+                                        triggerRefresh();
+                                    }, 2000); // Small delay to ensure blockchain state is updated
                                 }
                             });
                         });

@@ -5,6 +5,7 @@ import { getTokens } from '@lifi/sdk';
 import { getBalance, readContract } from '@wagmi/core';
 import { wagmiConfig } from '@/contexts/CustomWagmiProvider';
 import { erc20Abi } from 'viem';
+import { useTokenBalanceRefresh } from '@/contexts/TokenBalanceRefreshContext';
 
 export interface TokenBalance {
   symbol: string;
@@ -28,6 +29,7 @@ const NATIVE_TOKEN_ADDRESSES = [
 export function useTokenBalances() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const { refreshTrigger } = useTokenBalanceRefresh();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,7 +40,12 @@ export function useTokenBalances() {
     }
 
     const fetchTokenBalances = async () => {
-      setIsLoading(true);
+      // Only show loading spinner on initial load (when tokens array is empty)
+      // During refresh, silently update in the background
+      const isInitialLoad = tokens.length === 0;
+      if (isInitialLoad) {
+        setIsLoading(true);
+      }
       try {
         // Fetch all tokens for the current chain from LiFi
         const lifiTokens = await getTokens({ chains: [chainId] });
@@ -117,14 +124,20 @@ export function useTokenBalances() {
         setTokens(validTokens);
       } catch (error) {
         console.error('Error fetching token balances:', error);
-        setTokens([]);
+        // Only clear tokens on initial load error, not during refresh
+        if (isInitialLoad) {
+          setTokens([]);
+        }
       } finally {
-        setIsLoading(false);
+        // Only turn off loading if we turned it on (initial load)
+        if (isInitialLoad) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchTokenBalances();
-  }, [address, isConnected, chainId]);
+  }, [address, isConnected, chainId, refreshTrigger]);
 
   return {
     tokens,

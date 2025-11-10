@@ -10,6 +10,7 @@ import { marketConfigs } from "@/utils/markets";
 import { MarketType } from "@/types/types";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { erc20Abi } from "viem";
+import { useTokenBalanceRefresh } from "@/contexts/TokenBalanceRefreshContext";
 
 interface LendingData {
     market: MarketType;
@@ -81,6 +82,7 @@ const useAaveHook = () => {
     // const { walletProvider } = useAppKitProvider("eip155");
     const { wallets } = useWallets();
     const { user } = usePrivy();
+    const { triggerRefresh } = useTokenBalanceRefresh();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState("none");
@@ -1513,6 +1515,7 @@ const useAaveHook = () => {
             }
 
             console.log("🎉 [supplyToAave] Supply operation completed successfully!");
+            triggerRefresh();
             return { success: true, txHashes };
         } catch (err: any) {
             const error = err as TransactionError;
@@ -1527,6 +1530,7 @@ const useAaveHook = () => {
                 const result = await handleTransactionReplaced(err, provider);
                 if (result.isReplaced && result.success) {
                     console.log("✅ [supplyToAave] Transaction replaced with higher gas but succeeded!");
+                    triggerRefresh();
                     return {
                         success: true,
                         txHashes: [result.txHash!]
@@ -1942,6 +1946,7 @@ const useAaveHook = () => {
                 }
             }
 
+            triggerRefresh();
             return { success: true, txHashes: txHashes };
         } catch (error: unknown) {
             const err = error as TransactionError;
@@ -1952,6 +1957,7 @@ const useAaveHook = () => {
                 const result = await handleTransactionReplaced(err, provider);
                 if (result.isReplaced && result.success) {
                     console.log("✅ [withdrawFromAave] Transaction replaced with higher gas but succeeded!");
+                    triggerRefresh();
                     return {
                         success: true,
                         txHashes: [result.txHash!]
@@ -2291,6 +2297,7 @@ const useAaveHook = () => {
             }
 
             console.log("🎉 [borrowToAave] Borrow operation completed successfully!");
+            triggerRefresh();
             return { success: true, txHashes };
         } catch (error: unknown) {
             const err = error as TransactionError;
@@ -2303,6 +2310,7 @@ const useAaveHook = () => {
                 const result = await handleTransactionReplaced(err, provider);
                 if (result.isReplaced && result.success) {
                     console.log("✅ [borrowToAave] Transaction replaced with higher gas but succeeded!");
+                    triggerRefresh();
                     return {
                         success: true,
                         txHashes: [result.txHash!]
@@ -2763,6 +2771,7 @@ const useAaveHook = () => {
     }
 
     // ✅ FIX: return object, not raw array
+    triggerRefresh();
     return { success: true, txHashes };
   } catch (error: unknown) {
     const err = error as TransactionError;
@@ -2773,6 +2782,7 @@ const useAaveHook = () => {
       const result = await handleTransactionReplaced(err, provider);
       if (result.isReplaced && result.success) {
         console.log("✅ [repayToAave] Transaction replaced with higher gas but succeeded!");
+        triggerRefresh();
         return {
           success: true,
           txHashes: [result.txHash!]

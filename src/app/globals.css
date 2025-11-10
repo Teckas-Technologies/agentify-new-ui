@@ -104,6 +104,17 @@
   }
 }
 
+@keyframes slideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .animate-fadeInUp {
   animation: fadeInUp 0.6s ease-out forwards;
   opacity: 0;
@@ -112,6 +123,10 @@
 .animate-fadeIn {
   animation: fadeIn 0.6s ease-out forwards;
   opacity: 0;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
 }
 
 /* Gradient Mesh Animations */

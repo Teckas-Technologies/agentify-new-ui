@@ -8,6 +8,8 @@ import { useWalletConnect } from "@/hooks/useWalletConnect";
 import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import { useTokenBalances } from "@/hooks/useTokenBalances";
+import { NetworkSwitcher } from "./NetworkSwitcher";
+
 interface RightSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -64,6 +66,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
         </div>
       </div>
 
+      {/* Network Switcher - Fixed */}
+      {address && user && (
+        <div className="flex-shrink-0 px-4 pb-3">
+          <NetworkSwitcher />
+        </div>
+      )}
+
       {/* Tokens Section - Scrollable */}
       <div className="flex-1 overflow-hidden px-4 flex flex-col min-h-0">
         <h3 className="text-xs text-gray-400 mb-3 flex-shrink-0">Tokens</h3>
@@ -80,7 +89,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
             <span>Loading tokens...</span>
           </div>
         ) : tokens.length > 0 ? (
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent pr-1 min-h-0">
+          <div className="flex-1 overflow-y-auto custom-scroll pr-1 min-h-0">
             <div className="space-y-2 pb-2">
               {tokens.map((token, index) => (
                 <div
