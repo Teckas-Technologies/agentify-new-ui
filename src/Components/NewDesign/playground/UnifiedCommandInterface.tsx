@@ -616,7 +616,7 @@ export const UnifiedCommandInterface = ({
             
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
-            
+
             setMessages((prev) => [
               ...prev,
               {

@@ -18,6 +18,7 @@ import { getAccessToken } from "@privy-io/react-auth";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
+import Navbar from "@/Components/NewDesign/Dashboard/Navbar/Navbar";
 // Animated Grid Background Component (keep this as is)
 const AnimatedGridBackground = () => {
   return (
@@ -190,19 +191,24 @@ export default function Playground() {
     }
   };
   return (
-    <div className="min-h-screen flex w-full bg-background relative overflow-hidden">
-      {/* Animated Grid Background */}
+    <div className="min-h-screen flex flex-col w-full bg-background relative overflow-hidden">
+      {/* Navigation Header */}
+      <Navbar onWalletClick={() => setIsWalletOpen(!isWalletOpen)} isWalletOpen={isWalletOpen} />
 
-      {/* ChatSidebar - Fixed position, not affected by wallet animation */}
-      {!isMobile && (
-        <div className="fixed left-0 top-0 h-full z-30">
-          <ChatSidebar />
-        </div>
-      )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* Animated Grid Background */}
+
+        {/* ChatSidebar - Fixed position, not affected by wallet animation */}
+        {!isMobile && (
+          <div className="fixed left-0 top-[73px] h-[calc(100%-73px)] z-30">
+            <ChatSidebar />
+          </div>
+        )}
 
       {/* 🔹 Mobile Header Buttons */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 flex justify-between items-center p-4 bg-background/80 backdrop-blur-sm z-40 border-b border-border">
+        <div className="fixed top-[73px] left-0 right-0 flex justify-between items-center p-4 bg-background/80 backdrop-blur-sm z-40 border-b border-border">
           <Button
             onClick={() => setIsChatOpen(true)}
             variant="outline"
@@ -223,32 +229,32 @@ export default function Playground() {
         </div>
       )}
 
-      {/* 🔹 Desktop Wallet Button Top Right */}
-      {!isMobile && (
-        <div className="absolute top-4 right-6 z-30">
-          <Button
-            onClick={() => {
-              setIsWalletOpen(!isWalletOpen);
-            }}
-            variant="outline"
-            className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-5 py-2 flex items-center justify-center gap-2 transition-all duration-300 group w-full"
-          >
-            <Wallet className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
-            <span className="transition-transform duration-300 group-hover:-translate-x-1">
-              Wallet
-            </span>
-            <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-          </Button>
-        </div>
-      )}
+        {/* 🔹 Desktop Wallet Button Top Right */}
+        {!isMobile && (
+          <div className="absolute top-4 right-6 z-30">
+            <Button
+              onClick={() => {
+                setIsWalletOpen(!isWalletOpen);
+              }}
+              variant="outline"
+              className="neumorphic-sm hover:bg-primary/5 rounded-xl shadow-md px-5 py-2 flex items-center justify-center gap-2 transition-all duration-300 group w-full"
+            >
+              <Wallet className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
+              <span className="transition-transform duration-300 group-hover:-translate-x-1">
+                Wallet
+              </span>
+              <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+            </Button>
+          </div>
+        )}
 
-      {/* 🔹 Wallet Sidebar (Right Drawer) */}
-      <div
-        ref={walletSidebarRef}
-        className={`fixed top-0 right-0 h-full w-80 bg-[#101014] text-white shadow-lg transform transition-transform duration-500 z-40 ${
-          isWalletOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+        {/* 🔹 Wallet Sidebar (Right Drawer) */}
+        <div
+          ref={walletSidebarRef}
+          className={`fixed top-[73px] right-0 h-[calc(100%-73px)] w-80 bg-[#101014] text-white shadow-lg transform transition-transform duration-500 z-40 ${
+            isWalletOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-[#1d1d20]">
           <h2 className="text-sm font-semibold text-gray-300">Wallet</h2>
@@ -267,30 +273,30 @@ export default function Playground() {
         />
       </div>
 
-      {/* 🔹 Left Sidebar (Chats) for mobile */}
-      {isMobile && (
+        {/* 🔹 Left Sidebar (Chats) for mobile */}
+        {isMobile && (
+          <div
+            ref={chatSidebarRef}
+            className={`fixed top-[73px] left-0 h-[calc(100%-73px)] w-80 bg-[#101014] shadow-lg transform transition-transform duration-500 z-40 ${
+              isChatOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            {/* You'll need to pass the chat sidebar content here */}
+            <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
+          </div>
+        )}
+
+        {/* 🔹 Main Content with Push Effect - Only on Desktop */}
         <div
-          ref={chatSidebarRef}
-          className={`fixed top-0 left-0 h-full w-80 bg-[#101014] shadow-lg transform transition-transform duration-500 z-40 ${
-            isChatOpen ? "translate-x-0" : "-translate-x-full"
+          className={`flex flex-1 relative z-10 transition-all duration-500 ${
+            !isMobile ? "ml-60" : ""
+          } ${
+            // Push effect only on desktop
+            isWalletOpen && !isMobile
+              ? "translate-x-[-160px] scale-95"
+              : "translate-x-0 scale-100"
           }`}
         >
-          {/* You'll need to pass the chat sidebar content here */}
-          <ChatSidebar mobileView onSelectChat={() => setIsChatOpen(false)} />
-        </div>
-      )}
-
-      {/* 🔹 Main Content with Push Effect - Only on Desktop */}
-      <div
-        className={`flex flex-1 relative z-10 transition-all duration-500 ${
-          !isMobile ? "ml-60" : ""
-        } ${
-          // Push effect only on desktop
-          isWalletOpen && !isMobile
-            ? "translate-x-[-160px] scale-95"
-            : "translate-x-0 scale-100"
-        }`}
-      >
         {/* 🔹 Video Background Layer */}
         <video
           autoPlay
@@ -304,7 +310,7 @@ export default function Playground() {
         </video>
 
         {/* 🔹 Centered Content Container */}
-        <div className="flex items-center justify-center w-full h-full pt-16 md:pt-0">
+        <div className="flex items-center justify-center w-full h-full pt-32 md:pt-0">
           {/* 🔹 Foreground Content */}
           <div className="max-w-2xl text-left relative z-20 mx-4 md:mx-0">
             <h1
@@ -419,16 +425,17 @@ export default function Playground() {
         </div>
       </div>
 
-      {/* 🔹 Overlay for mobile sidebars */}
-      {isMobile && (isChatOpen || isWalletOpen) && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30"
-          onClick={() => {
-            setIsChatOpen(false);
-            setIsWalletOpen(false);
-          }}
-        />
-      )}
+        {/* 🔹 Overlay for mobile sidebars */}
+        {isMobile && (isChatOpen || isWalletOpen) && (
+          <div
+            className="fixed inset-0 bg-black/50 z-30"
+            onClick={() => {
+              setIsChatOpen(false);
+              setIsWalletOpen(false);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

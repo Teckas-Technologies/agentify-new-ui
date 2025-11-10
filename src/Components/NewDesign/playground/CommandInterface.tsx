@@ -802,11 +802,12 @@ if (
             }
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
+            const displayAmount = (amount === "-1" || amount === -1 || String(amount) === "-1") ? "the full amount of" : amount;
             setMessages((prev) => [
               ...prev,
               {
                 role: "ai",
-                message: `Executing withdraw for ${amount} ${tokenSymbol}, don't close the page until get confirmations...`,
+                message: `Executing withdraw for ${displayAmount} ${tokenSymbol}, don't close the page until get confirmations...`,
               },
             ]);
             setExecutingAave(true);
@@ -892,12 +893,13 @@ if (
             const marketType: MarketType = market;
             const selectedMarket = marketConfigs[marketType];
 
-            // Push AI message before execution
+            // Push AI message before execution (convert -1 to user-friendly text)
+            const displayAmount = (amount === "-1" || amount === -1 || String(amount) === "-1") ? "the full amount of" : amount;
             setMessages((prev) => [
               ...prev,
               {
                 role: "ai",
-                message: `Executing repay for ${amount} ${tokenSymbol}, don't close the page until confirmations...`,
+                message: `Executing repay for ${displayAmount} ${tokenSymbol}, don't close the page until confirmations...`,
               },
             ]);
 

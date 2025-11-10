@@ -1,12 +1,23 @@
 import { useState } from "react";
-import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getTokenBalance, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route, ChainId } from "@lifi/sdk";
+import { convertQuoteToRoute, executeRoute, getQuote, getChains, getConnections, getTools, getToken, updateRouteExecution, getRoutes, ChainKey, ConnectionsRequest, Route, ChainId } from "@lifi/sdk";
 import { useAccount } from "wagmi";
 import { TransactionError } from "./useAaveHook";
+import { readContract, getBalance } from '@wagmi/core';
+import { wagmiConfig } from "@/contexts/CustomWagmiProvider";
+import { erc20Abi, formatUnits } from 'viem';
+import { useTokenBalanceRefresh } from "@/contexts/TokenBalanceRefreshContext";
 
 // import { customSwitchNetwork } from "../wagmiConfig"; // Uncomment if network switching is needed
 
+// Native token addresses used by LiFi SDK (all represent native gas tokens)
+const NATIVE_TOKEN_ADDRESSES = [
+    '0x0000000000000000000000000000000000000000',
+    '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+].map(addr => addr.toLowerCase());
+
 const useLifiHook = () => {
     const { address, isConnected } = useAccount();
+    const { triggerRefresh } = useTokenBalanceRefresh();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -23,24 +34,112 @@ const useLifiHook = () => {
     //     })
     // }
 
-    // ✅ Validate Token Balance
+    // ✅ Validate Token Balance - Using Wagmi instead of LiFi to avoid provider issues
+    // Supports both native tokens (ETH, MATIC, BNB, etc.) and ERC20 tokens
     const validateTokenBalance = async (chainId: number, tokenAddress: { address: string }, amount: string) => {
         if (!address) {
-            return;
+            return { isValid: false, actualBalance: "0", requiredAmount: "0", tokenSymbol: "" };
         }
         try {
+            // Get token info from LiFi
             const token = await getToken(chainId, tokenAddress.address);
-            const tokenBalance = await getTokenBalance(address, token);
-            const userBalance = BigInt(tokenBalance?.amount || "0");
-            const requiredAmount = BigInt(amount);
-            if (userBalance < requiredAmount) {
-                setError("Insufficient token balance. Please check your wallet balance");
-                return false;
+
+            // Check if it's a native token (ETH, MATIC, BNB, etc.)
+            const isNativeToken = NATIVE_TOKEN_ADDRESSES.includes(tokenAddress.address.toLowerCase());
+
+            let userBalance: bigint;
+
+            if (isNativeToken) {
+                // ✅ Native token: Use getBalance (ETH, MATIC, BNB, AVAX, etc.)
+                const nativeBalance = await getBalance(wagmiConfig as any, {
+                    address: address as `0x${string}`,
+                    chainId: chainId as any,
+                });
+                userBalance = nativeBalance.value;
+            } else {
+                // ✅ ERC20 token: Use readContract with balanceOf (USDT, USDC, DAI, etc.)
+                const erc20Balance = await readContract(wagmiConfig as any, {
+                    address: tokenAddress.address as `0x${string}`,
+                    abi: erc20Abi,
+                    functionName: 'balanceOf',
+                    args: [address as `0x${string}`],
+                    chainId: chainId as any,
+                });
+                userBalance = BigInt(erc20Balance?.toString() || "0");
             }
-            return true;
+
+            const requiredAmount = BigInt(amount);
+
+            // Use formatUnits for proper precision handling (full 18 decimals)
+            const available = formatUnits(userBalance, token.decimals);
+            const required = formatUnits(requiredAmount, token.decimals);
+
+            console.log('Balance check:', {
+                userBalance: userBalance.toString(),
+                requiredAmount: requiredAmount.toString(),
+                available,
+                required,
+                symbol: token.symbol,
+                difference: (userBalance - requiredAmount).toString()
+            });
+
+            // Exact comparison - no buffer
+            if (userBalance < requiredAmount) {
+                const shortfall = requiredAmount - userBalance;
+                const shortfallFormatted = formatUnits(shortfall, token.decimals);
+
+                // Calculate percentage difference
+                const percentDiff = (Number(shortfall) / Number(requiredAmount)) * 100;
+
+                // If trying to use nearly all balance (shortfall < 0.01%), provide helpful message
+                let errorMsg: string;
+                let suggestedAmount: string | undefined;
+
+                if (percentDiff < 0.01) {
+                    // Very tiny shortfall - user is trying to use max balance
+                    // Subtract shortfall * 10 to give a tiny safety margin (or minimum 1000 wei)
+                    const safetyMargin = shortfall * BigInt(10);
+                    const minMargin = BigInt(1000);
+                    const margin = safetyMargin > minMargin ? safetyMargin : minMargin;
+                    const safeMaxAmount = userBalance - margin;
+                    const safeMaxFormatted = formatUnits(safeMaxAmount, token.decimals);
+                    suggestedAmount = safeMaxFormatted;
+
+                    errorMsg = `You have ${available} ${token.symbol}, but the transaction requires ${required} ${token.symbol}. Try using ${safeMaxFormatted} ${token.symbol} instead.`;
+                } else {
+                    errorMsg = `You have ${available} ${token.symbol}, but you need ${required} ${token.symbol} for this transaction. You're short by ${shortfallFormatted} ${token.symbol}. Please add more funds or reduce the amount.`;
+                }
+
+                setError(errorMsg);
+                return {
+                    isValid: false,
+                    actualBalance: available,
+                    requiredAmount: required,
+                    tokenSymbol: token.symbol,
+                    shortfall: shortfallFormatted,
+                    isNearMax: percentDiff < 0.01,
+                    suggestedAmount
+                };
+            }
+
+            return {
+                isValid: true,
+                actualBalance: available,
+                requiredAmount: required,
+                tokenSymbol: token.symbol
+            };
         } catch (err) {
-            setError("Failed to fetch token balance. Please try again.");
-            return false;
+            const errorMessage = (err as Error).message || '';
+
+            // Provide more specific error messages
+            if (errorMessage.includes('execution reverted') || errorMessage.includes('call revert')) {
+                setError("Unable to fetch token balance. The token contract may not be valid.");
+            } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+                setError("Network error. Please check your connection and try again.");
+            } else {
+                setError("Failed to fetch token balance. Please try again.");
+            }
+            return { isValid: false, actualBalance: "0", requiredAmount: "0", tokenSymbol: "" };
         }
     };
 
@@ -174,7 +273,8 @@ const useLifiHook = () => {
             return;
         }
 
-        if (!(await validateTokenBalance(fromChainId, fromToken, fromAmount))) return;
+        const balanceCheck = await validateTokenBalance(fromChainId, fromToken, fromAmount);
+        if (!balanceCheck.isValid) return;
 
         try {
             setLoading(true);
@@ -184,12 +284,15 @@ const useLifiHook = () => {
 
             return new Promise((resolve, reject) => {
                 let resolved = false;
+                let txSubmitted = false;
                 executeRoute(quote, { // route
                     updateRouteHook(updatedRoute) {
                         updatedRoute.steps.forEach((step) => {
                             step.execution?.process.forEach((process) => {
-                                if (process.txHash && process.status === "PENDING") {
+                                // When transaction is submitted (PENDING)
+                                if (process.txHash && process.status === "PENDING" && !txSubmitted) {
                                     // console.log("Transaction sent! TX Hash:", process.txHash);
+                                    txSubmitted = true;
                                     resolved = true;
 
                                     // ✅ Push execution to background
@@ -197,8 +300,15 @@ const useLifiHook = () => {
 
                                     // ✅ Resolve immediately with TX hash
                                     resolve({ txHash: process.txHash });
+                                }
 
-                                    return;
+                                // When transaction is completed (DONE)
+                                if (process.txHash && process.status === "DONE") {
+                                    console.log("✅ Transaction confirmed! Refreshing balances...");
+                                    // ✅ Trigger token balance refresh after confirmation
+                                    setTimeout(() => {
+                                        triggerRefresh();
+                                    }, 2000); // Small delay to ensure blockchain state is updated
                                 }
                             });
                         });
@@ -211,11 +321,11 @@ const useLifiHook = () => {
                         const err = error as TransactionError;
                         // ✅ Properly catch errors and set error message
                         if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
-                            setError("Transaction rejected by the user.");
+                            setError("Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.");
                         } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
-                            setError("Insufficient balance. Please check your wallet and try again.");
+                            setError("It looks like your wallet doesn't have enough balance for this transaction. Please add more funds or reduce the amount and try again.");
                         } else if (err.name === "TransactionExecutionError") {
-                            setError("Transaction execution failed. Please try again.");
+                            setError("The transaction couldn't be completed. This might be due to network issues or gas price changes. Please try again.");
                         } else {
                             setError(err.message || "An unexpected error occurred.");
                         }
@@ -227,11 +337,11 @@ const useLifiHook = () => {
         } catch (error: unknown) {
             const err = error as TransactionError;
             if (err.message?.includes("User denied transaction signature") || err.name === "UserRejectedRequestError") {
-                setError("Transaction rejected by the user.");
+                setError("Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.");
             } else if (err.name === "BalanceError" || err.message?.includes("balance is too low")) {
-                setError("Insufficient balance. Please check your wallet and try again.");
+                setError("It looks like your wallet doesn't have enough balance for this transaction. Please add more funds or reduce the amount and try again.");
             } else if (err.name === "TransactionExecutionError") {
-                setError("Transaction execution failed. Please try again.");
+                setError("The transaction couldn't be completed. This might be due to network issues or gas price changes. Please try again.");
             } else {
                 setError(err.message || "An unexpected error occurred.");
             }
