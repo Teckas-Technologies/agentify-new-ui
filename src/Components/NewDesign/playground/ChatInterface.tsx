@@ -181,6 +181,10 @@ interface ChatInterfaceProps {
   setIsSidebarCollapsed: (value: boolean) => void;
   onThreadChange: () => void;
   threadsRefreshKey: number;
+  isWalletOpen?: boolean;
+  setIsWalletOpen?: (value: boolean) => void;
+  isChatOpen?: boolean;
+  setIsChatOpen?: (value: boolean) => void;
 }
 
 // Common Input Component
@@ -204,7 +208,7 @@ function InputBox({
   return (
     <div className="w-full max-w-3xl">
       <div
-        className="flex items-center bg-black border rounded-md px-2 py-2 transition-all duration-300"
+        className="flex items-center bg-black border rounded-md p-3 transition-all duration-300"
         style={{
           borderColor: "#1a142a",
           boxShadow:
@@ -249,6 +253,10 @@ export function ChatInterface({
   setIsSidebarCollapsed,
   onThreadChange,
   threadsRefreshKey,
+  isWalletOpen: externalIsWalletOpen,
+  setIsWalletOpen: externalSetIsWalletOpen,
+  isChatOpen: externalIsChatOpen,
+  setIsChatOpen: externalSetIsChatOpen,
 }: ChatInterfaceProps) {
   const router = useRouter();
   const { getConversation, addMessage, createNewConversation } =
@@ -257,8 +265,17 @@ export function ChatInterface({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isWalletOpen, setIsWalletOpen] = useState(false);
+
+  // Use external wallet state if provided, otherwise use internal state
+  const [internalIsWalletOpen, internalSetIsWalletOpen] = useState(false);
+  const isWalletOpen = externalIsWalletOpen !== undefined ? externalIsWalletOpen : internalIsWalletOpen;
+  const setIsWalletOpen = externalSetIsWalletOpen || internalSetIsWalletOpen;
+
+  // Use external chat state if provided, otherwise use internal state
+  const [internalIsChatOpen, internalSetIsChatOpen] = useState(false);
+  const isChatOpen = externalIsChatOpen !== undefined ? externalIsChatOpen : internalIsChatOpen;
+  const setIsChatOpen = externalSetIsChatOpen || internalSetIsChatOpen;
+
   const [isMobile, setIsMobile] = useState(false);
   const conversation = chatId ? getConversation(chatId) : null;
   const { orchestratedAgentChat, loading: hookLoading } =
@@ -540,11 +557,18 @@ export function ChatInterface({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isMobile) {
+        const target = event.target as HTMLElement;
+
+        // Check if click is on the chat or wallet trigger buttons
+        const isChatTrigger = target.closest('[data-chat-trigger="true"]');
+        const isWalletTrigger = target.closest('[data-wallet-trigger="true"]');
+
         // Close chat sidebar if clicked outside
         if (
           isChatOpen &&
           chatSidebarRef.current &&
-          !chatSidebarRef.current.contains(event.target as Node)
+          !chatSidebarRef.current.contains(event.target as Node) &&
+          !isChatTrigger
         ) {
           setIsChatOpen(false);
         }
@@ -553,7 +577,8 @@ export function ChatInterface({
         if (
           isWalletOpen &&
           walletSidebarRef.current &&
-          !walletSidebarRef.current.contains(event.target as Node)
+          !walletSidebarRef.current.contains(event.target as Node) &&
+          !isWalletTrigger
         ) {
           setIsWalletOpen(false);
         }
@@ -1728,7 +1753,7 @@ export function ChatInterface({
   return (
     <>
       <div
-        className={`flex flex-col h-screen bg-background relative transition-all duration-500 ${
+        className={`flex flex-col h-[calc(100vh-76px)] bg-background relative transition-all duration-500 ${
           // Push effect only on desktop
           isWalletOpen && !isMobile
             ? "translate-x-[-160px] scale-95"
@@ -1736,7 +1761,7 @@ export function ChatInterface({
         }`}
       >
         {/* Mobile Header Buttons */}
-        {isMobile && (
+        {/* {isMobile && (
           <div className="flex justify-between items-center p-4 border-b border-border">
             <Button
               onClick={() => setIsChatOpen(true)}
@@ -1756,11 +1781,11 @@ export function ChatInterface({
               Wallet
             </Button>
           </div>
-        )}
+        )} */}
 
         {/* Desktop Wallet Button */}
         {/* Desktop Header Section */}
-        {!isMobile && (
+        {/* {!isMobile && (
           <div
             className={cn(
               "w-full flex items-center justify-between px-6 py-4 border-b border-border bg-background z-30 transition-all duration-500",
@@ -1769,9 +1794,7 @@ export function ChatInterface({
                 : "opacity-100 scale-100"
             )}
           >
-            {/* Left side: Toggle + New Chat */}
             <div className="flex items-center gap-4">
-              {/* Sidebar toggle */}
               <button
                 className="p-2 hover:bg-muted rounded-lg"
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -1779,7 +1802,6 @@ export function ChatInterface({
                 <PanelLeft className="w-5 h-5 text-white" />
               </button>
 
-              {/* New Chat */}
               <button
                 className="flex items-center gap-2 text-white font-medium hover:text-primary"
                 onClick={handleNewConversation}
@@ -1789,7 +1811,6 @@ export function ChatInterface({
               </button>
             </div>
 
-            {/* Right side: Wallet */}
             <button
               onClick={() => setIsWalletOpen(true)}
               className="flex text-white items-center gap-2 font-medium hover:text-primary"
@@ -1798,7 +1819,7 @@ export function ChatInterface({
               Wallet
             </button>
           </div>
-        )}
+        )} */}
 
         {hasMessages && user?.id && address && (
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20 custom-scroll">
@@ -1872,7 +1893,7 @@ export function ChatInterface({
         {!hasMessages ||
           !user?.id ||
           (!address && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+            <div className=" flex flex-col items-center justify-center text-center space-y-4">
               <h1 className="text-white text-3xl font-bold">
                 Welcome to Agentify
               </h1>
@@ -1883,24 +1904,26 @@ export function ChatInterface({
           ))}
 
         {/* Fixed Bottom Input (always visible) */}
-        <div className="fixed bottom-0 left-0 right-0 z-10 p-4 bg-background">
-          <div className="flex justify-center">
-            <div className="w-full max-w-3xl">
-              <InputBox
-                input={input}
-                setInput={setInput}
-                onSendMessage={handleSendMessage}
-                isLoading={isLoading}
-              />
+        {user?.id && address && (
+          <div className="fixed bottom-0 left-0 right-0 z-10 p-2 bg-background">
+            <div className="w-full flex justify-center">
+              <div className="w-full max-w-3xl">
+                <InputBox
+                  input={input}
+                  setInput={setInput}
+                  onSendMessage={handleSendMessage}
+                  isLoading={isLoading}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Right Sidebar (Wallet) */}
       <div
         ref={walletSidebarRef}
-        className={`fixed top-0 right-0 h-full w-80 bg-[#101014] shadow-lg transform transition-transform duration-500 z-40 ${
+        className={`fixed top-0 right-0 h-full w-80 bg-card shadow-lg transform transition-transform duration-500 z-40 ${
           isWalletOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -1914,7 +1937,7 @@ export function ChatInterface({
       {isMobile && (
         <div
           ref={chatSidebarRef}
-          className={`fixed top-0 left-0 h-full w-80 bg-[#101014] shadow-lg transform transition-transform duration-500 z-40 ${
+          className={`fixed top-0 left-0 h-[calc(100vh-76px)] mt-[76px] w-80 bg-card shadow-lg transform transition-transform duration-500 z-40 ${
             isChatOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -1975,7 +1998,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        <div className="p-4">
+        <div className="p-3">
           <ReactMarkdown
             components={{
               a: ({ href, children }) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Wallet, X, Loader2 } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { getAccessToken } from "@privy-io/react-auth";
@@ -20,6 +20,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
   const { user } = usePrivy();
   const { address, isConnected } = useAccount();
   const { tokens, isLoading } = useTokenBalances();
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleClick = async () => {
     if (!address || !user) {
@@ -37,14 +38,45 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
     }
   };
 
+  // Handle click outside to close sidebar
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      // Check if click is on the wallet trigger button
+      const isWalletTrigger = target.closest('[data-wallet-trigger="true"]');
+
+      if (
+        isOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        !isWalletTrigger
+      ) {
+        onClose();
+      }
+    };
+
+    // Add event listener when sidebar is open
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   return (
     <div
-      className={`fixed top-0 right-0 h-screen w-80 bg-[#101014] text-white shadow-lg transform transition-transform duration-500 z-40 flex flex-col ${
+      ref={sidebarRef}
+      className={`fixed top-0 right-0 w-80 bg-card text-white shadow-lg transform transition-transform duration-500 z-40 flex flex-col ${
         isOpen ? "translate-x-0" : "translate-x-full"
       }`}
+      style={{ height: 'calc(100vh - 76px)', top: '76px' }}
     >
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-[#1d1d20]">
+      {/* <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-[#1d1d20]">
         <h2 className="text-sm font-semibold text-gray-300">Wallet</h2>
         <button
           onClick={onClose}
@@ -52,15 +84,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
         >
           <X className="w-5 h-5" />
         </button>
-      </div>
+      </div> */}
 
       {/* Wallet Address - Fixed */}
       <div className="flex-shrink-0 p-4 pb-3">
-        <div className="bg-[#18181B] px-3 py-2 rounded-lg flex justify-center gap-3 items-center">
+        <div className="bg-muted px-3 py-2 rounded-lg flex justify-center gap-3 items-center">
           <Wallet className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-400">
             {address && user
-              ? `${address.slice(0, 6)}...${address.slice(-4)}`
+              ? `${address.slice(0, 10)}....${address.slice(-8)}`
               : "Not connected"}
           </span>
         </div>
@@ -79,7 +111,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
 
         {!address || !user ? (
           <div className="flex-shrink-0">
-            <Button className="w-full bg-[#0a0a0a] text-gray-300 hover:bg-[#0a0a0a] rounded py-2 text-sm">
+            <Button className="w-full bg-muted text-gray-300 hover:bg-muted/80 rounded py-2 text-sm">
               Connect your wallet to get started
             </Button>
           </div>
@@ -94,10 +126,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
               {tokens.map((token, index) => (
                 <div
                   key={`${token.address}-${index}`}
-                  className="bg-[#18181B] rounded-lg p-3 flex items-center gap-3 hover:bg-[#1f1f23] transition-colors w-full"
+                  className="bg-muted rounded-lg p-3 flex items-center gap-3 hover:bg-muted/80 transition-colors w-full"
                 >
                   {/* Token Logo */}
-                  <div className="w-8 h-8 rounded-full bg-[#2a2a2e] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {token.logoURI ? (
                       <img
                         src={token.logoURI}
@@ -149,7 +181,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose }) =
       <div className="flex-shrink-0 p-4 pt-3">
         <Button
           className="glow-border relative overflow-hidden w-full
-         bg-[#1d1d20] hover:bg-[#1a142a]
+         bg-muted hover:bg-muted/80
          text-white rounded-lg py-2 text-sm
          shadow-md transition-all duration-300"
           onClick={handleClick}
