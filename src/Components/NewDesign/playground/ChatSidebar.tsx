@@ -28,9 +28,9 @@ import {
 import { useWalletConnect } from "@/hooks/useWalletConnect";
 import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
-import { useGetThreadHistory } from "@/hooks/useGetThreadHistory";
 import { useDeleteThread } from "@/hooks/useDeleteThread";
 import { Skeleton } from "@/Components/ui/skeleton";
+import { useThreads } from "@/contexts/ThreadsContext";
 
 interface ChatSidebarProps {
   mobileView?: boolean;
@@ -72,6 +72,24 @@ export function ChatSidebar({
 
   const { address } = useAccount();
   const signOutDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use threads from context
+  const { threads: contextThreads, isLoading: isFetching, isRefreshing, refreshThreads, removeThread } = useThreads();
+  const [threads, setThreads] = useState<Thread[]>(contextThreads);
+
+  // Update local threads when context threads change
+  useEffect(() => {
+    setThreads(contextThreads);
+  }, [contextThreads]);
+
+  // Trigger refresh when refreshKey changes
+  const [prevRefreshKey, setPrevRefreshKey] = useState(refreshKey);
+  useEffect(() => {
+    if (prevRefreshKey !== refreshKey) {
+      refreshThreads();
+      setPrevRefreshKey(refreshKey);
+    }
+  }, [refreshKey, prevRefreshKey, refreshThreads]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -115,11 +133,13 @@ export function ChatSidebar({
         return;
       }
 
-      // Remove from local API-based state
+      // Remove from context state
+      removeThread(conversationId);
+
+      // Get remaining threads after removal
       const remainingThreads = threads.filter(
         (t) => t.thread_id !== conversationId
       );
-      setThreads(remainingThreads);
 
       // If user is on the deleted conversation route, redirect them
       if (pathname === `/chats/${conversationId}`) {
@@ -146,41 +166,7 @@ export function ChatSidebar({
     setConversationToDelete(conversationId);
     setDeleteDialogOpen(true);
   };
-  const { getThreadHistory, loading, error } = useGetThreadHistory();
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [prevAddress, setPrevAddress] = useState(address);
-  const [prevRefreshKey, setPrevRefreshKey] = useState(refreshKey);
 
-  useEffect(() => {
-    const fetchThreads = async () => {
-      // Determine if this is an address change or just a refresh
-      const isAddressChange = prevAddress !== address;
-      const isRefreshKeyChange = prevRefreshKey !== refreshKey && prevAddress === address;
-
-      // Show skeleton for initial load or address change
-      // Show spinner for refresh key change
-      if (!isInitialLoad && !isAddressChange) {
-        setIsRefreshing(true);
-      }
-
-      setIsFetching(true);
-
-      const res = await getThreadHistory(user?.id ?? "");
-      if (res.success && Array.isArray(res.message)) {
-        setThreads(res.message);
-      }
-
-      setIsInitialLoad(false);
-      setIsFetching(false);
-      setIsRefreshing(false);
-      setPrevAddress(address);
-      setPrevRefreshKey(refreshKey);
-    };
-    fetchThreads();
-  }, [address, refreshKey]);
   const isActive = (conversationId: string) =>
     pathname === `/chats/${conversationId}`;
   const params = useParams();
