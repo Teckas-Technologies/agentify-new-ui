@@ -567,8 +567,18 @@ const useAaveHook = () => {
                 balance = await tokenContract.balanceOf(userAddress);
             }
 
+            // ✅ Convert scientific notation to fixed-point notation
+            let amountStr = amount.toString();
+
+            // Check if amount is in scientific notation (e.g., "6.37e-8")
+            if (amountStr.includes('e') || amountStr.includes('E')) {
+                // Convert to number and then to fixed-point with enough decimals
+                const numValue = Number(amountStr);
+                amountStr = numValue.toFixed(decimals);
+                console.log(`🔍 [validateSupplyEligibility] Converted scientific notation to fixed-point: ${amount} → ${amountStr}`);
+            }
+
             // ✅ Auto-truncate amount if it has more decimals than token supports
-            const amountStr = amount.toString();
             const parts = amountStr.split('.');
             let finalAmount = amountStr;
 
@@ -728,9 +738,19 @@ const useAaveHook = () => {
                 return { isValid: true };
             }
 
+            // ✅ Convert scientific notation to fixed-point notation
+            let amountStr = amount.toString();
+
+            // Check if amount is in scientific notation (e.g., "6.37e-8")
+            if (amountStr.includes('e') || amountStr.includes('E')) {
+                // Convert to number and then to fixed-point with enough decimals
+                const numValue = Number(amountStr);
+                amountStr = numValue.toFixed(decimals);
+                console.log(`🔍 [validateWithdrawEligibility] Converted scientific notation to fixed-point: ${amount} → ${amountStr}`);
+            }
+
             // ✅ Auto-truncate amount if it has more decimals than token supports
             // Example: USDC (6 decimals) with "8.9505579893" (10 decimals) → "8.950557"
-            const amountStr = amount.toString();
             const parts = amountStr.split('.');
             let finalAmount = amountStr;
 
@@ -873,8 +893,18 @@ const useAaveHook = () => {
                 return { isValid: true };
             }
 
+            // ✅ Convert scientific notation to fixed-point notation
+            let amountStr = amount.toString();
+
+            // Check if amount is in scientific notation (e.g., "6.37e-8")
+            if (amountStr.includes('e') || amountStr.includes('E')) {
+                // Convert to number and then to fixed-point with enough decimals
+                const numValue = Number(amountStr);
+                amountStr = numValue.toFixed(decimals);
+                console.log(`🔍 [validateRepayEligibility] Converted scientific notation to fixed-point: ${amount} → ${amountStr}`);
+            }
+
             // ✅ Auto-truncate amount if it has more decimals than token supports
-            const amountStr = amount.toString();
             const parts = amountStr.split('.');
             let finalAmount = amountStr;
 
@@ -1205,22 +1235,38 @@ const useAaveHook = () => {
             return { success: false, message: `I'm sorry, but I don't support the ${market} market yet. Please try another market like Ethereum, Polygon, or Arbitrum.` };
         }
 
+        // ✅ Clean token symbol - remove any numbers (e.g., "USDT0" → "USDT")
+        const cleanedTokenSymbol = tokenSymbol.replace(/\d+/g, '');
+
         // ✅ Check if token is native and get wrapped version for Aave
-        const { isNative, wrappedSymbol } = getNativeTokenInfo(tokenSymbol);
-        const lookupSymbol = isNative ? wrappedSymbol : tokenSymbol;
+        const { isNative, wrappedSymbol } = getNativeTokenInfo(cleanedTokenSymbol);
+        const lookupSymbol = isNative ? wrappedSymbol : cleanedTokenSymbol;
         // Always uppercase for asset lookup since all keys in assets are uppercase (WETH, USDC, WPOL, etc.)
         const normalizedLookupSymbol = lookupSymbol.toUpperCase();
 
         console.log(`🔍 [supplyToAave] Token detection:`, {
             originalSymbol: tokenSymbol,
+            cleanedSymbol: cleanedTokenSymbol,
             isNative,
             lookupSymbol,
             normalizedLookupSymbol
         });
 
+        // ✅ Validate token exists in market
+        const tokenConfig = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets];
+        if (!tokenConfig) {
+            const availableTokens = Object.keys(selectedMarket.assets).join(', ');
+            console.error(`❌ [supplyToAave] Token "${normalizedLookupSymbol}" not found in ${market} market. Available tokens: ${availableTokens}`);
+            setError(`Token "${cleanedTokenSymbol}" is not supported in the ${market} market.`);
+            return {
+                success: false,
+                message: `Sorry, the token "${cleanedTokenSymbol}" is not available in the ${market} market. Available tokens are: ${availableTokens}.`
+            };
+        }
+
         const poolAddress = selectedMarket.pool;
         const wTokenGateWay = selectedMarket.wethGateway;
-        const reserve = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+        const reserve = tokenConfig?.UNDERLYING;
         const chainId = selectedMarket.chainId;
 
         console.log("📋 [supplyToAave] Market configuration:", {
@@ -1230,12 +1276,6 @@ const useAaveHook = () => {
             chainId,
             isNativeToken: isNative
         });
-
-        if (!reserve) {
-            console.error("❌ [supplyToAave] Token not supported:", tokenSymbol, "| Lookup symbol:", lookupSymbol);
-            setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
-            return { success: false, message: `I'm sorry, but ${tokenSymbol} isn't available on the ${market} market right now. You might want to try a different token or market.` };
-        }
 
         let provider: ethers.providers.Web3Provider | null = null;
 
@@ -1302,7 +1342,7 @@ const useAaveHook = () => {
                     provider,
                     reserve,
                     'supply',
-                    tokenSymbol,
+                    cleanedTokenSymbol,
                     uiPoolDataProvider,
                     poolAddressesProvider,
                     chainId
@@ -1317,7 +1357,7 @@ const useAaveHook = () => {
 
             // ✅ STEP 2: Validate user has sufficient balance BEFORE any transaction
             console.log("🔍 [supplyToAave] Running validation...");
-            const validation = await validateSupplyEligibility(provider, reserve, amount, userAddress, isNative, tokenSymbol);
+            const validation = await validateSupplyEligibility(provider, reserve, amount, userAddress, isNative, cleanedTokenSymbol);
             if (!validation.isValid) {
                 console.error("❌ [supplyToAave] Validation failed:", validation.message);
                 setError(validation.message || "Validation failed");
@@ -1344,7 +1384,15 @@ const useAaveHook = () => {
                 console.log("📝 [supplyToAave] Token decimals:", decimals);
             }
 
-            const supplyAmount = ethers.utils.parseUnits(amount.toString(), decimals); // Use correct decimals
+            // ✅ Convert scientific notation to fixed-point notation
+            let amountStr = amount.toString();
+            if (amountStr.includes('e') || amountStr.includes('E')) {
+                const numValue = Number(amountStr);
+                amountStr = numValue.toFixed(decimals);
+                console.log(`📝 [supplyToAave] Converted scientific notation: ${amount} → ${amountStr}`);
+            }
+
+            const supplyAmount = ethers.utils.parseUnits(amountStr, decimals); // Use correct decimals
 
             // Step 3: Check allowance (skip for native tokens as they don't need approval)
             if (!isNative) {
@@ -1590,31 +1638,42 @@ const useAaveHook = () => {
             return { success: false, message: `I'm sorry, but I don't support the ${market} market yet. Please try another market like Ethereum, Polygon, or Arbitrum.` };
         }
 
+        // ✅ Clean token symbol - remove any numbers (e.g., "USDT0" → "USDT")
+        const cleanedTokenSymbol = tokenSymbol.replace(/\d+/g, '');
+
         // ✅ Check if token is native and get wrapped version for Aave
-        const { isNative, wrappedSymbol } = getNativeTokenInfo(tokenSymbol);
-        const lookupSymbol = isNative ? wrappedSymbol : tokenSymbol;
+        const { isNative, wrappedSymbol } = getNativeTokenInfo(cleanedTokenSymbol);
+        const lookupSymbol = isNative ? wrappedSymbol : cleanedTokenSymbol;
         // Always uppercase for asset lookup since all keys in assets are uppercase (WETH, USDC, WPOL, etc.)
         const normalizedLookupSymbol = lookupSymbol.toUpperCase();
 
         console.log(`🔍 [withdrawFromAave] Token detection:`, {
             originalSymbol: tokenSymbol,
+            cleanedSymbol: cleanedTokenSymbol,
             isNative,
             lookupSymbol,
             normalizedLookupSymbol
         });
 
+        // ✅ Validate token exists in market
+        const tokenConfig = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets];
+        if (!tokenConfig) {
+            const availableTokens = Object.keys(selectedMarket.assets).join(', ');
+            console.error(`❌ [withdrawFromAave] Token "${normalizedLookupSymbol}" not found in ${market} market. Available tokens: ${availableTokens}`);
+            setError(`Token "${cleanedTokenSymbol}" is not supported in the ${market} market.`);
+            return {
+                success: false,
+                message: `Sorry, the token "${cleanedTokenSymbol}" is not available in the ${market} market. Available tokens are: ${availableTokens}.`
+            };
+        }
+
         const poolAddress = selectedMarket.pool;
         const wTokenGateWay = selectedMarket.wethGateway;
-        const reserve = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
-        const aTokenAddress = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets]?.A_TOKEN;
+        const reserve = tokenConfig?.UNDERLYING;
+        const aTokenAddress = tokenConfig?.A_TOKEN;
         const chainId = selectedMarket.chainId;
         const uiPoolDataProvider = (selectedMarket as any).uiPoolDataProvider;
         const poolAddressesProvider = (selectedMarket as any).poolAddressesProvider;
-
-        if (!reserve || !aTokenAddress) {
-            setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
-            return { success: false, message: `I'm sorry, but ${tokenSymbol} isn't available on the ${market} market right now. You might want to try a different token or market.` };
-        }
 
         let provider: ethers.providers.Web3Provider | null = null;
 
@@ -1686,7 +1745,7 @@ const useAaveHook = () => {
                     provider,
                     reserve,
                     'withdraw',
-                    tokenSymbol,
+                    cleanedTokenSymbol,
                     uiPoolDataProvider,
                     poolAddressesProvider,
                     chainId
@@ -1700,7 +1759,7 @@ const useAaveHook = () => {
             }
 
             // ✅ STEP 2: Validate user has sufficient aToken balance BEFORE transaction
-            const validation = await validateWithdrawEligibility(provider, aTokenAddress, normalizedAmount, userAddress, tokenSymbol);
+            const validation = await validateWithdrawEligibility(provider, aTokenAddress, normalizedAmount, userAddress, cleanedTokenSymbol);
             if (!validation.isValid) {
                 setError(validation.message || "Validation failed");
                 return { success: false, message: validation.message };
@@ -1759,7 +1818,7 @@ const useAaveHook = () => {
                             provider,
                             userAddress,
                             reserve,
-                            tokenSymbol,
+                            cleanedTokenSymbol,
                             uiPoolDataProvider,
                             poolAddressesProvider,
                             chainId
@@ -1794,13 +1853,13 @@ const useAaveHook = () => {
                             if (requestedAmount > effectiveMax) {
                                 console.error("❌ [withdrawFromAave] Withdrawal would drop health factor below 1.0");
                                 let errorMessage = isWithdrawAll
-                                    ? `You tried to withdraw all your ${tokenSymbol}, but withdrawing the full amount (${requestedAmount.toFixed(6)} ${tokenSymbol}) would drop your health factor below 1.0 and put you at risk of liquidation.`
-                                    : `You tried to withdraw ${amount} ${tokenSymbol}, but withdrawing that amount would drop your health factor below 1.0 and put you at risk of liquidation.`;
+                                    ? `You tried to withdraw all your ${cleanedTokenSymbol}, but withdrawing the full amount (${requestedAmount.toFixed(6)} ${cleanedTokenSymbol}) would drop your health factor below 1.0 and put you at risk of liquidation.`
+                                    : `You tried to withdraw ${amount} ${cleanedTokenSymbol}, but withdrawing that amount would drop your health factor below 1.0 and put you at risk of liquidation.`;
 
                                 if (maxAmount > 0) {
-                                    errorMessage += `\n\n💡 You can safely withdraw up to ${maxWithdrawable} ${tokenSymbol} without dropping below health factor 1.0.`;
+                                    errorMessage += `\n\n💡 You can safely withdraw up to ${maxWithdrawable} ${cleanedTokenSymbol} without dropping below health factor 1.0.`;
                                 } else {
-                                    errorMessage += `\n\n💡 Right now, all your supplied ${tokenSymbol} is being used as collateral for your borrows. You can't withdraw any without risking liquidation.`;
+                                    errorMessage += `\n\n💡 Right now, all your supplied ${cleanedTokenSymbol} is being used as collateral for your borrows. You can't withdraw any without risking liquidation.`;
                                 }
 
                                 errorMessage += "\n\nHere's what you can do:\n1. Repay some of your borrowed assets first\n2. Withdraw a smaller amount instead\n3. Supply additional collateral";
@@ -1837,7 +1896,14 @@ const useAaveHook = () => {
                     console.log("📊 [withdrawFromAave] Withdraw all - getting full aToken balance");
                     withdrawAmount = await aTokenContract.balanceOf(userAddress);
                 } else {
-                    withdrawAmount = ethers.utils.parseUnits(amount.toString(), decimals);
+                    // ✅ Convert scientific notation to fixed-point notation
+                    let amountStr = amount.toString();
+                    if (amountStr.includes('e') || amountStr.includes('E')) {
+                        const numValue = Number(amountStr);
+                        amountStr = numValue.toFixed(decimals);
+                        console.log(`📊 [withdrawFromAave] Converted scientific notation: ${amount} → ${amountStr}`);
+                    }
+                    withdrawAmount = ethers.utils.parseUnits(amountStr, decimals);
                 }
 
                 console.log("🔒 [withdrawFromAave] Checking aToken allowance for WETH Gateway...");
@@ -2002,14 +2068,14 @@ const useAaveHook = () => {
                                 provider,
                                 address,
                                 reserve,
-                                tokenSymbol,
+                                cleanedTokenSymbol,
                                 uiPoolDataProvider,
                                 poolAddressesProvider,
                                 chainId
                             );
 
                             if (maxWithdrawable && parseFloat(maxWithdrawable) > 0) {
-                                errorMessage += `\n\n💡 You can safely withdraw up to ${maxWithdrawable} ${tokenSymbol} without dropping below health factor 1.0.`;
+                                errorMessage += `\n\n💡 You can safely withdraw up to ${maxWithdrawable} ${cleanedTokenSymbol} without dropping below health factor 1.0.`;
                             }
                         } catch (calcErr) {
                             console.error("⚠️ [withdrawFromAave] Failed to calculate max withdrawable:", calcErr);
@@ -2063,35 +2129,41 @@ const useAaveHook = () => {
             return { success: false, message: `I'm sorry, but I don't support the ${market} market yet. Please try another market like Ethereum, Polygon, or Arbitrum.` };
         }
 
+        // ✅ Clean token symbol - remove any numbers (e.g., "USDT0" → "USDT")
+        const cleanedTokenSymbol = tokenSymbol.replace(/\d+/g, '');
+
         // ✅ Check if token is native and get wrapped version for Aave
-        const { isNative, wrappedSymbol } = getNativeTokenInfo(tokenSymbol);
-        const lookupSymbol = isNative ? wrappedSymbol : tokenSymbol;
+        const { isNative, wrappedSymbol } = getNativeTokenInfo(cleanedTokenSymbol);
+        const lookupSymbol = isNative ? wrappedSymbol : cleanedTokenSymbol;
         // Always uppercase for asset lookup since all keys in assets are uppercase (WETH, USDC, WPOL, etc.)
         const normalizedLookupSymbol = lookupSymbol.toUpperCase();
 
         console.log(`🔍 [borrowToAave] Token detection:`, {
             originalSymbol: tokenSymbol,
+            cleanedSymbol: cleanedTokenSymbol,
             isNative,
             lookupSymbol,
             normalizedLookupSymbol
         });
 
+        // ✅ Validate token exists in market
+        const tokenConfig = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets];
+        if (!tokenConfig) {
+            const availableTokens = Object.keys(selectedMarket.assets).join(', ');
+            console.error(`❌ [borrowToAave] Token "${normalizedLookupSymbol}" not found in ${market} market. Available tokens: ${availableTokens}`);
+            setError(`Token "${cleanedTokenSymbol}" is not supported in the ${market} market.`);
+            return {
+                success: false,
+                message: `Sorry, the token "${cleanedTokenSymbol}" is not available in the ${market} market. Available tokens are: ${availableTokens}.`
+            };
+        }
+
         const poolAddress = selectedMarket.pool;
         const wTokenGateWay = selectedMarket.wethGateway;
-        const reserve = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+        const reserve = tokenConfig?.UNDERLYING;
         const chainId = selectedMarket.chainId;
         const uiPoolDataProvider = (selectedMarket as any).uiPoolDataProvider;
         const poolAddressesProvider = (selectedMarket as any).poolAddressesProvider;
-
-        if (!reserve) {
-            const errorMsg = `Token "${tokenSymbol}" not supported in market "${market}".`;
-            console.error(errorMsg);
-            setError(errorMsg);
-            return {
-                success: false,
-                message: `I'm sorry, but ${tokenSymbol} isn't available on the ${market} market right now. You might want to try a different token or market.`,
-            };
-        }
 
         let provider: ethers.providers.Web3Provider | null = null;
 
@@ -2163,7 +2235,7 @@ const useAaveHook = () => {
                     provider,
                     reserve,
                     'borrow',
-                    tokenSymbol,
+                    cleanedTokenSymbol,
                     uiPoolDataProvider,
                     poolAddressesProvider,
                     chainId
@@ -2183,7 +2255,7 @@ const useAaveHook = () => {
                 userAddress,
                 reserve,
                 amount.toString(),
-                tokenSymbol,
+                cleanedTokenSymbol,
                 uiPoolDataProvider,
                 poolAddressesProvider,
                 chainId
@@ -2260,7 +2332,7 @@ const useAaveHook = () => {
 
             // Step 2: If native token, unwrap WPOL/WETH to POL/ETH
             if (isNative) {
-                console.log("📦 [borrowToAave] Unwrapping", wrappedSymbol, "to", tokenSymbol);
+                console.log("📦 [borrowToAave] Unwrapping", wrappedSymbol, "to", cleanedTokenSymbol);
 
                 // WPOL/WETH contracts have a withdraw(uint256) function to unwrap
                 const wrappedTokenAbi = [
@@ -2268,7 +2340,15 @@ const useAaveHook = () => {
                 ];
                 const wrappedTokenContract = new ethers.Contract(reserve, wrappedTokenAbi, signer);
 
-                const borrowAmount = ethers.utils.parseUnits(amount.toString(), 18);
+                // ✅ Convert scientific notation to fixed-point notation
+                let amountStr = amount.toString();
+                if (amountStr.includes('e') || amountStr.includes('E')) {
+                    const numValue = Number(amountStr);
+                    amountStr = numValue.toFixed(18);
+                    console.log(`📦 [borrowToAave] Converted scientific notation: ${amount} → ${amountStr}`);
+                }
+
+                const borrowAmount = ethers.utils.parseUnits(amountStr, 18);
 
                 // Estimate gas for unwrap
                 const unwrapGasEstimate = await wrappedTokenContract.estimateGas.withdraw(borrowAmount);
@@ -2289,11 +2369,11 @@ const useAaveHook = () => {
                     setError("Unwrap transaction failed.");
                     return {
                         success: false,
-                        message: `The borrow succeeded but unwrapping ${wrappedSymbol} to ${tokenSymbol} failed. You have ${wrappedSymbol} in your wallet that you can manually unwrap.`
+                        message: `The borrow succeeded but unwrapping ${wrappedSymbol} to ${cleanedTokenSymbol} failed. You have ${wrappedSymbol} in your wallet that you can manually unwrap.`
                     };
                 }
 
-                console.log("✅ [borrowToAave] Unwrap confirmed! You now have native", tokenSymbol);
+                console.log("✅ [borrowToAave] Unwrap confirmed! You now have native", cleanedTokenSymbol);
             }
 
             console.log("🎉 [borrowToAave] Borrow operation completed successfully!");
@@ -2361,14 +2441,14 @@ const useAaveHook = () => {
                             provider,
                             address,
                             reserve,
-                            tokenSymbol,
+                            cleanedTokenSymbol,
                             uiPoolDataProvider,
                             poolAddressesProvider,
                             chainId
                         );
 
                         if (maxBorrowable && parseFloat(maxBorrowable) > 0) {
-                            errorMessage += `\n\n💡 You can safely borrow up to ${maxBorrowable} ${tokenSymbol} with your current collateral.`;
+                            errorMessage += `\n\n💡 You can safely borrow up to ${maxBorrowable} ${cleanedTokenSymbol} with your current collateral.`;
                         } else {
                             errorMessage += `\n\n💡 Right now, you don't have any borrowing capacity available. You'll need to supply more collateral first.`;
                         }
@@ -2414,23 +2494,39 @@ const useAaveHook = () => {
     return { success: false, message: `Sorry, the market '${market}' is not supported at the moment.` };
   }
 
+  // ✅ Clean token symbol - remove any numbers (e.g., "USDT0" → "USDT")
+  const cleanedTokenSymbol = tokenSymbol.replace(/\d+/g, '');
+
   // ✅ Check if token is native and get wrapped version for Aave
-  const { isNative, wrappedSymbol } = getNativeTokenInfo(tokenSymbol);
-  const lookupSymbol = isNative ? wrappedSymbol : tokenSymbol;
+  const { isNative, wrappedSymbol } = getNativeTokenInfo(cleanedTokenSymbol);
+  const lookupSymbol = isNative ? wrappedSymbol : cleanedTokenSymbol;
   // Always uppercase for asset lookup since all keys in assets are uppercase (WETH, USDC, WPOL, etc.)
   const normalizedLookupSymbol = lookupSymbol.toUpperCase();
 
   console.log(`🔍 [repayToAave] Token detection:`, {
     originalSymbol: tokenSymbol,
+    cleanedSymbol: cleanedTokenSymbol,
     isNative,
     lookupSymbol,
     normalizedLookupSymbol
   });
 
+  // ✅ Validate token exists in market
+  const tokenConfig = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets];
+  if (!tokenConfig) {
+    const availableTokens = Object.keys(selectedMarket.assets).join(', ');
+    console.error(`❌ [repayToAave] Token "${normalizedLookupSymbol}" not found in ${market} market. Available tokens: ${availableTokens}`);
+    setError(`Token "${cleanedTokenSymbol}" is not supported in the ${market} market.`);
+    return {
+      success: false,
+      message: `Sorry, the token "${cleanedTokenSymbol}" is not available in the ${market} market. Available tokens are: ${availableTokens}.`
+    };
+  }
+
   const poolAddress = selectedMarket.pool;
   const wTokenGateWay = selectedMarket.wethGateway;
-  const variableDebtTokenAddress = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets].V_TOKEN;
-  const reserve = selectedMarket.assets[normalizedLookupSymbol as keyof typeof selectedMarket.assets]?.UNDERLYING;
+  const variableDebtTokenAddress = tokenConfig.V_TOKEN;
+  const reserve = tokenConfig?.UNDERLYING;
   const chainId = selectedMarket.chainId;
   const uiPoolDataProvider = (selectedMarket as any).uiPoolDataProvider;
   const poolAddressesProvider = (selectedMarket as any).poolAddressesProvider;
@@ -2476,8 +2572,8 @@ const useAaveHook = () => {
     }
 
     if (!reserve || !variableDebtTokenAddress) {
-      setError(`Token "${tokenSymbol}" not supported in market "${market}".`);
-      return { success: false, message: `Token ${tokenSymbol} not supported.` };
+      setError(`Token "${cleanedTokenSymbol}" not supported in market "${market}".`);
+      return { success: false, message: `Token ${cleanedTokenSymbol} not supported.` };
     }
 
     if (!amount) {
@@ -2510,7 +2606,7 @@ const useAaveHook = () => {
         provider,
         reserve,
         'repay',
-        tokenSymbol,
+        cleanedTokenSymbol,
         uiPoolDataProvider,
         poolAddressesProvider,
         chainId
@@ -2524,7 +2620,7 @@ const useAaveHook = () => {
     }
 
     // ✅ STEP 2: Validate user has debt and sufficient balance to repay BEFORE transaction
-    const validation = await validateRepayEligibility(provider, variableDebtTokenAddress, reserve, normalizedAmount, userAddress, isNative, tokenSymbol);
+    const validation = await validateRepayEligibility(provider, variableDebtTokenAddress, reserve, normalizedAmount, userAddress, isNative, cleanedTokenSymbol);
     if (!validation.isValid) {
       setError(validation.message || "Validation failed");
       return { success: false, message: validation.message };
@@ -2554,7 +2650,14 @@ const useAaveHook = () => {
         console.log("📊 [repayToAave] Actual debt balance:", ethers.utils.formatUnits(debtBalance, decimals));
         console.log("📊 [repayToAave] Wrapping with 0.1% buffer:", ethers.utils.formatUnits(exactRepayAmount, decimals));
       } else {
-        exactRepayAmount = ethers.utils.parseUnits(amount.toString(), decimals);
+        // ✅ Convert scientific notation to fixed-point notation
+        let amountStr = amount.toString();
+        if (amountStr.includes('e') || amountStr.includes('E')) {
+          const numValue = Number(amountStr);
+          amountStr = numValue.toFixed(decimals);
+          console.log(`📊 [repayToAave] Converted scientific notation: ${amount} → ${amountStr}`);
+        }
+        exactRepayAmount = ethers.utils.parseUnits(amountStr, decimals);
       }
       console.log("✅ [repayToAave] Native token - skipping approval step");
     } else {
@@ -2580,7 +2683,14 @@ const useAaveHook = () => {
         console.log("📊 [repayToAave] Actual debt balance:", ethers.utils.formatUnits(debtBalance, decimals));
         console.log("📊 [repayToAave] Approval amount with buffer:", ethers.utils.formatUnits(exactRepayAmount, decimals));
       } else {
-        exactRepayAmount = ethers.utils.parseUnits(amount.toString(), decimals);
+        // ✅ Convert scientific notation to fixed-point notation
+        let amountStr = amount.toString();
+        if (amountStr.includes('e') || amountStr.includes('E')) {
+          const numValue = Number(amountStr);
+          amountStr = numValue.toFixed(decimals);
+          console.log(`📊 [repayToAave] Converted scientific notation: ${amount} → ${amountStr}`);
+        }
+        exactRepayAmount = ethers.utils.parseUnits(amountStr, decimals);
       }
 
       console.log("💰 [repayToAave] Will modify SDK approval to exact amount:", ethers.utils.formatUnits(exactRepayAmount, decimals));
@@ -2620,7 +2730,7 @@ const useAaveHook = () => {
 
     // If native token, wrap POL/ETH to WPOL/WETH first
     if (isNative) {
-      console.log("📦 [repayToAave] Wrapping", tokenSymbol, "to", wrappedSymbol, "for repayment");
+      console.log("📦 [repayToAave] Wrapping", cleanedTokenSymbol, "to", wrappedSymbol, "for repayment");
 
       // WPOL/WETH contracts have a deposit() function to wrap native tokens
       const wrappedTokenAbi = [
@@ -2647,7 +2757,7 @@ const useAaveHook = () => {
         setError("Wrap transaction failed.");
         return {
           success: false,
-          message: `Wrapping ${tokenSymbol} to ${wrappedSymbol} failed. Please try again.`
+          message: `Wrapping ${cleanedTokenSymbol} to ${wrappedSymbol} failed. Please try again.`
         };
       }
 
@@ -2683,7 +2793,7 @@ const useAaveHook = () => {
     }
 
     // For ALL tokens (including now-wrapped native tokens), use Pool.repay()
-    console.log("🏊 [repayToAave] Repaying", isNative ? wrappedSymbol : tokenSymbol, "to Aave");
+    console.log("🏊 [repayToAave] Repaying", isNative ? wrappedSymbol : cleanedTokenSymbol, "to Aave");
     const pool = new Pool(provider, {
       POOL: poolAddress,
       WETH_GATEWAY: wTokenGateWay,
@@ -2883,8 +2993,15 @@ async function generateSupplySignatureRequest(
     const { name, decimals } = await tokenERC20Service.getTokenData(token);
     const { chainId } = await provider.getNetwork();
 
-    // ✅ FIX: ensure string before parseUnits
-    const convertedAmount = ethers.utils.parseUnits(amount.toString(), decimals).toString();
+    // ✅ Convert scientific notation to fixed-point notation
+    let amountStr = amount.toString();
+    if (amountStr.includes('e') || amountStr.includes('E')) {
+      const numValue = Number(amountStr);
+      amountStr = numValue.toFixed(decimals);
+      console.log(`📝 [buildPermitParams] Converted scientific notation: ${amount} → ${amountStr}`);
+    }
+
+    const convertedAmount = ethers.utils.parseUnits(amountStr, decimals).toString();
 
     const nonce = await tokenERC2612Service.getNonce({
         token,
