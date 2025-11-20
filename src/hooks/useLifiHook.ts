@@ -214,16 +214,25 @@ const useLifiHook = () => {
     }
 
     // ✅ Fetch Quote with Validations
-    const fetchQuote = async ({ address }: { address: `0x${string}` }) => {
+    const fetchQuote = async ({
+        address,
+        fromChain,
+        toChain,
+        fromToken,
+        toToken,
+        fromAmount
+    }: {
+        address: `0x${string}`;
+        fromChain: number;
+        toChain: number;
+        fromToken: string;
+        toToken: string;
+        fromAmount: string;
+    }): Promise<Route | undefined> => {
         if (!address) {
             setError("Wallet address is required. Please connect your wallet.");
             return;
         }
-
-        const fromChain = 1; // Polygon
-        const toChain = 137; // Ethereum Mainnet
-        const fromToken = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"; // ETH on Ethereum
-        const toToken = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"; // USDT on Polygon
 
         // 🔍 Validate Chains & Connections Before Fetching Quote
         if (!(await validateChains(fromChain, toChain))) return;
@@ -238,7 +247,7 @@ const useLifiHook = () => {
                 toChain,
                 fromToken,
                 toToken,
-                fromAmount: "1000000000000", // 5 USDT
+                fromAmount,
                 fromAddress: address.toLowerCase()
             });
 
@@ -247,7 +256,9 @@ const useLifiHook = () => {
                 return;
             }
 
-            return quote;
+            // Convert LiFiStep to Route
+            const route = convertQuoteToRoute(quote);
+            return route;
         } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
             setError(error.message || "Failed to fetch a quote. Please try again.");
