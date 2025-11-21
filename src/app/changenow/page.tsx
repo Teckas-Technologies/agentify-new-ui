@@ -9,7 +9,7 @@ import { Button } from "@/Components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/NewDesign/Dashboard/Card/Card";
 import { useChangeNowHook } from "@/hooks/useChangeNowHook";
 import { useToast } from "@/hooks/use-toast";
-import { parseChangeNowTicker } from "@/utils/changeNowTokenMapping";
+import { parseChangeNowTicker, parseChangeNowTickerLenient } from "@/utils/changeNowTokenMapping";
 import { supportedChains } from "@/contexts/CustomWagmiProvider";
 import {
   ChangeNowCurrency,
@@ -33,6 +33,7 @@ export default function ChangeNowPage() {
     loading,
     error,
     getCurrencies,
+    getEVMCurrencies,
     getCurrencyInfo,
     getAvailableCurrenciesFor,
     getMinAmount,
@@ -46,6 +47,8 @@ export default function ChangeNowPage() {
     createExchange,
     createFixedRateExchange,
     sendToDepositAddress,
+    executeExchange,
+    debugLogEVMCurrencies,
   } = useChangeNowHook();
 
   // Currencies state
@@ -129,7 +132,8 @@ export default function ChangeNowPage() {
 
   const fetchCurrencies = async () => {
     setLoadingCurrencies(true);
-    const data = await getCurrencies(true, false);
+    // Fetch only EVM chain currencies (from our 41 supported chains)
+    const data = await getEVMCurrencies(true, false);
     if (data) {
       setCurrencies(data);
     }
@@ -139,6 +143,7 @@ export default function ChangeNowPage() {
   const fetchAvailableCurrencies = async () => {
     const data = await getAvailableCurrenciesFor(fromCurrency, isFixedRate);
     if (data) {
+      console.log(`Available currencies for ${fromCurrency}:`, data.length);
       setAvailableToCurrencies(data);
     }
   };
@@ -188,8 +193,11 @@ export default function ChangeNowPage() {
       return;
     }
 
+    console.log(`Fetching estimate for pair: ${fromCurrency} → ${toCurrency}, amount: ${amount}, fixedRate: ${isFixedRate}`);
+
     if (isFixedRate) {
       const data = await getFixedRateAmount(amount, fromCurrency, toCurrency);
+      console.log(`Fixed rate result for ${fromCurrency}/${toCurrency}:`, data);
       if (data) {
         setEstimatedAmount(data.estimatedAmount);
         setToAmount(data.estimatedAmount.toString());
@@ -197,12 +205,18 @@ export default function ChangeNowPage() {
         setRateId(data.rateId);
         setPairStatus("active");
       } else {
+        console.warn(`Fixed rate failed for ${fromCurrency}/${toCurrency} - could be below minimum amount`);
         setToAmount("");
         setEstimatedAmount(null);
-        setPairStatus("inactive");
+        // Don't mark as inactive if minAmount exists - it means the pair is valid, just amount is too low
+        // Only mark inactive if we don't have minAmount (which means pair truly doesn't exist)
+        if (!minAmount) {
+          setPairStatus("inactive");
+        }
       }
     } else {
       const data = await getExchangeAmount(amount, fromCurrency, toCurrency);
+      console.log(`Floating rate result for ${fromCurrency}/${toCurrency}:`, data);
       if (data) {
         setEstimatedAmount(data.estimatedAmount);
         setToAmount(data.estimatedAmount.toString());
@@ -210,9 +224,14 @@ export default function ChangeNowPage() {
         setRateId(null);
         setPairStatus("active");
       } else {
+        console.warn(`Floating rate failed for ${fromCurrency}/${toCurrency} - could be below minimum amount`);
         setToAmount("");
         setEstimatedAmount(null);
-        setPairStatus("inactive");
+        // Don't mark as inactive if minAmount exists - it means the pair is valid, just amount is too low
+        // Only mark inactive if we don't have minAmount (which means pair truly doesn't exist)
+        if (!minAmount) {
+          setPairStatus("inactive");
+        }
       }
     }
   };
@@ -507,9 +526,85 @@ export default function ChangeNowPage() {
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
           <h1 className="text-3xl font-bold text-white mb-2">ChangeNow Exchange</h1>
-          <p className="text-gray-400">Instant cryptocurrency exchange with 900+ assets</p>
+          <p className="text-gray-400">EVM chains exchange with direct wallet integration</p>
+
+          {/* Debug Button */}
+          <Button
+            onClick={async () => {
+              await debugLogEVMCurrencies();
+              toast({
+                title: "Debug Log",
+                description: "Check browser console for EVM currencies data",
+              });
+            }}
+            variant="ghost"
+            size="sm"
+            className="absolute top-0 right-20 text-xs text-gray-500 hover:text-white"
+          >
+            🐛 Debug Log
+          </Button>
+
+          {/* Single Exchange Test Button */}
+          <Button
+            onClick={async () => {
+              if (!address) {
+                toast({
+                  title: "Wallet Not Connected",
+                  description: "Please connect your wallet first",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              console.log("=== Starting Single Exchange Test ===");
+              toast({
+                title: "Starting Exchange",
+                description: "Testing USDT (Polygon) → ETH (Arbitrum)",
+              });
+
+              const result = await executeExchange({
+                fromCurrency: "eth",
+                fromChain: "arbitrum",
+                toCurrency: "usdc",
+                toChain: "arbitrum",
+                amount: 0.0015,
+                recipientAddress: address,
+                refundAddress: address,
+                isFixedRate: false,
+                autoSendFromWallet: true, // Enable automatic wallet send
+                onProgress: (progress) => {
+                  console.log(`[Progress] Step: ${progress.step}, Status: ${progress.status}`, progress);
+                  toast({
+                    title: `Step: ${progress.step}`,
+                    description: progress.message || progress.status,
+                  });
+                },
+              });
+
+              console.log("=== Exchange Result ===", result);
+
+              if (result.success) {
+                toast({
+                  title: "Exchange Created! ✅",
+                  description: `Exchange ID: ${result.exchange?.id}`,
+                });
+              } else {
+                toast({
+                  title: "Exchange Failed ❌",
+                  description: result.error || "Unknown error",
+                  variant: "destructive",
+                });
+              }
+            }}
+            variant="ghost"
+            size="sm"
+            className="absolute top-0 right-0 text-xs text-green-500 hover:text-white"
+            disabled={loading}
+          >
+            🚀 Single Exchange
+          </Button>
 
           {/* Quick Tips */}
           <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg max-w-3xl mx-auto">
@@ -526,7 +621,10 @@ export default function ChangeNowPage() {
           {/* Left Column - Currencies List */}
           <Card className="bg-[#1a1a1a] border border-white/10 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xl text-white">Available Currencies</CardTitle>
+              <div>
+                <CardTitle className="text-xl text-white">Available Currencies</CardTitle>
+                <p className="text-xs text-blue-400 mt-1">EVM Chains Only (41 chains)</p>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -615,7 +713,7 @@ export default function ChangeNowPage() {
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-2 text-center">
-                {currencies.length} currencies available
+                {currencies.length} EVM currencies available
               </p>
             </CardContent>
           </Card>

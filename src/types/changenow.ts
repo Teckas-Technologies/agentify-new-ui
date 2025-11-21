@@ -230,6 +230,7 @@ export interface UseChangeNowReturn {
   error: string | null;
   // Read operations
   getCurrencies: (active?: boolean, fixedRate?: boolean) => Promise<ChangeNowCurrency[] | undefined>;
+  getEVMCurrencies: (active?: boolean, fixedRate?: boolean) => Promise<ChangeNowCurrency[] | undefined>;
   getCurrencyInfo: (ticker: string) => Promise<CurrencyInfoResponse | undefined>;
   getAvailableCurrenciesFor: (ticker: string, fixedRate?: boolean) => Promise<AvailableCurrenciesForResponse | undefined>;
   getMinAmount: (from: string, to: string) => Promise<MinAmountResponse | undefined>;
@@ -245,4 +246,30 @@ export interface UseChangeNowReturn {
   createExchange: (params: CreateExchangeParams) => Promise<CreateExchangeResponse | undefined>;
   createFixedRateExchange: (params: CreateExchangeParams) => Promise<CreateExchangeResponse | undefined>;
   sendToDepositAddress: (depositAddress: string, amount: number, ticker: string) => Promise<{ success: boolean; txHash?: string; error?: string }>;
+  // Orchestrated flow
+  executeExchange: (params: {
+    fromCurrency: string;
+    fromChain: string;
+    toCurrency: string;
+    toChain: string;
+    amount: number;
+    recipientAddress: string;
+    refundAddress?: string;
+    isFixedRate?: boolean;
+    autoSendFromWallet?: boolean;
+    onProgress?: (progress: {
+      step: 'validating' | 'estimating' | 'creating' | 'sending' | 'tracking' | 'completed';
+      status: 'loading' | 'success' | 'error';
+      message?: string;
+      data?: any;
+    }) => void;
+  }) => Promise<{
+    success: boolean;
+    exchange?: CreateExchangeResponse;
+    transaction?: TransactionStatusResponse;
+    depositTxHash?: string;
+    error?: string;
+  }>;
+  // Debug functions
+  debugLogEVMCurrencies: () => Promise<ChangeNowCurrency[] | undefined>;
 }

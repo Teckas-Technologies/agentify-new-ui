@@ -1,11 +1,12 @@
 import { useState } from "react";
 import axios, { AxiosError } from "axios";
-import { useAccount, useWalletClient } from "wagmi";
+import { useAccount, useWalletClient, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { readContract, getBalance, sendTransaction } from "@wagmi/core";
 import { wagmiConfig } from "@/contexts/CustomWagmiProvider";
 import { erc20Abi } from "viem";
 import { useTokenBalanceRefresh } from "@/contexts/TokenBalanceRefreshContext";
+import { getTokens, createConfig as createLiFiConfig } from "@lifi/sdk";
 import {
   ChangeNowCurrency,
   CurrencyInfoResponse,
@@ -26,18 +27,25 @@ import {
 } from "@/types/changenow";
 import {
   parseChangeNowTicker,
-  getTokenAddress as getTokenAddressFromMapping,
+  parseChangeNowTickerLenient,
+  parseChangeNowTickerDynamic,
+  formatChangeNowTicker,
   isNativeCurrency as isNativeCurrencyCheck,
   getNativeCurrency,
   getChainConfig,
+  CHAIN_CONFIGS,
 } from "@/utils/changeNowTokenMapping";
 
 const API_BASE_URL = "https://api.changenow.io/v1";
 const API_V2_BASE_URL = "https://api.changenow.io/v2";
 
+// In-memory cache for token details from LiFi
+const tokenDetailsCache = new Map<string, { address: string; decimals: number }>();
+
 export const useChangeNowHook = (): UseChangeNowReturn => {
   const { address, isConnected, chain } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
   const { triggerRefresh } = useTokenBalanceRefresh();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +89,38 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       return undefined;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Get only EVM chain currencies (filtered by our 41 supported chains)
+  const getEVMCurrencies = async (
+    active: boolean = true,
+    fixedRate: boolean = false
+  ): Promise<ChangeNowCurrency[] | undefined> => {
+    try {
+      const allCurrencies = await getCurrencies(active, fixedRate);
+      if (!allCurrencies) return undefined;
+
+      // Filter to only include currencies on our supported EVM chains
+      // Use lenient parser to accept ALL tokens on our chains, not just ones with addresses
+      const evmCurrencies = allCurrencies.filter((currency) => {
+        // Exclude fiat currencies (COP, DOP, MOP, USD, EUR, etc.)
+        if (currency.isFiat) return false;
+
+        const parsed = parseChangeNowTickerLenient(currency.ticker);
+
+        // If parseChangeNowTickerLenient returns null, it's not on our supported chains
+        if (!parsed) return false;
+
+        // Check if the chain is in our CHAIN_CONFIGS (our 41 EVM chains)
+        const chainConfig = getChainConfig(parsed.chainId);
+        return chainConfig !== null;
+      });
+
+      return evmCurrencies;
+    } catch (err) {
+      handleApiError(err, "Failed to fetch EVM currencies");
+      return undefined;
     }
   };
 
@@ -164,19 +204,34 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get<ExchangeAmountResponse>(
-        `${API_BASE_URL}/exchange-amount/${amount}/${from.toLowerCase()}_${to.toLowerCase()}`,
-        {
-          params: { api_key: API_KEY },
-        }
-      );
+      const url = `${API_BASE_URL}/exchange-amount/${amount}/${from.toLowerCase()}_${to.toLowerCase()}`;
+      console.log(`[ChangeNow API] GET ${url}`);
 
+      const response = await axios.get<ExchangeAmountResponse>(url, {
+        params: { api_key: API_KEY },
+      });
+
+      console.log(`[ChangeNow API] Success for ${from}/${to}:`, response.data);
       return response.data;
     } catch (err) {
-      // Only show error if it's not a "pair not supported" error
+      // Log detailed error info
       if (axios.isAxiosError(err)) {
-        const errorMsg = err.response?.data?.message || "";
-        if (!errorMsg.includes("not supported") && !errorMsg.includes("not_valid_params")) {
+        console.error(`[ChangeNow API] Error for ${from}/${to}:`, {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+        });
+
+        const errorData = err.response?.data;
+        const errorType = errorData?.error;
+        const errorMsg = errorData?.message || "";
+
+        // Check for specific error types
+        if (errorType === 'deposit_too_small') {
+          // Don't show error toast for minimum amount issues
+          console.log(`Amount below minimum for ${from}/${to}: ${errorMsg}`);
+        } else if (!errorMsg.includes("not supported") && !errorMsg.includes("not_valid_params")) {
           handleApiError(err, `Failed to get exchange estimate for ${from}/${to}`);
         }
       }
@@ -196,16 +251,37 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get<FixedRateExchangeResponse>(
-        `${API_BASE_URL}/exchange-amount/fixed-rate/${amount}/${from.toLowerCase()}_${to.toLowerCase()}`,
-        {
-          params: { api_key: API_KEY },
-        }
-      );
+      const url = `${API_BASE_URL}/exchange-amount/fixed-rate/${amount}/${from.toLowerCase()}_${to.toLowerCase()}`;
+      console.log(`[ChangeNow API] GET ${url}`);
 
+      const response = await axios.get<FixedRateExchangeResponse>(url, {
+        params: { api_key: API_KEY },
+      });
+
+      console.log(`[ChangeNow API] Fixed rate success for ${from}/${to}:`, response.data);
       return response.data;
     } catch (err) {
-      handleApiError(err, `Failed to get fixed rate estimate for ${from}/${to}`);
+      // Log detailed error info
+      if (axios.isAxiosError(err)) {
+        console.error(`[ChangeNow API] Fixed rate error for ${from}/${to}:`, {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+        });
+
+        const errorData = err.response?.data;
+        const errorType = errorData?.error;
+        const errorMsg = errorData?.message || "";
+
+        // Check for specific error types
+        if (errorType === 'deposit_too_small') {
+          // Don't show error toast for minimum amount issues
+          console.log(`Amount below minimum for ${from}/${to}: ${errorMsg}`);
+        } else {
+          handleApiError(err, `Failed to get fixed rate estimate for ${from}/${to}`);
+        }
+      }
       return undefined;
     } finally {
       setLoading(false);
@@ -218,6 +294,9 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       setLoading(true);
       setError(null);
 
+      const url = `${API_V2_BASE_URL}/exchange/range?fromCurrency=${from.toLowerCase()}&toCurrency=${to.toLowerCase()}`;
+      console.log(`[ChangeNow API] GET ${url}`);
+
       const response = await axios.get<ExchangeRangeResponse>(`${API_V2_BASE_URL}/exchange/range`, {
         params: {
           fromCurrency: from.toLowerCase(),
@@ -228,10 +307,20 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         },
       });
 
+      console.log(`[ChangeNow API] Range success for ${from}/${to}:`, response.data);
       return response.data;
     } catch (err) {
-      // Silently fail for unsupported pairs
-      console.log(`Range not available for ${from}/${to}`);
+      // Log detailed error info
+      if (axios.isAxiosError(err)) {
+        console.error(`[ChangeNow API] Range error for ${from}/${to}:`, {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+        });
+      } else {
+        console.log(`Range not available for ${from}/${to}`);
+      }
       return undefined;
     } finally {
       setLoading(false);
@@ -435,6 +524,66 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
   // ====================================
 
   /**
+   * Get token details (address & decimals) from LiFi dynamically
+   * Uses in-memory cache for performance
+   */
+  const getTokenDetailsFromLiFi = async (
+    tokenSymbol: string,
+    chainId: number
+  ): Promise<{ address: string; decimals: number } | null> => {
+    const cacheKey = `${chainId}-${tokenSymbol.toLowerCase()}`;
+
+    // Check cache first
+    if (tokenDetailsCache.has(cacheKey)) {
+      return tokenDetailsCache.get(cacheKey)!;
+    }
+
+    try {
+      // Fetch all tokens for this chain from LiFi
+      const tokensResponse = await getTokens({ chains: [chainId] });
+
+      console.log(`LiFi tokens response for chain ${chainId}:`, tokensResponse);
+
+      // LiFi returns { tokens: { [chainId]: Token[] }, extended: boolean }
+      const tokensData = (tokensResponse as any).tokens || tokensResponse;
+      const tokensForChain = tokensData[chainId];
+
+      console.log(`Tokens for chain ${chainId}:`, tokensForChain?.length || 0);
+
+      if (!tokensForChain || tokensForChain.length === 0) {
+        console.log(`No tokens found on LiFi for chain ${chainId}`);
+        return null;
+      }
+
+      // Find token by symbol (case-insensitive)
+      const token = tokensForChain.find(
+        (t: any) => t.symbol.toLowerCase() === tokenSymbol.toLowerCase()
+      );
+
+      if (!token) {
+        // Log available symbols for debugging
+        const availableSymbols = tokensForChain.map((t: any) => t.symbol).slice(0, 20).join(", ");
+        console.log(`Token ${tokenSymbol} not found on LiFi for chain ${chainId}`);
+        console.log(`Available symbols (first 20): ${availableSymbols}`);
+        return null;
+      }
+
+      const details = {
+        address: token.address,
+        decimals: token.decimals,
+      };
+
+      // Cache it
+      tokenDetailsCache.set(cacheKey, details);
+
+      return details;
+    } catch (err) {
+      console.error(`Failed to fetch token ${tokenSymbol} from LiFi:`, err);
+      return null;
+    }
+  };
+
+  /**
    * Check if currency is a native currency (ETH, MATIC, BNB, etc.)
    */
   const isNativeCurrency = (changeNowTicker: string, chainId: number): boolean => {
@@ -446,33 +595,24 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
   };
 
   /**
-   * Get token address for a given ChangeNow ticker and chain
+   * Get token address and decimals dynamically from LiFi for a given ChangeNow ticker
+   * Returns null if not found
    */
-  const getTokenAddress = (changeNowTicker: string, chainId: number): string | null => {
+  const getTokenDetailsForTicker = async (
+    changeNowTicker: string,
+    chainId: number
+  ): Promise<{ address: string; decimals: number } | null> => {
     const parsed = parseChangeNowTicker(changeNowTicker);
     if (!parsed) return null;
 
-    // If parsed chain doesn't match current chain, try to find token on current chain
-    const tokenInfo = getTokenAddressFromMapping(parsed.baseToken, chainId);
-    return tokenInfo?.address || null;
-  };
-
-  /**
-   * Get token decimals from mapping or native currency info
-   */
-  const getTokenDecimals = (changeNowTicker: string, chainId: number): number => {
-    const parsed = parseChangeNowTicker(changeNowTicker);
-    if (!parsed) return 18; // Default
-
-    // Check if it's native currency
+    // Check if it's native currency (doesn't need address lookup)
     if (isNativeCurrencyCheck(parsed.baseToken, chainId)) {
       const nativeCurrency = getNativeCurrency(chainId);
-      return nativeCurrency?.decimals || 18;
+      return nativeCurrency ? { address: "0x0", decimals: nativeCurrency.decimals } : null;
     }
 
-    // Check token mapping
-    const tokenInfo = getTokenAddressFromMapping(parsed.baseToken, chainId);
-    return tokenInfo?.decimals || 18;
+    // Fetch from LiFi dynamically
+    return await getTokenDetailsFromLiFi(parsed.baseToken, chainId);
   };
 
   /**
@@ -553,14 +693,19 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         throw new Error("Chain not detected");
       }
 
+      // Parse ticker to get base token
+      const parsed = parseChangeNowTicker(ticker);
+      if (!parsed) {
+        throw new Error(`Failed to parse ticker: ${ticker}`);
+      }
+
+      const baseToken = parsed.baseToken;
+
       // Verify user is on a chain that supports this native currency
-      if (!isNativeCurrency(ticker, chain.id)) {
+      if (!isNativeCurrencyCheck(baseToken, chain.id)) {
         const currentChainConfig = getChainConfig(chain.id);
         const chainName = currentChainConfig?.name || `Chain ${chain.id}`;
-
-        // Try to parse ticker to suggest correct network
-        const parsed = parseChangeNowTicker(ticker);
-        const suggestedChain = parsed ? getChainConfig(parsed.chainId) : null;
+        const suggestedChain = getChainConfig(parsed.chainId);
         const suggestion = suggestedChain
           ? ` Please switch to ${suggestedChain.name} network.`
           : "";
@@ -570,7 +715,9 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         );
       }
 
-      const decimals = getTokenDecimals(ticker, chain.id);
+      // Get decimals from native currency config
+      const nativeCurrency = getNativeCurrency(chain.id);
+      const decimals = nativeCurrency?.decimals || 18;
       const amountWei = parseUnits(amount.toString(), decimals);
 
       // Check balance
@@ -620,24 +767,34 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         throw new Error("Wallet not connected");
       }
 
-      const tokenAddress = getTokenAddress(ticker, chain.id);
-      if (!tokenAddress) {
+      // Get token details dynamically from LiFi
+      console.log(`[Wallet Send] Looking up token ${ticker} on chain ${chain.id}`);
+      const tokenDetails = await getTokenDetailsForTicker(ticker, chain.id);
+
+      if (!tokenDetails) {
         const currentChainConfig = getChainConfig(chain.id);
         const chainName = currentChainConfig?.name || `Chain ${chain.id}`;
 
         // Try to parse ticker to suggest correct network
         const parsed = parseChangeNowTicker(ticker);
         const suggestedChain = parsed ? getChainConfig(parsed.chainId) : null;
-        const suggestion = suggestedChain
-          ? ` Please switch to ${suggestedChain.name} network to send this token.`
-          : " This token may not be supported for wallet sending.";
 
+        // Check if user is on wrong chain
+        if (suggestedChain && suggestedChain.chainId !== chain.id) {
+          throw new Error(
+            `Token ${ticker.toUpperCase()} is for ${suggestedChain.name} network. Please switch to ${suggestedChain.name} to send this token.`
+          );
+        }
+
+        // User is on correct chain, but LiFi doesn't have the token
         throw new Error(
-          `Token ${ticker.toUpperCase()} not configured for ${chainName}.${suggestion}`
+          `Token ${ticker.toUpperCase()} not found on LiFi for ${chainName}. The token address may not be available. Try sending manually to the deposit address.`
         );
       }
 
-      const decimals = getTokenDecimals(ticker, chain.id);
+      console.log(`[Wallet Send] Token found on LiFi:`, tokenDetails);
+
+      const { address: tokenAddress, decimals } = tokenDetails;
       const amountBigInt = parseUnits(amount.toString(), decimals);
 
       // Check balance
@@ -712,10 +869,21 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         throw new Error("Please connect your wallet");
       }
 
-      // Check if it's a native currency
-      if (isNativeCurrency(ticker, chain.id)) {
+      // Parse ticker to get base token (e.g., "etharb" → "eth")
+      const parsed = parseChangeNowTickerLenient(ticker);
+      if (!parsed) {
+        throw new Error(`Failed to parse ticker: ${ticker}`);
+      }
+
+      const baseToken = parsed.baseToken;
+      console.log(`[sendToDepositAddress] Ticker: ${ticker}, BaseToken: ${baseToken}, ChainId: ${chain.id}`);
+
+      // Check if the base token is a native currency on the current chain
+      if (isNativeCurrencyCheck(baseToken, chain.id)) {
+        console.log(`[sendToDepositAddress] ${baseToken} is native on chain ${chain.id}, using sendNativeCurrency`);
         return await sendNativeCurrency(depositAddress, amount, ticker);
       } else {
+        console.log(`[sendToDepositAddress] ${baseToken} is ERC20 on chain ${chain.id}, using sendERC20Token`);
         return await sendERC20Token(depositAddress, amount, ticker);
       }
     } catch (err: any) {
@@ -728,10 +896,363 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
     }
   };
 
+  // ====================================
+  // ORCHESTRATED EXCHANGE FLOW
+  // ====================================
+
+  /**
+   * Execute complete exchange flow with progress tracking
+   * This is a convenience method that orchestrates all steps
+   *
+   * @param fromCurrency - Token symbol (e.g., "usdt", "eth")
+   * @param fromChain - Chain name (e.g., "polygon", "base")
+   * @param toCurrency - Token symbol (e.g., "eth", "usdc")
+   * @param toChain - Chain name (e.g., "ethereum", "arbitrum")
+   */
+  const executeExchange = async (params: {
+    fromCurrency: string;
+    fromChain: string;
+    toCurrency: string;
+    toChain: string;
+    amount: number;
+    recipientAddress: string;
+    refundAddress?: string;
+    isFixedRate?: boolean;
+    autoSendFromWallet?: boolean;
+    onProgress?: (progress: {
+      step: 'validating' | 'estimating' | 'creating' | 'sending' | 'tracking' | 'completed';
+      status: 'loading' | 'success' | 'error';
+      message?: string;
+      data?: any;
+    }) => void;
+  }): Promise<{
+    success: boolean;
+    exchange?: CreateExchangeResponse;
+    transaction?: TransactionStatusResponse;
+    depositTxHash?: string;
+    error?: string;
+  }> => {
+    const {
+      fromCurrency,
+      fromChain,
+      toCurrency,
+      toChain,
+      amount,
+      recipientAddress,
+      refundAddress,
+      isFixedRate = false,
+      autoSendFromWallet = false,
+      onProgress,
+    } = params;
+
+    // Fetch EVM currencies list first (used for dynamic ticker formatting)
+    const evmCurrencies = await getEVMCurrencies(true, false);
+    if (!evmCurrencies || evmCurrencies.length === 0) {
+      const error = 'Failed to fetch EVM currencies list';
+      onProgress?.({ step: 'validating', status: 'error', message: error });
+      return { success: false, error };
+    }
+
+    // Convert to ChangeNow ticker format using dynamic lookup
+    const fromTicker = formatChangeNowTicker(fromCurrency, fromChain, evmCurrencies);
+    const toTicker = formatChangeNowTicker(toCurrency, toChain, evmCurrencies);
+
+    if (!fromTicker || !toTicker) {
+      const error = `Failed to build tickers for ${fromCurrency}@${fromChain} or ${toCurrency}@${toChain}`;
+      onProgress?.({ step: 'validating', status: 'error', message: error });
+      return { success: false, error };
+    }
+
+    console.log(`[executeExchange] Converted: ${fromCurrency}@${fromChain} → ${fromTicker}`);
+    console.log(`[executeExchange] Converted: ${toCurrency}@${toChain} → ${toTicker}`);
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Step 1: Validate minimum amount
+      onProgress?.({ step: 'validating', status: 'loading', message: 'Validating amount...' });
+
+      const minAmountData = await getMinAmount(fromTicker, toTicker);
+      if (!minAmountData) {
+        const error = `Pair ${fromCurrency}@${fromChain}/${toCurrency}@${toChain} is not available`;
+        onProgress?.({ step: 'validating', status: 'error', message: error });
+        return { success: false, error };
+      }
+
+      if (amount < minAmountData.minAmount) {
+        const error = `Amount below minimum. Min: ${minAmountData.minAmount} ${fromCurrency.toUpperCase()}`;
+        onProgress?.({ step: 'validating', status: 'error', message: error });
+        return { success: false, error };
+      }
+
+      onProgress?.({ step: 'validating', status: 'success', message: 'Amount validated', data: minAmountData });
+
+      // Step 2: Get estimate
+      onProgress?.({ step: 'estimating', status: 'loading', message: 'Getting exchange rate...' });
+
+      let estimate;
+      let rateId;
+
+      if (isFixedRate) {
+        const fixedRateData = await getFixedRateAmount(amount, fromTicker, toTicker);
+        if (!fixedRateData) {
+          const error = 'Failed to get fixed rate estimate';
+          onProgress?.({ step: 'estimating', status: 'error', message: error });
+          return { success: false, error };
+        }
+        estimate = fixedRateData.estimatedAmount;
+        rateId = fixedRateData.rateId;
+      } else {
+        const floatingRateData = await getExchangeAmount(amount, fromTicker, toTicker);
+        if (!floatingRateData) {
+          const error = 'Failed to get exchange estimate';
+          onProgress?.({ step: 'estimating', status: 'error', message: error });
+          return { success: false, error };
+        }
+        estimate = floatingRateData.estimatedAmount;
+      }
+
+      onProgress?.({
+        step: 'estimating',
+        status: 'success',
+        message: `You will receive ~${estimate} ${toCurrency.toUpperCase()}`,
+        data: { estimate, rateId }
+      });
+
+      // Step 3: Create exchange
+      onProgress?.({ step: 'creating', status: 'loading', message: 'Creating exchange...' });
+
+      const exchangeParams: CreateExchangeParams = {
+        from: fromTicker,
+        to: toTicker,
+        address: recipientAddress,
+        amount,
+        refundAddress: refundAddress || address || undefined,
+        rateId: isFixedRate ? rateId : undefined,
+      };
+
+      const exchange = isFixedRate
+        ? await createFixedRateExchange(exchangeParams)
+        : await createExchange(exchangeParams);
+
+      if (!exchange) {
+        const error = 'Failed to create exchange';
+        onProgress?.({ step: 'creating', status: 'error', message: error });
+        return { success: false, error };
+      }
+
+      onProgress?.({
+        step: 'creating',
+        status: 'success',
+        message: 'Exchange created successfully',
+        data: exchange
+      });
+
+      // Step 4: Send funds (if autoSend)
+      let depositTxHash;
+
+      if (autoSendFromWallet) {
+        onProgress?.({ step: 'sending', status: 'loading', message: 'Preparing to send funds...' });
+
+        // Get the chain ID for the fromChain using fuzzy matching
+        const fromChainConfig = Object.values(CHAIN_CONFIGS).find(
+          c => c.name.toLowerCase() === fromChain.toLowerCase() ||
+               c.name.toLowerCase().includes(fromChain.toLowerCase()) ||
+               fromChain.toLowerCase().includes(c.name.toLowerCase())
+        );
+
+        if (!fromChainConfig) {
+          const error = `Chain config not found for ${fromChain}`;
+          onProgress?.({ step: 'sending', status: 'error', message: error });
+          return { success: false, exchange, error };
+        }
+
+        // Switch to the correct chain if needed
+        if (chain?.id !== fromChainConfig.chainId) {
+          onProgress?.({
+            step: 'sending',
+            status: 'loading',
+            message: `Switching to ${fromChainConfig.name}...`
+          });
+
+          try {
+            if (!switchChainAsync) {
+              throw new Error('Chain switching not available');
+            }
+            await switchChainAsync({ chainId: fromChainConfig.chainId });
+            console.log(`[executeExchange] Switched to chain ${fromChainConfig.chainId} (${fromChainConfig.name})`);
+          } catch (switchErr: any) {
+            const error = `Failed to switch to ${fromChainConfig.name}: ${switchErr.message}`;
+            onProgress?.({ step: 'sending', status: 'error', message: error });
+            return { success: false, exchange, error };
+          }
+        }
+
+        onProgress?.({ step: 'sending', status: 'loading', message: 'Sending funds from wallet...' });
+
+        const sendResult = await sendToDepositAddress(
+          exchange.payinAddress,
+          amount,
+          fromTicker
+        );
+
+        if (!sendResult.success) {
+          onProgress?.({
+            step: 'sending',
+            status: 'error',
+            message: sendResult.error || 'Failed to send funds'
+          });
+          // Return exchange info even if send fails - user can send manually
+          return {
+            success: false,
+            exchange,
+            error: sendResult.error,
+          };
+        }
+
+        depositTxHash = sendResult.txHash;
+        onProgress?.({
+          step: 'sending',
+          status: 'success',
+          message: 'Funds sent successfully',
+          data: { txHash: depositTxHash }
+        });
+      }
+
+      // Step 5: Track transaction status (poll for updates)
+      onProgress?.({ step: 'tracking', status: 'loading', message: 'Waiting for deposit confirmation...' });
+
+      // Poll status every 10 seconds
+      const pollStatus = async (): Promise<TransactionStatusResponse | undefined> => {
+        let attempts = 0;
+        const maxAttempts = 180; // 30 minutes max (180 * 10s)
+
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+
+          const status = await getTransactionStatus(exchange.id);
+          if (!status) {
+            attempts++;
+            continue;
+          }
+
+          // Update progress with current status
+          onProgress?.({
+            step: 'tracking',
+            status: 'loading',
+            message: `Status: ${status.status}`,
+            data: status
+          });
+
+          // Check if transaction is complete or failed
+          if (status.status === 'finished') {
+            onProgress?.({
+              step: 'completed',
+              status: 'success',
+              message: 'Exchange completed successfully!',
+              data: status
+            });
+            return status;
+          } else if (status.status === 'failed' || status.status === 'refunded' || status.status === 'expired') {
+            onProgress?.({
+              step: 'tracking',
+              status: 'error',
+              message: `Exchange ${status.status}`,
+              data: status
+            });
+            return status;
+          }
+
+          attempts++;
+        }
+
+        // Timeout
+        onProgress?.({
+          step: 'tracking',
+          status: 'error',
+          message: 'Transaction tracking timeout. Please check status manually.'
+        });
+        return undefined;
+      };
+
+      const finalStatus = await pollStatus();
+
+      return {
+        success: true,
+        exchange,
+        transaction: finalStatus,
+        depositTxHash,
+      };
+
+    } catch (err: any) {
+      const errorMsg = err.message || 'Exchange failed';
+      setError(errorMsg);
+      onProgress?.({
+        step: 'validating',
+        status: 'error',
+        message: errorMsg
+      });
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Debug: Log EVM currencies for analysis
+   */
+  const debugLogEVMCurrencies = async () => {
+    console.log('=== DEBUG: Fetching EVM Currencies ===');
+    const currencies = await getEVMCurrencies(true, false);
+
+    if (!currencies) {
+      console.error('No currencies returned');
+      return;
+    }
+
+    console.log(`Total EVM currencies: ${currencies.length}`);
+    console.table(currencies.slice(0, 50).map(c => ({
+      ticker: c.ticker,
+      name: c.name,
+      featured: c.featured,
+      stable: c.isStable,
+      fixedRate: c.supportsFixedRate,
+    })));
+
+    // Group by chain suffix
+    const byChain: Record<string, string[]> = {};
+    currencies.forEach(c => {
+      const parsed = parseChangeNowTickerLenient(c.ticker);
+      if (parsed) {
+        const chainConfig = getChainConfig(parsed.chainId);
+        const chainName = chainConfig?.name || `Chain ${parsed.chainId}`;
+        if (!byChain[chainName]) byChain[chainName] = [];
+        byChain[chainName].push(c.ticker);
+      }
+    });
+
+    console.log('=== Currencies by Chain ===');
+    Object.entries(byChain).forEach(([chain, tickers]) => {
+      console.log(`${chain}: ${tickers.length} tokens`);
+      console.log(`  Examples: ${tickers.slice(0, 5).join(', ')}`);
+    });
+
+    console.log('=== Full Currency List ===');
+    console.log(JSON.stringify(currencies, null, 2));
+
+    return currencies;
+  };
+
   return {
     loading,
     error,
+    // Individual functions
     getCurrencies,
+    getEVMCurrencies,
     getCurrencyInfo,
     getAvailableCurrenciesFor,
     getMinAmount,
@@ -746,6 +1267,10 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
     createExchange,
     createFixedRateExchange,
     sendToDepositAddress,
+    // Orchestrated function
+    executeExchange,
+    // Debug functions
+    debugLogEVMCurrencies,
   };
 };
 

@@ -5,6 +5,8 @@
  * It supports all chains configured in CustomWagmiProvider.
  */
 
+import type { ChangeNowCurrency } from "../types/changenow";
+
 export interface ChainConfig {
   chainId: number;
   name: string;
@@ -14,6 +16,7 @@ export interface ChainConfig {
     decimals: number;
   };
   changeNowSuffixes: string[]; // Network suffixes used by ChangeNow (e.g., "arb", "op", "base")
+  changeNowChainName: string | null; // Chain name as it appears in ChangeNow API's "name" field (null for Ethereum mainnet)
 }
 
 export interface TokenAddress {
@@ -32,6 +35,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "Ethereum",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["", "erc20"], // "eth" or "etherc20"
+    changeNowChainName: null, // No parentheses in ChangeNow API (e.g., "Ethereum", "USD Coin")
   },
 
   // Layer 2s - Ethereum Based
@@ -40,54 +44,63 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "Arbitrum",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["arb", "arbitrum"],
+    changeNowChainName: "Arbitrum One", // ChangeNow uses "Arbitrum One" in API
   },
   10: {
     chainId: 10,
     name: "Optimism",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["op", "optimism"],
+    changeNowChainName: "Optimism",
   },
   8453: {
     chainId: 8453,
     name: "Base",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["base"],
+    changeNowChainName: "Base",
   },
   81457: {
     chainId: 81457,
     name: "Blast",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["blast"],
+    changeNowChainName: "Blast", // TODO: Verify from ChangeNow API
   },
   534352: {
     chainId: 534352,
     name: "Scroll",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["scroll"],
+    changeNowChainName: "Scroll", // TODO: Verify from ChangeNow API
   },
   59144: {
     chainId: 59144,
     name: "Linea",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["lna", "linea"],
+    changeNowChainName: "Linea",
   },
   324: {
     chainId: 324,
     name: "zkSync Era",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["zksync"],
+    changeNowChainName: "zkSync Era", // TODO: Verify from ChangeNow API
   },
   1101: {
     chainId: 1101,
     name: "Polygon zkEVM",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["polygonzkevm", "zkevmpolygon"],
+    changeNowChainName: "Polygon zkEVM", // TODO: Verify from ChangeNow API
   },
   34443: {
     chainId: 34443,
     name: "Mode",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["mode"],
+    changeNowChainName: "Mode", // TODO: Verify from ChangeNow API
   },
 
   // Alternative L1s
@@ -96,48 +109,56 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "BNB Smart Chain",
     nativeCurrency: { name: "BNB", symbol: "bnb", decimals: 18 },
     changeNowSuffixes: ["bsc", "bep20"],
+    changeNowChainName: "Binance Smart Chain", // ChangeNow uses "Binance Smart Chain"
   },
   137: {
     chainId: 137,
     name: "Polygon",
     nativeCurrency: { name: "MATIC", symbol: "matic", decimals: 18 },
     changeNowSuffixes: ["matic", "polygon"],
+    changeNowChainName: "Polygon",
   },
   43114: {
     chainId: 43114,
     name: "Avalanche C-Chain",
     nativeCurrency: { name: "AVAX", symbol: "avax", decimals: 18 },
     changeNowSuffixes: ["avax", "avalanche", "arc20", "avaxc"],
+    changeNowChainName: "AVAX C-CHAIN", // ChangeNow uses "AVAX C-CHAIN" (all caps)
   },
   250: {
     chainId: 250,
     name: "Fantom",
     nativeCurrency: { name: "FTM", symbol: "ftm", decimals: 18 },
     changeNowSuffixes: ["ftm", "fantom"],
+    changeNowChainName: "Fantom", // TODO: Verify from ChangeNow API
   },
   100: {
     chainId: 100,
     name: "Gnosis",
     nativeCurrency: { name: "xDAI", symbol: "xdai", decimals: 18 },
     changeNowSuffixes: ["gnosis", "xdai"],
+    changeNowChainName: "Gnosis", // TODO: Verify from ChangeNow API
   },
   1088: {
     chainId: 1088,
     name: "Metis",
     nativeCurrency: { name: "Metis", symbol: "metis", decimals: 18 },
     changeNowSuffixes: ["metis"],
+    changeNowChainName: "Metis", // TODO: Verify from ChangeNow API
   },
   42220: {
     chainId: 42220,
     name: "Celo",
     nativeCurrency: { name: "CELO", symbol: "celo", decimals: 18 },
     changeNowSuffixes: ["celo"],
+    changeNowChainName: "CELO", // ChangeNow uses "CELO" (all caps)
   },
   5000: {
     chainId: 5000,
     name: "Mantle",
     nativeCurrency: { name: "MNT", symbol: "mnt", decimals: 18 },
     changeNowSuffixes: ["mantle"],
+    changeNowChainName: "Mantle", // TODO: Verify from ChangeNow API
   },
 
   // Moonbeam Ecosystem
@@ -146,12 +167,14 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "Moonbeam",
     nativeCurrency: { name: "GLMR", symbol: "glmr", decimals: 18 },
     changeNowSuffixes: ["moonbeam"],
+    changeNowChainName: "Moonbeam", // TODO: Verify from ChangeNow API
   },
   1285: {
     chainId: 1285,
     name: "Moonriver",
     nativeCurrency: { name: "MOVR", symbol: "movr", decimals: 18 },
     changeNowSuffixes: ["moonriver"],
+    changeNowChainName: "Moonriver", // TODO: Verify from ChangeNow API
   },
 
   // Others
@@ -160,120 +183,140 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "Aurora",
     nativeCurrency: { name: "ETH", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["aurora"],
+    changeNowChainName: "Aurora", // TODO: Verify from ChangeNow API
   },
   288: {
     chainId: 288,
     name: "Boba Network",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["boba"],
+    changeNowChainName: "Boba", // TODO: Verify from ChangeNow API
   },
   122: {
     chainId: 122,
     name: "Fuse",
     nativeCurrency: { name: "FUSE", symbol: "fuse", decimals: 18 },
     changeNowSuffixes: ["fuse"],
+    changeNowChainName: "Fuse", // TODO: Verify from ChangeNow API
   },
   1135: {
     chainId: 1135,
     name: "Lisk",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["lisk"],
+    changeNowChainName: "Lisk", // TODO: Verify from ChangeNow API
   },
   25: {
     chainId: 25,
     name: "Cronos",
     nativeCurrency: { name: "CRO", symbol: "cro", decimals: 18 },
     changeNowSuffixes: ["cronos", "cro"],
+    changeNowChainName: "Cronos", // TODO: Verify from ChangeNow API
   },
   252: {
     chainId: 252,
     name: "Fraxtal",
     nativeCurrency: { name: "Frax Ether", symbol: "frxeth", decimals: 18 },
     changeNowSuffixes: ["fraxtal"],
+    changeNowChainName: "Fraxtal", // TODO: Verify from ChangeNow API
   },
   30: {
     chainId: 30,
     name: "Rootstock",
     nativeCurrency: { name: "RSK", symbol: "rbtc", decimals: 18 },
     changeNowSuffixes: ["rootstock", "rsk"],
+    changeNowChainName: "Rootstock", // TODO: Verify from ChangeNow API
   },
   480: {
     chainId: 480,
     name: "World Chain",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["worldchain"],
+    changeNowChainName: "World Chain", // TODO: Verify from ChangeNow API
   },
   13371: {
     chainId: 13371,
     name: "Immutable zkEVM",
     nativeCurrency: { name: "IMX", symbol: "imx", decimals: 18 },
     changeNowSuffixes: ["immutable", "imx"],
+    changeNowChainName: "Immutable zkEVM", // TODO: Verify from ChangeNow API
   },
   146: {
     chainId: 146,
     name: "Sonic",
     nativeCurrency: { name: "S", symbol: "s", decimals: 18 },
     changeNowSuffixes: ["sonic"],
+    changeNowChainName: "Sonic", // TODO: Verify from ChangeNow API
   },
   1625: {
     chainId: 1625,
     name: "Gravity",
     nativeCurrency: { name: "G", symbol: "g", decimals: 18 },
     changeNowSuffixes: ["gravity"],
+    changeNowChainName: "Gravity", // TODO: Verify from ChangeNow API
   },
   167000: {
     chainId: 167000,
     name: "Taiko",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["taiko"],
+    changeNowChainName: "Taiko", // TODO: Verify from ChangeNow API
   },
-  1946: {
-    chainId: 1946,
+  1868: {
+    chainId: 1868,
     name: "Soneium",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["soneium"],
+    changeNowChainName: "Soneium", // TODO: Verify from ChangeNow API
   },
-  7887: {
-    chainId: 7887,
+  232: {
+    chainId: 232,
     name: "Lens",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["lens"],
+    changeNowChainName: "Lens", // TODO: Verify from ChangeNow API
   },
   57073: {
     chainId: 57073,
     name: "Ink",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["ink"],
+    changeNowChainName: "Ink", // TODO: Verify from ChangeNow API
   },
   80094: {
     chainId: 80094,
     name: "Berachain",
     nativeCurrency: { name: "BERA", symbol: "bera", decimals: 18 },
     changeNowSuffixes: ["berachain", "bera"],
+    changeNowChainName: "Berachain", // TODO: Verify from ChangeNow API
   },
   8217: {
     chainId: 8217,
     name: "Kaia",
     nativeCurrency: { name: "KAIA", symbol: "kaia", decimals: 18 },
     changeNowSuffixes: ["kaia"],
+    changeNowChainName: "Kaia", // TODO: Verify from ChangeNow API
   },
-  1301: {
-    chainId: 1301,
+  130: {
+    chainId: 130,
     name: "Unichain",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["unichain"],
+    changeNowChainName: "Unichain", // TODO: Verify from ChangeNow API
   },
   1329: {
     chainId: 1329,
     name: "Sei",
     nativeCurrency: { name: "SEI", symbol: "sei", decimals: 18 },
     changeNowSuffixes: ["sei"],
+    changeNowChainName: "Sei", // TODO: Verify from ChangeNow API
   },
   2741: {
     chainId: 2741,
     name: "Abstract",
     nativeCurrency: { name: "Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["abstract"],
+    changeNowChainName: "Abstract", // TODO: Verify from ChangeNow API
   },
 
   // Testnet
@@ -282,6 +325,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: "Sepolia",
     nativeCurrency: { name: "Sepolia Ether", symbol: "eth", decimals: 18 },
     changeNowSuffixes: ["sepolia"],
+    changeNowChainName: "Sepolia", // TODO: Verify from ChangeNow API
   },
 };
 
@@ -453,4 +497,203 @@ export function getSupportedChainIds(): number[] {
  */
 export function getNativeCurrency(chainId: number) {
   return CHAIN_CONFIGS[chainId]?.nativeCurrency || null;
+}
+
+/**
+ * Parse ChangeNow ticker to check if it's on any of our EVM chains (lenient version)
+ * This is used for filtering currencies to show in the UI
+ * Unlike parseChangeNowTicker, this accepts ANY token on our chains, not just ones with addresses
+ *
+ * @param changeNowTicker - Ticker from ChangeNow (e.g., "linkarb", "usdcarb", "eth")
+ * @returns { chainId, baseToken } or null if not on our supported chains
+ */
+export function parseChangeNowTickerLenient(changeNowTicker: string): {
+  chainId: number;
+  baseToken: string;
+} | null {
+  const lowerTicker = changeNowTicker.toLowerCase();
+
+  // Try to match with chain suffixes
+  for (const [chainIdStr, config] of Object.entries(CHAIN_CONFIGS)) {
+    const chainId = parseInt(chainIdStr);
+
+    for (const suffix of config.changeNowSuffixes) {
+      if (!suffix) {
+        // Empty suffix means mainnet/default (Ethereum)
+        // Accept any token on mainnet - we'll show them all
+        if (lowerTicker === config.nativeCurrency.symbol) {
+          return { chainId, baseToken: config.nativeCurrency.symbol };
+        }
+        // Check if it's an ERC20 token (has "erc20" suffix or is a known token)
+        if (lowerTicker.endsWith("erc20")) {
+          const baseToken = lowerTicker.slice(0, -5); // Remove "erc20"
+          return { chainId, baseToken };
+        }
+        // For mainnet, also check known tokens
+        for (const tokenSymbol of Object.keys(TOKEN_ADDRESSES)) {
+          if (lowerTicker === tokenSymbol) {
+            return { chainId, baseToken: tokenSymbol };
+          }
+        }
+      } else {
+        // Check if ticker ends with this suffix
+        if (lowerTicker.endsWith(suffix)) {
+          const baseToken = lowerTicker.slice(0, -suffix.length);
+
+          // Accept ANY token on this chain (don't check TOKEN_ADDRESSES)
+          // As long as there's a base token name, it's valid
+          if (baseToken && baseToken.length > 0) {
+            return { chainId, baseToken };
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Parse ChangeNow ticker dynamically using the actual EVM currency list
+ * This is the most reliable way since we look it up directly from the API response
+ *
+ * @param ticker - ChangeNow ticker (e.g., "usdtarc20", "ethbase", "usdc")
+ * @param evmCurrencies - The list of EVM currencies from getEVMCurrencies()
+ * @returns { baseToken, chainId, chainName } or null if not found
+ */
+export function parseChangeNowTickerDynamic(
+  ticker: string,
+  evmCurrencies: ChangeNowCurrency[]
+): { baseToken: string; chainId: number; chainName: string } | null {
+  const lowerTicker = ticker.toLowerCase();
+
+  // Find exact match in the currency list
+  const currency = evmCurrencies.find(c => c.ticker.toLowerCase() === lowerTicker);
+  if (!currency) {
+    console.error(`Ticker "${ticker}" not found in EVM currencies list`);
+    return null;
+  }
+
+  // Parse using existing lenient parser to extract chain info
+  const parsed = parseChangeNowTickerLenient(currency.ticker);
+  if (!parsed) {
+    console.error(`Failed to parse ticker "${ticker}"`);
+    return null;
+  }
+
+  const chainConfig = getChainConfig(parsed.chainId);
+  if (!chainConfig) {
+    console.error(`Chain config not found for chainId ${parsed.chainId}`);
+    return null;
+  }
+
+  return {
+    baseToken: parsed.baseToken,
+    chainId: parsed.chainId,
+    chainName: chainConfig.name,
+  };
+}
+
+/**
+ * Extract chain name from ChangeNow currency name field
+ * Format: "Token Name (Chain Name)" or just "Token Name" (for Ethereum mainnet)
+ *
+ * @param currencyName - Name from ChangeNow API (e.g., "Tether (AVAX C-CHAIN)")
+ * @returns Chain name in parentheses, or null for Ethereum mainnet
+ */
+function extractChainNameFromCurrencyName(currencyName: string): string | null {
+  const match = currencyName.match(/\(([^)]+)\)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Format base token + chain name into ChangeNow ticker dynamically
+ * Searches the EVM currency list to find the exact ticker format using the name field
+ *
+ * @param baseToken - Base token symbol (e.g., "usdt", "eth", "usdc")
+ * @param chainName - Chain name (e.g., "Avalanche C-Chain", "Base", "Polygon")
+ * @param evmCurrencies - The list of EVM currencies from getEVMCurrencies()
+ * @returns ChangeNow ticker string (e.g., "usdtarc20", "ethbase") or null if not found
+ */
+export function formatChangeNowTicker(
+  baseToken: string,
+  chainName: string,
+  evmCurrencies: ChangeNowCurrency[]
+): string | null {
+  const lowerToken = baseToken.toLowerCase();
+  const lowerChain = chainName.toLowerCase();
+
+  // Find chain config from chain name with fuzzy matching
+  // This allows "avalanche" to match "Avalanche C-Chain", "arbitrum" to match "Arbitrum", etc.
+  const chainEntry = Object.entries(CHAIN_CONFIGS).find(([_, config]) => {
+    const configNameLower = config.name.toLowerCase();
+
+    // Fuzzy matching: exact match OR partial match using includes()
+    return (
+      configNameLower === lowerChain ||
+      configNameLower.includes(lowerChain) ||
+      lowerChain.includes(configNameLower)
+    );
+  });
+
+  if (!chainEntry) {
+    console.error(`Chain "${chainName}" not found in CHAIN_CONFIGS`);
+    return null;
+  }
+
+  const chainConfig = chainEntry[1];
+  const targetChangeNowChainName = chainConfig.changeNowChainName;
+
+  console.log(
+    `[formatTicker] Searching for: ${baseToken}@${chainName} | Matched CHAIN_CONFIG: "${chainConfig.name}" (chainId: ${chainConfig.chainId}) | targetChangeNowChainName: "${targetChangeNowChainName}"`
+  );
+
+  // Search currency list by matching the name field
+  // Format in API: "Token Name (Chain Name)" or just "Token Name" for Ethereum
+  for (const currency of evmCurrencies) {
+    const currencyNameLower = currency.name.toLowerCase();
+    const extractedChainName = extractChainNameFromCurrencyName(currency.name);
+
+    // Check if chain matches using fuzzy matching
+    // This allows matching both "Arbitrum" and "Arbitrum One" when user provides "Arbitrum"
+    let chainMatches = false;
+    if (targetChangeNowChainName === null && extractedChainName === null) {
+      // Both are Ethereum mainnet (no parentheses)
+      chainMatches = true;
+    } else if (targetChangeNowChainName && extractedChainName) {
+      const targetLower = targetChangeNowChainName.toLowerCase();
+      const extractedLower = extractedChainName.toLowerCase();
+
+      // Fuzzy matching: support partial matching using includes()
+      // Examples:
+      // - "Arbitrum One".includes("Arbitrum") = true ✓
+      // - "Arbitrum".includes("Arbitrum") = true ✓
+      // - "AVAX C-CHAIN".includes("AVAX") = true ✓
+      chainMatches =
+        targetLower.includes(extractedLower) ||
+        extractedLower.includes(targetLower) ||
+        targetLower === extractedLower;
+
+      if (chainMatches) {
+        console.log(
+          `[formatTicker] Fuzzy match success: targetChain="${targetLower}" vs extractedChain="${extractedLower}" for currency "${currency.ticker}"`
+        );
+      }
+    }
+
+    if (!chainMatches) continue;
+
+    // Check if token matches - token name should start with the base token
+    // e.g., "Tether (AVAX C-CHAIN)" starts with "tether" for "usdt"
+    // This is approximate, but combined with ticker suffix check it's reliable
+    if (currencyNameLower.startsWith(lowerToken) || currency.ticker.toLowerCase().startsWith(lowerToken)) {
+      console.log(`[formatTicker] Found: ${baseToken}@${chainName} → ${currency.ticker}`);
+      return currency.ticker;
+    }
+  }
+
+  console.error(
+    `Token "${baseToken}" on chain "${chainName}" (changeNowChainName: "${targetChangeNowChainName}") not found in EVM currencies`
+  );
+  return null;
 }
