@@ -1103,11 +1103,27 @@ export const useNewChangeNowHook = (): UseNewChangeNowReturn => {
         );
 
         if (!sendResult.success) {
-          const naturalError = sendResult.error?.includes("Insufficient")
-            ? sendResult.error
-            : sendResult.error
-              ? `There was an issue sending funds to the exchange: ${sendResult.error}`
-              : "There was an issue sending funds to the exchange. Please check your wallet and try again.";
+          let naturalError = "There was an issue sending funds to the exchange. Please check your wallet and try again.";
+
+          if (sendResult.error) {
+            const errorLower = sendResult.error.toLowerCase();
+            // Check for user rejection patterns
+            if (
+              errorLower.includes("user rejected") ||
+              errorLower.includes("user denied") ||
+              errorLower.includes("rejected the request") ||
+              errorLower.includes("denied transaction")
+            ) {
+              naturalError = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
+            } else if (sendResult.error.includes("Insufficient")) {
+              naturalError = sendResult.error;
+            } else if (errorLower.includes("insufficient")) {
+              naturalError = "You don't have enough balance to complete this exchange. Please check your wallet balance.";
+            } else {
+              naturalError = `There was an issue sending funds to the exchange: ${sendResult.error}`;
+            }
+          }
+
           onProgress?.({
             step: "sending",
             status: "error",
