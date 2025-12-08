@@ -224,6 +224,236 @@ export interface ChangeNowHeaders {
   'Content-Type': string;
 }
 
+// =====================================
+// V2 API Types (Separate network params)
+// =====================================
+
+// V2 Currency type
+export interface ChangeNowCurrencyV2 {
+  ticker: string;
+  name: string;
+  image: string;
+  network: string;
+  hasExternalId: boolean;
+  isFiat: boolean;
+  featured: boolean;
+  isStable: boolean;
+  supportsFixedRate: boolean;
+  tokenContract?: string | null;
+  buy: boolean;
+  sell: boolean;
+}
+
+// V2 Available pairs response
+export interface AvailablePairV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  flow: 'standard' | 'fixed-rate';
+}
+
+// V2 Min amount response (more accurate)
+export interface MinAmountResponseV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  flow: 'standard' | 'fixed-rate';
+  minAmount: number;
+}
+
+// V2 Exchange range response
+export interface ExchangeRangeResponseV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  flow: 'standard' | 'fixed-rate';
+  minAmount: number;
+  maxAmount: number | null;
+}
+
+// V2 Estimated amount response
+export interface EstimatedAmountResponseV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  flow: 'standard' | 'fixed-rate';
+  type: 'direct' | 'reverse';
+  rateId: string | null;
+  validUntil: string | null;
+  transactionSpeedForecast: string | null;
+  warningMessage: string | null;
+  depositFee: number;
+  withdrawalFee: number;
+  userId: string | null;
+  fromAmount: number;
+  toAmount: number;
+}
+
+// V2 Create exchange request params
+export interface CreateExchangeParamsV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  fromAmount?: number;
+  toAmount?: number;
+  address: string;
+  extraId?: string;
+  refundAddress?: string;
+  refundExtraId?: string;
+  userId?: string;
+  payload?: Record<string, string>;
+  contactEmail?: string;
+  flow: 'standard' | 'fixed-rate';
+  type?: 'direct' | 'reverse';
+  rateId?: string;
+}
+
+// V2 Create exchange response
+export interface CreateExchangeResponseV2 {
+  id: string;
+  fromAmount: number;
+  toAmount: number;
+  flow: 'standard' | 'fixed-rate';
+  type: 'direct' | 'reverse';
+  payinAddress: string;
+  payoutAddress: string;
+  payinExtraId?: string | null;
+  payoutExtraId?: string | null;
+  fromCurrency: string;
+  toCurrency: string;
+  fromNetwork: string;
+  toNetwork: string;
+  refundAddress?: string | null;
+  refundExtraId?: string | null;
+  validUntil?: string | null;
+  rateId?: string | null;
+}
+
+// V2 Transaction status response
+export interface TransactionStatusResponseV2 {
+  id: string;
+  status: TransactionStatus;
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  expectedAmountFrom: number;
+  expectedAmountTo: number;
+  amountFrom: number | null;
+  amountTo: number | null;
+  payinAddress: string;
+  payoutAddress: string;
+  payinExtraId?: string | null;
+  payoutExtraId?: string | null;
+  refundAddress?: string | null;
+  refundExtraId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  depositReceivedAt?: string | null;
+  payinHash?: string | null;
+  payoutHash?: string | null;
+  fromLegacyTicker: string;
+  toLegacyTicker: string;
+  actionsAvailable: boolean;
+}
+
+// V2 Validate address response
+export interface ValidateAddressResponseV2 {
+  result: boolean;
+  message: string | null;
+}
+
+// V2 Network fee estimate response
+export interface NetworkFeeResponseV2 {
+  fromCurrency: string;
+  fromNetwork: string;
+  toCurrency: string;
+  toNetwork: string;
+  flow: 'standard' | 'fixed-rate';
+  depositFee: number;
+  withdrawalFee: number;
+  fromAmount: number;
+  toAmount: number;
+}
+
+// V2 Hook return type
+export interface UseNewChangeNowReturn {
+  loading: boolean;
+  error: string | null;
+  // Read operations
+  getCurrencies: (params?: { active?: boolean; fixedRate?: boolean; buy?: boolean; sell?: boolean }) => Promise<ChangeNowCurrencyV2[] | undefined>;
+  getEVMCurrencies: (params?: { active?: boolean; fixedRate?: boolean }) => Promise<ChangeNowCurrencyV2[] | undefined>;
+  getAvailablePairs: (params?: {
+    fromCurrency?: string;
+    toCurrency?: string;
+    fromNetwork?: string;
+    toNetwork?: string;
+    flow?: 'standard' | 'fixed-rate';
+  }) => Promise<AvailablePairV2[] | undefined>;
+  getMinAmount: (params: {
+    fromCurrency: string;
+    toCurrency: string;
+    fromNetwork: string;
+    toNetwork: string;
+    flow?: 'standard' | 'fixed-rate';
+  }) => Promise<MinAmountResponseV2 | undefined>;
+  getExchangeRange: (params: {
+    fromCurrency: string;
+    toCurrency: string;
+    fromNetwork: string;
+    toNetwork: string;
+    flow?: 'standard' | 'fixed-rate';
+  }) => Promise<ExchangeRangeResponseV2 | undefined>;
+  getEstimatedAmount: (params: {
+    fromCurrency: string;
+    toCurrency: string;
+    fromNetwork: string;
+    toNetwork: string;
+    fromAmount?: number;
+    toAmount?: number;
+    flow?: 'standard' | 'fixed-rate';
+    type?: 'direct' | 'reverse';
+    useRateId?: boolean;
+  }) => Promise<EstimatedAmountResponseV2 | undefined>;
+  getTransactionStatus: (id: string) => Promise<TransactionStatusResponseV2 | undefined>;
+  validateAddress: (params: {
+    currency: string;
+    address: string;
+  }) => Promise<ValidateAddressResponseV2 | undefined>;
+  // Write operations
+  createExchange: (params: CreateExchangeParamsV2) => Promise<CreateExchangeResponseV2 | undefined>;
+  sendToDepositAddress: (depositAddress: string, amount: number, currency: string, network: string) => Promise<{ success: boolean; txHash?: string; error?: string }>;
+  // Orchestrated flow
+  executeExchange: (params: {
+    fromCurrency: string;
+    fromNetwork: string;
+    toCurrency: string;
+    toNetwork: string;
+    amount: number;
+    recipientAddress: string;
+    refundAddress?: string;
+    isFixedRate?: boolean;
+    autoSendFromWallet?: boolean;
+    onProgress?: (progress: {
+      step: 'validating' | 'estimating' | 'creating' | 'sending' | 'tracking' | 'completed';
+      status: 'loading' | 'success' | 'error';
+      message?: string;
+      data?: any;
+    }) => void;
+  }) => Promise<{
+    success: boolean;
+    exchange?: CreateExchangeResponseV2;
+    transaction?: TransactionStatusResponseV2;
+    depositTxHash?: string;
+    error?: string;
+  }>;
+}
+
 // Hook return type
 export interface UseChangeNowReturn {
   loading: boolean;

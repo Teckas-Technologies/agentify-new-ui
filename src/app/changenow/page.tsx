@@ -193,6 +193,14 @@ export default function ChangeNowPage() {
       return;
     }
 
+    // Check minimum amount before calling API to avoid "pair_is_inactive" errors
+    if (minAmount && amount < minAmount) {
+      setToAmount("");
+      setEstimatedAmount(null);
+      console.log(`Amount ${amount} is below minimum ${minAmount} for ${fromCurrency}/${toCurrency}`);
+      return;
+    }
+
     console.log(`Fetching estimate for pair: ${fromCurrency} → ${toCurrency}, amount: ${amount}, fixedRate: ${isFixedRate}`);
 
     if (isFixedRate) {
@@ -565,11 +573,11 @@ export default function ChangeNowPage() {
               });
 
               const result = await executeExchange({
-                fromCurrency: "eth",
-                fromChain: "arbitrum",
+                fromCurrency: "usdt",
+                fromChain: "polygon",
                 toCurrency: "usdc",
                 toChain: "arbitrum",
-                amount: 0.0015,
+                amount: 4,
                 recipientAddress: address,
                 refundAddress: address,
                 isFixedRate: false,

@@ -31,6 +31,7 @@ import {
 } from "@/types/types";
 import { useTransactions } from "@/hooks/useTransactionsHook";
 import useAaveHook, { TransactionError } from "@/hooks/useAaveHook";
+import { useNewChangeNowHook, NETWORK_TO_CHAIN_ID, toChangeNowNetwork } from "@/hooks/useNewChangeNowHook";
 import { ChainType, getChains } from "@lifi/sdk";
 import { formatUnits } from "ethers/lib/utils";
 import { marketConfigs } from "@/utils/markets";
@@ -53,6 +54,57 @@ interface ErrorHandler {
 }
 
 const ERROR_HANDLING_MAP: ErrorHandler[] = [
+  // =====================================
+  // ChangeNow Exchange Errors
+  // =====================================
+  {
+    pattern: /Pair not available.*→/i,
+    generateMessage: () =>
+      `This token pair isn't currently available for exchange. The tokens you selected may not have a direct swap route. Try selecting a different token pair or use a more common token like ETH or USDC as an intermediary.`,
+  },
+  {
+    pattern: /Amount below minimum.*Min:\s*([\d.]+)\s*(\w+)/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The amount you entered is below the minimum required for this exchange. Please use at least ${match[1]} ${match[2]} to proceed with the swap.`,
+  },
+  {
+    pattern: /Amount above maximum.*Max:\s*([\d.]+)\s*(\w+)/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The amount you entered exceeds the maximum allowed for this exchange. Please reduce the amount to ${match[1]} ${match[2]} or less.`,
+  },
+  {
+    pattern: /Failed to get exchange estimate/i,
+    generateMessage: () =>
+      `I couldn't get an exchange rate estimate for this pair right now. This usually means the amount is too small or there's temporary low liquidity. Try increasing the amount or waiting a moment before trying again.`,
+  },
+  {
+    pattern: /Failed to create exchange/i,
+    generateMessage: () =>
+      `There was an issue creating your exchange order. This could be a temporary service issue. Please wait a moment and try again.`,
+  },
+  {
+    pattern: /Exchange (failed|expired|refunded)/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `Your exchange ${match[1]}. This can happen due to market volatility, network delays, or the exchange timing out. Any funds sent will be refunded to your wallet. Please try again with a new exchange.`,
+  },
+  {
+    pattern: /Unknown network:?\s*(\w+)?/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The network "${match[1] || 'specified'}" isn't supported for ChangeNow exchanges. Please select a supported network like Ethereum, Polygon, Arbitrum, Base, or BNB Chain.`,
+  },
+  {
+    pattern: /Token.*not found on chain/i,
+    generateMessage: () =>
+      `I couldn't find this token on the selected network. Please verify the token exists on this blockchain or try a different network.`,
+  },
+  {
+    pattern: /deposit_too_small|out_of_range/i,
+    generateMessage: () =>
+      `The deposit amount is too small for this exchange. Please increase the amount to meet the minimum requirement.`,
+  },
+  // =====================================
+  // LiFi / Swap / Bridge Errors
+  // =====================================
   {
     // Check for BOTH tokens invalid first
     pattern: /Invalid token\(s\): fromToken '([^']+)', toToken '([^']+)'/i,
@@ -299,6 +351,13 @@ export function ChatInterface({
     validateTokenBalance: validateBeraChainTokenBalance,
     validateNativeTokenBalance,
   } = useBeraSwap();
+  const {
+    executeExchange: executeChangeNowExchange,
+    getTransactionStatus: getChangeNowTxStatus,
+    loading: changeNowLoading,
+    error: changeNowError,
+  } = useNewChangeNowHook();
+  const [isExecutingChangeNow, setExecutingChangeNow] = useState(false);
   const createTrans = async (
     user_id: string,
     agent_id: string,
@@ -1662,10 +1721,372 @@ export function ChatInterface({
             return;
           }
 
+          // =====================================
+          // ChangeNow Exchange Handler
+          // =====================================
+          if (toolMessage?.type === "changenow_exchange") {
+            const { quote, exchange_type } = toolMessage;
+
+            if (!quote) {
+              const errorMessage = "I couldn't fetch the exchange details from ChangeNow. This might be a temporary issue. Please try again in a moment.";
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about missing ChangeNow quote:", notifyError);
+              }
+
+              return;
+            }
+
+            const {
+              fromChain,
+              toChain,
+              fromNetwork,
+              toNetwork,
+              fromToken,
+              toToken,
+              fromAmount,
+              fromAddress,
+              toAddress,
+              minAmount,
+              maxAmount,
+            } = quote;
+
+            // Validate minimum amount
+            if (minAmount && fromAmount < minAmount) {
+              const errorMessage = `The amount you entered is below the minimum required for this exchange. Please use at least ${minAmount} ${fromToken.toUpperCase()} to proceed.`;
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about min amount error:", notifyError);
+              }
+
+              return;
+            }
+
+            // Validate maximum amount
+            if (maxAmount && fromAmount > maxAmount) {
+              const errorMessage = `The amount you entered exceeds the maximum allowed for this exchange. Please reduce the amount to ${maxAmount} ${fromToken.toUpperCase()} or less.`;
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about max amount error:", notifyError);
+              }
+
+              return;
+            }
+
+            // Get chain ID for network switch
+            const sourceNetwork = toChangeNowNetwork(fromNetwork);
+            const sourceChainId = NETWORK_TO_CHAIN_ID[sourceNetwork.toLowerCase()];
+
+            if (!sourceChainId) {
+              const errorMessage = `The network "${fromChain}" isn't supported for ChangeNow exchanges. Please select a supported network like Ethereum, Polygon, Arbitrum, Base, or BNB Chain.`;
+              addMessageToCurrentChat("assistant", errorMessage);
+
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${errorMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about unsupported network:", notifyError);
+              }
+
+              return;
+            }
+
+            // Switch network if needed
+            if (wallet && parseInt(wallet.chainId.split(":")[1]) !== sourceChainId) {
+              try {
+                await switchNetwork(sourceChainId);
+              } catch (switchErr) {
+                const errorMessage = `Failed to switch to ${fromChain}. Please manually switch your wallet to ${fromChain} and try again.`;
+                addMessageToCurrentChat("assistant", errorMessage);
+
+                try {
+                  await orchestratedAgentChat({
+                    agentName: "orchestratedAgent",
+                    userId: user?.id ?? "",
+                    message: `${errorMessage}`,
+                    threadId: chatId,
+                    walletAddress: address ?? "",
+                    isTransaction: true,
+                  });
+                } catch (notifyError) {
+                  console.error("Failed to notify backend about network switch error:", notifyError);
+                }
+
+                return;
+              }
+            }
+
+            // Show execution message
+            const exchangeTypeLabel = exchange_type === "cross-chain" ? "Cross-chain exchange" : "Exchange";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 ${exchangeTypeLabel} in progress: ${fromAmount} ${fromToken.toUpperCase()} (${fromChain}) → ${toToken.toUpperCase()} (${toChain}), don't close the page until confirmation...`
+            );
+
+            setExecutingChangeNow(true);
+            try {
+              const result = await executeChangeNowExchange({
+                fromCurrency: fromToken,
+                fromNetwork: fromNetwork,
+                toCurrency: toToken,
+                toNetwork: toNetwork,
+                amount: fromAmount,
+                recipientAddress: toAddress || address || "",
+                refundAddress: fromAddress || address,
+                autoSendFromWallet: true,
+                onProgress: (progress) => {
+                  console.log("[ChangeNow Progress]", progress);
+
+                  // Update UI based on progress
+                  if (progress.step === "sending" && progress.status === "loading") {
+                    updateLastAiMessage(`🔄 Sending ${fromAmount} ${fromToken.toUpperCase()} to the exchange...`);
+                  } else if (progress.step === "tracking" && progress.status === "loading") {
+                    updateLastAiMessage(`⏳ Waiting for exchange confirmation. Status: ${progress.message || "Processing..."}`);
+                  }
+                },
+              });
+
+              if (result.success && result.exchange) {
+                // Get block explorer URL for the source chain
+                const explorerUrls: Record<string, string> = {
+                  eth: "https://etherscan.io/",
+                  matic: "https://polygonscan.com/",
+                  arbitrum: "https://arbiscan.io/",
+                  op: "https://optimistic.etherscan.io/",
+                  base: "https://basescan.org/",
+                  bsc: "https://bscscan.com/",
+                  cchain: "https://snowtrace.io/",
+                  linea: "https://lineascan.build/",
+                  scroll: "https://scrollscan.com/",
+                  zksync: "https://explorer.zksync.io/",
+                  bera: "https://berascan.com/",
+                };
+
+                const explorerUrl = explorerUrls[sourceNetwork.toLowerCase()] || "https://etherscan.io/";
+                const depositTxUrl = result.depositTxHash
+                  ? `${explorerUrl}tx/${result.depositTxHash}`
+                  : null;
+
+                // Create transaction record
+                const chainInfo = await getChainInfoById(sourceChainId);
+                if (chainInfo) {
+                  await createTransv2(
+                    user?.id ?? "",
+                    "changeNowExchangeAgent",
+                    exchange_type === "cross-chain" ? "BRIDGE" : "SWAP",
+                    `${exchange_type === "cross-chain" ? "Bridge" : "Exchange"} ${fromAmount} ${fromToken.toUpperCase()} to ${toToken.toUpperCase()} via ChangeNow`,
+                    chainInfo.chainName,
+                    new Date(),
+                    fromToken.toUpperCase(),
+                    fromAmount,
+                    result.depositTxHash || result.exchange.id,
+                    depositTxUrl || `https://changenow.io/exchange/txs/${result.exchange.id}`,
+                    "SUCCESS",
+                    chainInfo.rpcUrl,
+                    chainInfo.nativeTokenSymbol,
+                    chainInfo.decimals,
+                    toToken.toUpperCase(),
+                    "ChangeNow Exchange Agent"
+                  );
+                }
+
+                // Build success message
+                let statusMessage = `Your ${exchange_type === "cross-chain" ? "cross-chain exchange" : "exchange"} of ${fromAmount} ${fromToken.toUpperCase()} to ${toToken.toUpperCase()} was initiated successfully! 🎉\n\n`;
+
+                if (depositTxUrl) {
+                  statusMessage += `📤 Deposit transaction: [View on Explorer](${depositTxUrl})\n`;
+                }
+
+                statusMessage += `🔄 Track exchange status: [ChangeNow](https://changenow.io/exchange/txs/${result.exchange.id})`;
+
+                // Check final transaction status
+                if (result.transaction) {
+                  if (result.transaction.status === "finished") {
+                    // Get the actual received amount from the transaction
+                    const receivedAmount = result.transaction.amountTo ?? result.transaction.expectedAmountTo;
+                    statusMessage = `Your ${exchange_type === "cross-chain" ? "cross-chain exchange" : "exchange"} of ${fromAmount} ${fromToken.toUpperCase()} to ${toToken.toUpperCase()} completed successfully! 🎉\n\n`;
+                    if (receivedAmount) {
+                      statusMessage += `💰 Received: **${receivedAmount} ${toToken.toUpperCase()}**\n`;
+                    }
+                    if (result.transaction.payoutHash) {
+                      const destNetwork = toChangeNowNetwork(toNetwork);
+                      const destExplorerUrl = explorerUrls[destNetwork.toLowerCase()] || "https://etherscan.io/";
+                      statusMessage += `📥 Transaction: [View on Explorer](${destExplorerUrl}tx/${result.transaction.payoutHash})\n`;
+                    }
+                    statusMessage += `🔄 Exchange details: [ChangeNow](https://changenow.io/exchange/txs/${result.exchange.id})`;
+                  } else if (["failed", "refunded", "expired"].includes(result.transaction.status)) {
+                    statusMessage = `Your exchange ${result.transaction.status}. `;
+                    if (result.transaction.status === "refunded") {
+                      statusMessage += "Your funds have been refunded to your wallet.";
+                    } else {
+                      statusMessage += "This can happen due to market volatility or network delays. Please try again.";
+                    }
+                    statusMessage += `\n\n🔄 View details: [ChangeNow](https://changenow.io/exchange/txs/${result.exchange.id})`;
+                  }
+                }
+
+                updateLastAiMessage(statusMessage);
+
+                // Notify AI that tx is done
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                // Handle error - use the error message directly since the hook already returns natural messages
+                const errorMsg = result.error || "The exchange couldn't be completed. Please try again.";
+
+                // Create failed transaction record
+                const chainInfo = await getChainInfoById(sourceChainId);
+                await createTrans(
+                  user?.id ?? "",
+                  "changeNowExchangeAgent",
+                  exchange_type === "cross-chain" ? "BRIDGE" : "SWAP",
+                  `Failed ${exchange_type === "cross-chain" ? "bridge" : "exchange"}: ${fromAmount} ${fromToken.toUpperCase()} to ${toToken.toUpperCase()}`,
+                  chainInfo?.chainName || fromChain,
+                  new Date(),
+                  fromToken.toUpperCase(),
+                  fromAmount,
+                  `failed_${uuidv4()}`,
+                  `https://changenow.io`,
+                  "FAILED",
+                  0,
+                  0,
+                  "ChangeNow Exchange Agent"
+                );
+
+                updateLastAiMessage(errorMsg);
+
+                try {
+                  await orchestratedAgentChat({
+                    agentName: "orchestratedAgent",
+                    userId: user?.id ?? "",
+                    message: `${errorMsg}`,
+                    threadId: chatId,
+                    walletAddress: address ?? "",
+                    isTransaction: true,
+                  });
+                } catch (notifyError) {
+                  console.error("Failed to notify backend about ChangeNow failure:", notifyError);
+                }
+              }
+            } catch (err) {
+              console.error("ChangeNow execution error:", err);
+              const error = err as TransactionError;
+              let userFriendlyMessage = "";
+
+              // Check for user rejection
+              if (
+                error?.code === "ACTION_REJECTED" ||
+                error?.message?.includes("user rejected") ||
+                error?.message?.includes("user denied")
+              ) {
+                userFriendlyMessage = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
+              } else {
+                // Use error message directly - the hook returns natural messages
+                userFriendlyMessage = error?.message || "Something went wrong with the exchange. Please try again.";
+              }
+
+              updateLastAiMessage(userFriendlyMessage);
+
+              try {
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: `${userFriendlyMessage}`,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } catch (notifyError) {
+                console.error("Failed to notify backend about ChangeNow catch error:", notifyError);
+              }
+            } finally {
+              setExecutingChangeNow(false);
+            }
+            return;
+          }
+
           // Handle tool errors
           if (toolMessage?.error) {
-            // Get natural AI response based on error pattern
-            const naturalErrorMessage = getErrorMessage(toolMessage.error);
+            // Generate natural AI response based on error
+            let naturalErrorMessage = "";
+            const errorStr = toolMessage.error.toLowerCase();
+            const originalError = toolMessage.error;
+
+            // ChangeNow specific error handling
+            if (errorStr.includes("token pair") || (errorStr.includes("pair") && errorStr.includes("not"))) {
+              naturalErrorMessage = "This token pair isn't available for exchange right now. Please try a different combination of tokens.";
+            } else if (errorStr.includes("below minimum") || errorStr.includes("min amount") || errorStr.includes("too small")) {
+              // Extract minimum amount from error message like "Amount 4.5 USDC is below minimum 9.375075 USDC"
+              const minMatch = originalError.match(/minimum[:\s]*([\d.]+)\s*(\w+)/i);
+              if (minMatch) {
+                naturalErrorMessage = `The amount you entered is below the minimum required for this exchange. Please use at least ${minMatch[1]} ${minMatch[2].toUpperCase()} to proceed.`;
+              } else {
+                naturalErrorMessage = "The amount you entered is below the minimum required for this exchange. Please try a larger amount.";
+              }
+            } else if (errorStr.includes("above maximum") || errorStr.includes("max amount") || errorStr.includes("too large")) {
+              // Extract maximum amount from error message
+              const maxMatch = originalError.match(/maximum[:\s]*([\d.]+)\s*(\w+)/i);
+              if (maxMatch) {
+                naturalErrorMessage = `The amount you entered exceeds the maximum allowed for this exchange. Please reduce the amount to ${maxMatch[1]} ${maxMatch[2].toUpperCase()} or less.`;
+              } else {
+                naturalErrorMessage = "The amount you entered exceeds the maximum allowed for this exchange. Please try a smaller amount.";
+              }
+            } else if (errorStr.includes("network") || (errorStr.includes("chain") && errorStr.includes("not"))) {
+              naturalErrorMessage = "The network you specified isn't supported. Please use a supported network like Ethereum, Polygon, Arbitrum, Base, or BNB Chain.";
+            } else if (errorStr.includes("balance") || errorStr.includes("insufficient")) {
+              naturalErrorMessage = "You don't have enough balance to complete this exchange. Please check your wallet balance.";
+            } else if (errorStr.includes("address") && errorStr.includes("invalid")) {
+              naturalErrorMessage = "The wallet address provided isn't valid. Please check and try again.";
+            } else if (errorStr.includes("rate") && errorStr.includes("expired")) {
+              naturalErrorMessage = "The exchange rate has expired. Please try again to get a fresh quote.";
+            } else if (errorStr.includes("currency") && errorStr.includes("not found")) {
+              naturalErrorMessage = "I couldn't find one of the tokens you specified. Please verify the token symbol and try again.";
+            } else {
+              // Fall back to error handling map for other errors (swap, bridge, lend, etc.)
+              naturalErrorMessage = getErrorMessage(toolMessage.error);
+            }
 
             // Add AI error message to chat
             addMessageToCurrentChat("assistant", naturalErrorMessage);
@@ -1736,6 +2157,7 @@ export function ChatInterface({
       setIsMessageSending(false);
       setExecutingLifi(false);
       setExecutingAave(false);
+      setExecutingChangeNow(false);
     }
   };
   const handleSuggestedPrompt = (prompt: string) => {

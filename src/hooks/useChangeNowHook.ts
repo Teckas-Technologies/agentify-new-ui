@@ -231,6 +231,11 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         if (errorType === 'deposit_too_small') {
           // Don't show error toast for minimum amount issues
           console.log(`Amount below minimum for ${from}/${to}: ${errorMsg}`);
+        } else if (errorType === 'pair_is_inactive') {
+          // ChangeNow bug: Sometimes returns "pair_is_inactive" when amount is too low
+          // instead of "deposit_too_small"
+          console.warn(`⚠️ ChangeNow API Bug: Got "pair_is_inactive" for ${from}/${to} with amount ${amount}`);
+          console.warn(`This usually means the amount is below the actual minimum (ChangeNow has inconsistent minimums across APIs)`);
         } else if (!errorMsg.includes("not supported") && !errorMsg.includes("not_valid_params")) {
           handleApiError(err, `Failed to get exchange estimate for ${from}/${to}`);
         }
@@ -278,6 +283,11 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         if (errorType === 'deposit_too_small') {
           // Don't show error toast for minimum amount issues
           console.log(`Amount below minimum for ${from}/${to}: ${errorMsg}`);
+        } else if (errorType === 'pair_is_inactive') {
+          // ChangeNow bug: Sometimes returns "pair_is_inactive" when amount is too low
+          // instead of "deposit_too_small"
+          console.warn(`⚠️ ChangeNow API Bug: Got "pair_is_inactive" for ${from}/${to} with amount ${amount}`);
+          console.warn(`This usually means the amount is below the actual minimum (ChangeNow has inconsistent minimums across APIs)`);
         } else {
           handleApiError(err, `Failed to get fixed rate estimate for ${from}/${to}`);
         }
@@ -945,6 +955,13 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       onProgress,
     } = params;
 
+    // Validate amount
+    if (isNaN(amount) || amount <= 0) {
+      const error = 'Amount must be a valid positive number';
+      onProgress?.({ step: 'validating', status: 'error', message: error });
+      return { success: false, error };
+    }
+
     // Fetch EVM currencies list first (used for dynamic ticker formatting)
     const evmCurrencies = await getEVMCurrencies(true, false);
     if (!evmCurrencies || evmCurrencies.length === 0) {
@@ -974,11 +991,15 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       onProgress?.({ step: 'validating', status: 'loading', message: 'Validating amount...' });
 
       const minAmountData = await getMinAmount(fromTicker, toTicker);
+      console.log(`[executeExchange] Min amount data for ${fromTicker}/${toTicker}:`, minAmountData);
+
       if (!minAmountData) {
         const error = `Pair ${fromCurrency}@${fromChain}/${toCurrency}@${toChain} is not available`;
         onProgress?.({ step: 'validating', status: 'error', message: error });
         return { success: false, error };
       }
+
+      console.log(`[executeExchange] Checking: ${amount} < ${minAmountData.minAmount}?`);
 
       if (amount < minAmountData.minAmount) {
         const error = `Amount below minimum. Min: ${minAmountData.minAmount} ${fromCurrency.toUpperCase()}`;
@@ -997,7 +1018,7 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       if (isFixedRate) {
         const fixedRateData = await getFixedRateAmount(amount, fromTicker, toTicker);
         if (!fixedRateData) {
-          const error = 'Failed to get fixed rate estimate';
+          const error = `Failed to get fixed rate estimate. Amount too low or pair unavailable. Try increasing the amount (min reported: ${minAmountData.minAmount}, but actual minimum may be higher due to ChangeNow API inconsistency).`;
           onProgress?.({ step: 'estimating', status: 'error', message: error });
           return { success: false, error };
         }
@@ -1006,7 +1027,7 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
       } else {
         const floatingRateData = await getExchangeAmount(amount, fromTicker, toTicker);
         if (!floatingRateData) {
-          const error = 'Failed to get exchange estimate';
+          const error = `Failed to get exchange estimate. Amount too low or pair unavailable. Try increasing the amount (min reported: ${minAmountData.minAmount}, but actual minimum may be higher due to ChangeNow API inconsistency).`;
           onProgress?.({ step: 'estimating', status: 'error', message: error });
           return { success: false, error };
         }
@@ -1019,6 +1040,93 @@ export const useChangeNowHook = (): UseChangeNowReturn => {
         message: `You will receive ~${estimate} ${toCurrency.toUpperCase()}`,
         data: { estimate, rateId }
       });
+
+      // Step 2.5: Validate balance if autoSendFromWallet is enabled
+      if (autoSendFromWallet) {
+        onProgress?.({ step: 'validating', status: 'loading', message: 'Checking balance...' });
+
+        if (!address || !isConnected) {
+          const error = 'Wallet not connected';
+          onProgress?.({ step: 'validating', status: 'error', message: error });
+          return { success: false, error };
+        }
+
+        // Get the chain config for fromChain
+        const fromChainConfig = Object.values(CHAIN_CONFIGS).find(
+          c => c.name.toLowerCase() === fromChain.toLowerCase() ||
+               c.name.toLowerCase().includes(fromChain.toLowerCase()) ||
+               fromChain.toLowerCase().includes(c.name.toLowerCase())
+        );
+
+        if (!fromChainConfig) {
+          const error = `Chain config not found for ${fromChain}`;
+          onProgress?.({ step: 'validating', status: 'error', message: error });
+          return { success: false, error };
+        }
+
+        // Parse ticker to determine if native or ERC20
+        const parsed = parseChangeNowTicker(fromTicker);
+        if (!parsed) {
+          const error = `Failed to parse ticker: ${fromTicker}`;
+          onProgress?.({ step: 'validating', status: 'error', message: error });
+          return { success: false, error };
+        }
+
+        const baseToken = parsed.baseToken;
+        const chainId = fromChainConfig.chainId;
+
+        try {
+          // Check if it's a native currency
+          if (isNativeCurrencyCheck(baseToken, chainId)) {
+            // Check native balance
+            const nativeCurrency = getNativeCurrency(chainId);
+            const decimals = nativeCurrency?.decimals || 18;
+            const amountWei = parseUnits(amount.toString(), decimals);
+
+            const balance = await getBalance(wagmiConfig as any, {
+              address: address as `0x${string}`,
+              chainId: chainId
+            });
+
+            if (balance.value < amountWei) {
+              const error = `Insufficient ${fromCurrency.toUpperCase()} balance. Required: ${amount}, Available: ${formatUnits(balance.value, decimals)}`;
+              onProgress?.({ step: 'validating', status: 'error', message: error });
+              return { success: false, error };
+            }
+          } else {
+            // Check ERC20 token balance
+            const tokenDetails = await getTokenDetailsFromLiFi(baseToken, chainId);
+
+            if (!tokenDetails) {
+              // Token not found on LiFi, but we'll allow it and check later during send
+              console.warn(`Token ${baseToken} not found on LiFi for chain ${chainId}, skipping balance check`);
+            } else {
+              const { address: tokenAddress, decimals } = tokenDetails;
+              const amountBigInt = parseUnits(amount.toString(), decimals);
+
+              const balance = await readContract(wagmiConfig as any, {
+                address: tokenAddress as `0x${string}`,
+                abi: erc20Abi,
+                functionName: "balanceOf",
+                args: [address as `0x${string}`],
+                chainId: chainId
+              });
+
+              if ((balance as bigint) < amountBigInt) {
+                const error = `Insufficient ${fromCurrency.toUpperCase()} balance. Required: ${amount}, Available: ${formatUnits(balance as bigint, decimals)}`;
+                onProgress?.({ step: 'validating', status: 'error', message: error });
+                return { success: false, error };
+              }
+            }
+          }
+
+          onProgress?.({ step: 'validating', status: 'success', message: 'Balance validated' });
+        } catch (err: any) {
+          const error = `Failed to check balance: ${err.message}`;
+          onProgress?.({ step: 'validating', status: 'error', message: error });
+          return { success: false, error };
+        }
+      }
 
       // Step 3: Create exchange
       onProgress?.({ step: 'creating', status: 'loading', message: 'Creating exchange...' });
