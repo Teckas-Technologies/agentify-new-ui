@@ -62,7 +62,7 @@ import { ChainId } from "@/types/types";
 const connectors = [injected()];
 const queryClient = new QueryClient();
 // Create Wagmi config with default chain and without connectors
-const supportedChains = [
+export const supportedChains = [
   mainnet,
   bsc,
   arbitrum,
@@ -104,7 +104,7 @@ const supportedChains = [
   berachain,
   kaia,
   sepolia,
-]
+];
 
 const transports: Record<number, Transport> = Object.fromEntries(
   supportedChains.map((chain) => [chain.id, http(undefined, {

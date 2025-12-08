@@ -122,7 +122,32 @@ const AgentCard = ({
       "Transaction signing",
     ],
   };
-
+      case "changeNowAgent":
+        return {
+          ...details,
+          icon: "PrivateExchange",
+          gradient: "from-emerald-500/20 via-teal-500/20 to-emerald-500/20",
+          sampleCommands: [
+            "Exchange 0.5 ETH to BTC privately",
+            "Swap 100 USDC on Polygon to SOL",
+            "Convert ARB on Arbitrum to USDC on BSC",
+          ],
+          supportedChains: [
+            "Ethereum", "Polygon", "Arbitrum", "Optimism", "Base", "BSC",
+            "Avalanche", "Fantom", "Gnosis", "Linea", "zkSync", "Scroll",
+            "Blast", "Mode", "Mantle", "Celo", "Moonbeam", "Moonriver",
+            "Aurora", "Boba", "Metis", "Cronos", "Fuse", "Polygon zkEVM",
+            "Taiko", "Sei", "Fraxtal", "Rootstock", "Lisk", "Kaia",
+            "Berachain", "Sonic", "Gravity", "World Chain", "Immutable zkEVM",
+            "Unichain", "Abstract", "Soneium", "Lens", "Ink"
+          ],
+          securityNotes:
+            "Uses ChangeNOW for non-custodial exchanges. Supports EVM chains as source to any destination network. No registration or KYC required.",
+          permissions: [
+            "Wallet address input",
+            "Transaction confirmation",
+          ],
+        };
       // Add more cases as needed
       default:
         return details;
@@ -221,9 +246,26 @@ const AgentCard = ({
           </svg>
         </div>
       ),
-      
-      
-      
+      PrivateExchange: () => (
+        <div className="p-3 rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/30">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5 text-emerald-400"
+          >
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            <circle cx="12" cy="16" r="1" />
+          </svg>
+        </div>
+      ),
     };
 
     const IconComponent = icons[name as keyof typeof icons];
