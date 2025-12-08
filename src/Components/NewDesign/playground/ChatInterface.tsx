@@ -1973,8 +1973,22 @@ export function ChatInterface({
                   isTransaction: true,
                 });
               } else {
-                // Handle error - use the error message directly since the hook already returns natural messages
-                const errorMsg = result.error || "The exchange couldn't be completed. Please try again.";
+                // Handle error - check if it's a user rejection first
+                let errorMsg = result.error || "The exchange couldn't be completed. Please try again.";
+
+                // Check if the error indicates user rejection (in case the hook didn't catch it)
+                if (result.error) {
+                  const errorLower = result.error.toLowerCase();
+                  if (
+                    errorLower.includes("user rejected") ||
+                    errorLower.includes("user denied") ||
+                    errorLower.includes("rejected the request") ||
+                    errorLower.includes("denied transaction") ||
+                    errorLower.includes("cancelled the transaction")
+                  ) {
+                    errorMsg = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
+                  }
+                }
 
                 // Create failed transaction record
                 const chainInfo = await getChainInfoById(sourceChainId);
@@ -2015,11 +2029,15 @@ export function ChatInterface({
               const error = err as TransactionError;
               let userFriendlyMessage = "";
 
-              // Check for user rejection
+              const errorMessage = error?.message?.toLowerCase() || "";
+
+              // Check for user rejection (expanded patterns)
               if (
                 error?.code === "ACTION_REJECTED" ||
-                error?.message?.includes("user rejected") ||
-                error?.message?.includes("user denied")
+                errorMessage.includes("user rejected") ||
+                errorMessage.includes("user denied") ||
+                errorMessage.includes("rejected the request") ||
+                errorMessage.includes("denied transaction")
               ) {
                 userFriendlyMessage = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
               } else {
@@ -2054,8 +2072,18 @@ export function ChatInterface({
             const errorStr = toolMessage.error.toLowerCase();
             const originalError = toolMessage.error;
 
+            // Check for user rejection first (applies to all operations)
+            if (
+              errorStr.includes("user rejected") ||
+              errorStr.includes("user denied") ||
+              errorStr.includes("rejected the request") ||
+              errorStr.includes("denied transaction") ||
+              errorStr.includes("cancelled the transaction")
+            ) {
+              naturalErrorMessage = "Looks like you cancelled the transaction. No worries! Let me know when you're ready to try again.";
+            }
             // ChangeNow specific error handling
-            if (errorStr.includes("token pair") || (errorStr.includes("pair") && errorStr.includes("not"))) {
+            else if (errorStr.includes("token pair") || (errorStr.includes("pair") && errorStr.includes("not"))) {
               naturalErrorMessage = "This token pair isn't available for exchange right now. Please try a different combination of tokens.";
             } else if (errorStr.includes("below minimum") || errorStr.includes("min amount") || errorStr.includes("too small")) {
               // Extract minimum amount from error message like "Amount 4.5 USDC is below minimum 9.375075 USDC"
