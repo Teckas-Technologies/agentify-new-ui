@@ -75,6 +75,7 @@ export const FUSIONX_TOKENS = {
   USDT: "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE" as Address,
   METH: "0xcDA86A272531e8640cD7F1a92c01839911B90bb0" as Address,
   WBTC: "0xCAbAE6f6Ea1ecaB08Ad02fE02ce9A44F09aebfA2" as Address,
+  LEND: "0x25356aeca4210eF7553140edb9b8026089E49396" as Address, // Lendle governance token
 } as const;
 
 // V3 Fee Tiers
@@ -83,6 +84,12 @@ export const FEE_TIERS = {
   LOW: 500,       // 0.05%
   MEDIUM: 3000,   // 0.30%
   HIGH: 10000,    // 1.00%
+} as const;
+
+// FusionX Subgraph API Endpoints
+export const FUSIONX_SUBGRAPH = {
+  V2: "https://subgraph-api.mantle.xyz/subgraphs/name/fusionx/exchange",
+  V3: "https://subgraph-api.mantle.xyz/subgraphs/name/fusionx/exchange-v3",
 } as const;
 
 // ====================================
@@ -903,6 +910,8 @@ export interface PairInfo {
   token1: Address;
   reserve0: string;
   reserve1: string;
+  reserve0Raw: bigint;
+  reserve1Raw: bigint;
   totalSupply: string;
 }
 
@@ -921,6 +930,48 @@ export interface V3PoolInfo {
   sqrtPriceX96: bigint;
   tick: number;
   liquidity: bigint;
+}
+
+// LP History interfaces (from Subgraph API)
+export interface LPMintEvent {
+  id: string;
+  transaction: {
+    id: string;
+    timestamp: string;
+  };
+  pair: {
+    id: string;
+    token0: { symbol: string; name: string; id: string };
+    token1: { symbol: string; name: string; id: string };
+  };
+  to: string;
+  liquidity: string;
+  amount0: string;
+  amount1: string;
+  amountUSD: string;
+}
+
+export interface LPBurnEvent {
+  id: string;
+  transaction: {
+    id: string;
+    timestamp: string;
+  };
+  pair: {
+    id: string;
+    token0: { symbol: string; name: string; id: string };
+    token1: { symbol: string; name: string; id: string };
+  };
+  sender: string;
+  liquidity: string;
+  amount0: string;
+  amount1: string;
+  amountUSD: string;
+}
+
+export interface LPHistoryResponse {
+  mints: LPMintEvent[];
+  burns: LPBurnEvent[];
 }
 
 // ====================================
@@ -1013,11 +1064,12 @@ export const useFusionXHook = () => {
         return null;
       }
 
+      // Use exact amount approval for better security (not unlimited/maxUint256)
       const txHash = await writeContract(wagmiConfig as any, {
         address: tokenAddress,
         abi: erc20Abi,
         functionName: 'approve',
-        args: [spenderAddress, maxUint256],
+        args: [spenderAddress, amount],
         chainId: MANTLE_CHAIN_ID as any,
       });
 
@@ -1343,12 +1395,84 @@ export const useFusionXHook = () => {
 
       const amountADesired = parseUnits(params.amountADesired, decimalsA);
       const amountBDesired = parseUnits(params.amountBDesired, decimalsB);
-      const amountAMin = params.amountAMin
-        ? parseUnits(params.amountAMin, decimalsA)
-        : (amountADesired * BigInt(95)) / BigInt(100); // 5% slippage
-      const amountBMin = params.amountBMin
-        ? parseUnits(params.amountBMin, decimalsB)
-        : (amountBDesired * BigInt(95)) / BigInt(100);
+
+      // Check token balances before proceeding
+      const [balanceA, balanceB] = await Promise.all([
+        readContract(wagmiConfig as any, {
+          address: params.tokenA,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [address],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as Promise<bigint>,
+        readContract(wagmiConfig as any, {
+          address: params.tokenB,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [address],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as Promise<bigint>
+      ]);
+
+      const symbolA = await getTokenSymbol(params.tokenA);
+      const symbolB = await getTokenSymbol(params.tokenB);
+
+      if (balanceA < amountADesired) {
+        throw new Error(`Insufficient ${symbolA} balance. You have ${formatUnits(balanceA, decimalsA)} but need ${params.amountADesired}`);
+      }
+      if (balanceB < amountBDesired) {
+        throw new Error(`Insufficient ${symbolB} balance. You have ${formatUnits(balanceB, decimalsB)} but need ${params.amountBDesired}`);
+      }
+
+      // Get pool info to calculate optimal amounts based on pool ratio
+      const pairInfo = await getV2PairInfo(params.tokenA, params.tokenB);
+
+      let amountAMin: bigint;
+      let amountBMin: bigint;
+
+      if (pairInfo && pairInfo.reserve0Raw > BigInt(0) && pairInfo.reserve1Raw > BigInt(0)) {
+        // Pool exists - calculate optimal amounts based on pool ratio
+        // Determine which token is token0 in the pair
+        const isTokenAFirst = params.tokenA.toLowerCase() < params.tokenB.toLowerCase();
+        const reserveA = isTokenAFirst ? pairInfo.reserve0Raw : pairInfo.reserve1Raw;
+        const reserveB = isTokenAFirst ? pairInfo.reserve1Raw : pairInfo.reserve0Raw;
+
+        // Calculate optimal B amount for given A amount
+        const optimalB = (amountADesired * reserveB) / reserveA;
+        // Calculate optimal A amount for given B amount
+        const optimalA = (amountBDesired * reserveA) / reserveB;
+
+        // Use the smaller ratio to determine actual amounts
+        let actualAmountA: bigint;
+        let actualAmountB: bigint;
+
+        if (optimalB <= amountBDesired) {
+          // Use full amountA, calculate required B
+          actualAmountA = amountADesired;
+          actualAmountB = optimalB;
+        } else {
+          // Use full amountB, calculate required A
+          actualAmountA = optimalA;
+          actualAmountB = amountBDesired;
+        }
+
+        // Set minimum amounts with 5% slippage based on ACTUAL amounts that will be used
+        amountAMin = params.amountAMin
+          ? parseUnits(params.amountAMin, decimalsA)
+          : (actualAmountA * BigInt(95)) / BigInt(100);
+        amountBMin = params.amountBMin
+          ? parseUnits(params.amountBMin, decimalsB)
+          : (actualAmountB * BigInt(95)) / BigInt(100);
+      } else {
+        // New pool - use desired amounts directly with slippage
+        amountAMin = params.amountAMin
+          ? parseUnits(params.amountAMin, decimalsA)
+          : (amountADesired * BigInt(95)) / BigInt(100);
+        amountBMin = params.amountBMin
+          ? parseUnits(params.amountBMin, decimalsB)
+          : (amountBDesired * BigInt(95)) / BigInt(100);
+      }
+
       const deadline = params.deadline ? BigInt(params.deadline) : getDeadline();
 
       // Approve both tokens
@@ -1619,6 +1743,12 @@ export const useFusionXHook = () => {
 
       await ensureMantleNetwork();
 
+      // Check if V3 pool exists for this pair and fee tier
+      const poolInfo = await getV3PoolInfo(params.tokenIn, params.tokenOut, params.fee);
+      if (!poolInfo || !poolInfo.poolAddress || poolInfo.poolAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error(`No V3 pool found for this pair at ${params.fee / 10000}% fee tier. Try a different fee tier or use V2 AMM instead.`);
+      }
+
       const tokenInDecimals = await getTokenDecimals(params.tokenIn);
       const tokenOutDecimals = await getTokenDecimals(params.tokenOut);
 
@@ -1684,6 +1814,14 @@ export const useFusionXHook = () => {
 
       const tokens = params.path.map(p => p.token);
       const fees = params.path.slice(0, -1).map(p => p.fee);
+
+      // Check if V3 pools exist for each hop in the path
+      for (let i = 0; i < tokens.length - 1; i++) {
+        const poolInfo = await getV3PoolInfo(tokens[i], tokens[i + 1], fees[i]);
+        if (!poolInfo || !poolInfo.poolAddress || poolInfo.poolAddress === '0x0000000000000000000000000000000000000000') {
+          throw new Error(`No V3 pool found for ${i === 0 ? 'first' : 'intermediate'} hop at ${fees[i] / 10000}% fee tier. Try a different route or use V2 AMM.`);
+        }
+      }
 
       const tokenInDecimals = await getTokenDecimals(tokens[0]);
       const tokenOutDecimals = await getTokenDecimals(tokens[tokens.length - 1]);
@@ -1830,6 +1968,35 @@ export const useFusionXHook = () => {
 
       const amount0 = parseUnits(amount0Desired, decimals0);
       const amount1 = parseUnits(amount1Desired, decimals1);
+
+      // Check token balances before proceeding
+      const [balance0, balance1] = await Promise.all([
+        readContract(wagmiConfig as any, {
+          address: token0,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [address],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as Promise<bigint>,
+        readContract(wagmiConfig as any, {
+          address: token1,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [address],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as Promise<bigint>
+      ]);
+
+      const symbol0 = await getTokenSymbol(token0);
+      const symbol1 = await getTokenSymbol(token1);
+
+      if (balance0 < amount0) {
+        throw new Error(`Insufficient ${symbol0} balance. You have ${formatUnits(balance0, decimals0)} but need ${amount0Desired}`);
+      }
+      if (balance1 < amount1) {
+        throw new Error(`Insufficient ${symbol1} balance. You have ${formatUnits(balance1, decimals1)} but need ${amount1Desired}`);
+      }
+
       const amount0Min = params.amount0Min
         ? parseUnits(params.amount0Min, decimals0)
         : (amount0 * BigInt(95)) / BigInt(100);
@@ -2214,6 +2381,8 @@ export const useFusionXHook = () => {
         token1: token1 as Address,
         reserve0: formatUnits(reserveData[0], decimals0),
         reserve1: formatUnits(reserveData[1], decimals1),
+        reserve0Raw: reserveData[0],
+        reserve1Raw: reserveData[1],
         totalSupply: formatEther(totalSupply as bigint)
       };
     } catch (err) {
@@ -2257,6 +2426,99 @@ export const useFusionXHook = () => {
       return formatEther(balance);
     } catch (err) {
       console.error("Error getting LP balance:", err);
+      return null;
+    }
+  };
+
+  /**
+   * Get user's LP history (mints & burns) from Subgraph API
+   * This fetches the history of all liquidity additions and removals
+   */
+  const getUserLPHistory = async (
+    userAddress?: string,
+    pairAddress?: string
+  ): Promise<LPHistoryResponse | null> => {
+    try {
+      const targetAddress = (userAddress || address)?.toLowerCase();
+      if (!targetAddress) return null;
+
+      // Build filter for pair if provided
+      const pairFilter = pairAddress ? `, pair: "${pairAddress.toLowerCase()}"` : "";
+
+      const query = `{
+        mints(
+          first: 100,
+          where: { to: "${targetAddress}"${pairFilter} },
+          orderBy: timestamp,
+          orderDirection: desc
+        ) {
+          id
+          transaction {
+            id
+            timestamp
+          }
+          pair {
+            id
+            token0 { id symbol name }
+            token1 { id symbol name }
+          }
+          to
+          liquidity
+          amount0
+          amount1
+          amountUSD
+        }
+        burns(
+          first: 100,
+          where: { sender: "${targetAddress}"${pairFilter} },
+          orderBy: timestamp,
+          orderDirection: desc
+        ) {
+          id
+          transaction {
+            id
+            timestamp
+          }
+          pair {
+            id
+            token0 { id symbol name }
+            token1 { id symbol name }
+          }
+          sender
+          liquidity
+          amount0
+          amount1
+          amountUSD
+        }
+      }`;
+
+      const response = await fetch(FUSIONX_SUBGRAPH.V2, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      const result = await response.json();
+
+      if (result.errors) {
+        console.error("❌ [LP History] Subgraph errors:", result.errors);
+        return null;
+      }
+
+      const lpHistory: LPHistoryResponse = {
+        mints: result.data?.mints || [],
+        burns: result.data?.burns || [],
+      };
+
+      console.log("📜 [LP History] Raw Response:", result.data);
+      console.log("🟢 [LP History] Mints:", lpHistory.mints.length, "records", lpHistory.mints);
+      console.log("🔴 [LP History] Burns:", lpHistory.burns.length, "records", lpHistory.burns);
+
+      return lpHistory;
+    } catch (err) {
+      console.error("Error fetching LP history:", err);
       return null;
     }
   };
@@ -2486,6 +2748,7 @@ export const useFusionXHook = () => {
     getV2Quote,
     getV2PairInfo,
     getV2LPBalance,
+    getUserLPHistory,
     getV3PoolInfo,
     getV3Position,
     getUserV3Positions,

@@ -24,7 +24,7 @@ import { Button } from "@/Components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/NewDesign/Dashboard/Card/Card";
 import { useMantleHook, MANTLE_TOKENS, CHAIN_IDS, MANTLE_CONFIG, L1_CONTRACTS, L2_CONTRACTS } from "@/hooks/useMantleHook";
 import { useLendleHook, LENDLE_ASSETS, INTEREST_RATE_MODE } from "@/hooks/useLendleHook";
-import { useFusionXHook, FUSIONX_TOKENS, FEE_TIERS } from "@/hooks/useFusionXHook";
+import { useFusionXHook, FUSIONX_TOKENS, FEE_TIERS, type LPHistoryResponse } from "@/hooks/useFusionXHook";
 import { useToast } from "@/hooks/use-toast";
 import { useSwitchChain } from "wagmi";
 import { type Address } from "viem";
@@ -151,7 +151,11 @@ export default function MantlePage() {
   const [reserveData, setReserveData] = useState<any>(null);
   const [allReserves, setAllReserves] = useState<any[]>([]);
   const [stakeLendAmount, setStakeLendAmount] = useState("");
+  const [withdrawLendAmount, setWithdrawLendAmount] = useState("");
   const [stakingInfo, setStakingInfo] = useState<any>(null);
+  const [userPositions, setUserPositions] = useState<any[]>([]); // User's deposited/borrowed positions
+  const [reserveConfig, setReserveConfig] = useState<any>(null); // Reserve config for stable rate check
+  const [lendBalance, setLendBalance] = useState<{ balance: string; balanceRaw: bigint } | null>(null); // LEND token balance
 
   // FusionX States
   const [fusionAction, setFusionAction] = useState<"swap" | "liquidity">("swap");
@@ -165,8 +169,11 @@ export default function MantlePage() {
   const [v2PairInfo, setV2PairInfo] = useState<any>(null);
   const [v3PoolInfo, setV3PoolInfo] = useState<any>(null);
   const [userV3Positions, setUserV3Positions] = useState<any[]>([]);
+  const [v2LpBalance, setV2LpBalance] = useState<string>("0");
+  const [lpHistory, setLpHistory] = useState<LPHistoryResponse | null>(null);
   const [lpAmountA, setLpAmountA] = useState("");
   const [lpAmountB, setLpAmountB] = useState("");
+  const [removeLpAmount, setRemoveLpAmount] = useState("");
 
   // Fetch initial data
   useEffect(() => {
@@ -184,15 +191,32 @@ export default function MantlePage() {
     }
   }, [selectedNetwork]);
 
+  // Fetch reserve config when asset changes (for stable rate check)
+  useEffect(() => {
+    const fetchReserveConfig = async () => {
+      if (lendleAsset) {
+        const [reserve, config] = await Promise.all([
+          lendleHook.getReserveData(lendleAsset as Address),
+          lendleHook.getReserveConfigData(lendleAsset as Address),
+        ]);
+        setReserveData(reserve);
+        setReserveConfig(config);
+        // Reset to variable if stable is not supported
+        if (config && !config.stableBorrowRateEnabled && interestRateMode === 1) {
+          setInterestRateMode(2);
+        }
+      }
+    };
+    fetchReserveConfig();
+  }, [lendleAsset]);
+
   // Bridge data fetching - pass selectedNetwork to get correct balances
   const fetchBridgeData = async () => {
-    console.log("Fetching bridge data for network:", selectedNetwork);
     const [mnt, eth, gas] = await Promise.all([
       mantleHook.getMNTBalances(selectedNetwork),
       mantleHook.getETHBalances(selectedNetwork),
       mantleHook.getGasPriceInfo(),
     ]);
-    console.log("Bridge data fetched:", { mnt, eth, gas });
     setMntBalances(mnt);
     setEthBalances(eth);
     setGasPriceInfo(gas);
@@ -200,31 +224,73 @@ export default function MantlePage() {
 
   // Lendle data fetching
   const fetchLendleData = async () => {
-    const [account, reserves, staking] = await Promise.all([
+    const [account, reserves, staking, lendBal] = await Promise.all([
       lendleHook.getUserAccountData(),
       lendleHook.getAllReserves(),
       lendleHook.getStakingInfo(),
+      lendleHook.getLendBalance(),
     ]);
     setUserAccountData(account);
     setAllReserves(reserves);
     setStakingInfo(staking);
+    setLendBalance(lendBal);
 
     if (lendleAsset) {
-      const reserve = await lendleHook.getReserveData(lendleAsset as Address);
+      const [reserve, config] = await Promise.all([
+        lendleHook.getReserveData(lendleAsset as Address),
+        lendleHook.getReserveConfigData(lendleAsset as Address),
+      ]);
       setReserveData(reserve);
+      setReserveConfig(config);
     }
+
+    // Fetch user positions for each supported asset
+    const assetAddresses = [
+      { address: LENDLE_ASSETS.WMNT, symbol: "WMNT" },
+      { address: LENDLE_ASSETS.WETH, symbol: "WETH" },
+      { address: LENDLE_ASSETS.USDC, symbol: "USDC" },
+      { address: LENDLE_ASSETS.USDT, symbol: "USDT" },
+      { address: LENDLE_ASSETS.METH, symbol: "mETH" },
+      { address: LENDLE_ASSETS.WBTC, symbol: "WBTC" },
+    ];
+
+    const positions = await Promise.all(
+      assetAddresses.map(async (asset) => {
+        const userData = await lendleHook.getUserReserveData(asset.address as Address);
+        if (userData && (parseFloat(userData.currentATokenBalance) > 0 ||
+            parseFloat(userData.currentVariableDebt) > 0 ||
+            parseFloat(userData.currentStableDebt) > 0)) {
+          return {
+            symbol: asset.symbol,
+            address: asset.address,
+            deposited: userData.currentATokenBalance,
+            variableDebt: userData.currentVariableDebt,
+            stableDebt: userData.currentStableDebt,
+            isCollateral: userData.usageAsCollateralEnabled,
+          };
+        }
+        return null;
+      })
+    );
+
+    setUserPositions(positions.filter(p => p !== null));
   };
 
   // FusionX data fetching
   const fetchFusionXData = async () => {
-    const [v2Info, v3Info, positions] = await Promise.all([
+    const [v2Info, v3Info, positions, lpBalance, history] = await Promise.all([
       fusionXHook.getV2PairInfo(tokenIn as Address, tokenOut as Address),
       fusionXHook.getV3PoolInfo(tokenIn as Address, tokenOut as Address, v3Fee),
       fusionXHook.getUserV3Positions(),
+      fusionXHook.getV2LPBalance(tokenIn as Address, tokenOut as Address),
+      fusionXHook.getUserLPHistory(),
     ]);
+
     setV2PairInfo(v2Info);
     setV3PoolInfo(v3Info);
     setUserV3Positions(positions);
+    setV2LpBalance(lpBalance || "0");
+    setLpHistory(history);
   };
 
   // Get quote when swap inputs change
@@ -240,6 +306,31 @@ export default function MantlePage() {
     const timer = setTimeout(getQuote, 500);
     return () => clearTimeout(timer);
   }, [swapAmountIn, tokenIn, tokenOut]);
+
+  // Auto-calculate optimal Token B amount based on pool ratio when Token A amount changes
+  // useEffect(() => {
+  //   if (lpAmountA && parseFloat(lpAmountA) > 0 && v2PairInfo && swapVersion === "v2") {
+  //     const amountA = parseFloat(lpAmountA);
+  //     const reserve0 = parseFloat(v2PairInfo.reserve0);
+  //     const reserve1 = parseFloat(v2PairInfo.reserve1);
+
+  //     if (reserve0 > 0 && reserve1 > 0) {
+  //       // Check token order - v2PairInfo.token0 and token1 might be different from tokenIn/tokenOut
+  //       const isTokenInToken0 = v2PairInfo.token0.toLowerCase() === tokenIn.toLowerCase();
+
+  //       let optimalAmountB: number;
+  //       if (isTokenInToken0) {
+  //         // tokenIn is token0, so calculate token1 amount
+  //         optimalAmountB = (amountA * reserve1) / reserve0;
+  //       } else {
+  //         // tokenIn is token1, so calculate token0 amount
+  //         optimalAmountB = (amountA * reserve0) / reserve1;
+  //       }
+
+  //       setLpAmountB(optimalAmountB.toFixed(8));
+  //     }
+  //   }
+  // }, [lpAmountA, v2PairInfo, tokenIn, tokenOut, swapVersion]);
 
   // ========================================
   // BRIDGE HANDLERS
@@ -379,6 +470,22 @@ export default function MantlePage() {
     }
   };
 
+  const handleWithdrawStakedLEND = async () => {
+    if (!withdrawLendAmount || parseFloat(withdrawLendAmount) <= 0) {
+      toast({ title: "Invalid Amount", description: "Please enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    const result = await lendleHook.withdrawStakedLEND(withdrawLendAmount);
+    if (result.success) {
+      toast({ title: "Success", description: result.message });
+      setWithdrawLendAmount("");
+      fetchLendleData();
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+  };
+
   // ========================================
   // FUSIONX HANDLERS
   // ========================================
@@ -434,19 +541,13 @@ export default function MantlePage() {
 
     let result;
     if (swapVersion === "v2") {
-      if (tokenIn === FUSIONX_TOKENS.WMNT || tokenOut === FUSIONX_TOKENS.WMNT) {
-        const token = tokenIn === FUSIONX_TOKENS.WMNT ? tokenOut : tokenIn;
-        const tokenAmount = tokenIn === FUSIONX_TOKENS.WMNT ? lpAmountB : lpAmountA;
-        const mntAmount = tokenIn === FUSIONX_TOKENS.WMNT ? lpAmountA : lpAmountB;
-        result = await fusionXHook.addLiquidityMNT(token as Address, tokenAmount, mntAmount);
-      } else {
-        result = await fusionXHook.addLiquidity({
-          tokenA: tokenIn as Address,
-          tokenB: tokenOut as Address,
-          amountADesired: lpAmountA,
-          amountBDesired: lpAmountB,
-        });
-      }
+      // Always use addLiquidity for ERC-20 token pairs (including WMNT)
+      result = await fusionXHook.addLiquidity({
+        tokenA: tokenIn as Address,
+        tokenB: tokenOut as Address,
+        amountADesired: lpAmountA,
+        amountBDesired: lpAmountB,
+      });
     } else {
       // V3 requires tick range - using full range for simplicity
       result = await fusionXHook.v3MintPosition({
@@ -480,6 +581,32 @@ export default function MantlePage() {
     }
   };
 
+  const handleRemoveLiquidity = async () => {
+    if (!removeLpAmount || parseFloat(removeLpAmount) <= 0) {
+      toast({ title: "Invalid Amount", description: "Please enter a valid LP amount to remove", variant: "destructive" });
+      return;
+    }
+
+    if (parseFloat(removeLpAmount) > parseFloat(v2LpBalance)) {
+      toast({ title: "Insufficient Balance", description: "You don't have enough LP tokens", variant: "destructive" });
+      return;
+    }
+
+    const result = await fusionXHook.removeLiquidity({
+      tokenA: tokenIn as Address,
+      tokenB: tokenOut as Address,
+      liquidity: removeLpAmount,
+    });
+
+    if (result.success) {
+      toast({ title: "Liquidity Removed", description: result.message });
+      setRemoveLpAmount("");
+      fetchFusionXData();
+    } else {
+      toast({ title: "Failed", description: result.message, variant: "destructive" });
+    }
+  };
+
   // Token options for dropdowns
   const tokenOptions = [
     { value: FUSIONX_TOKENS.WMNT, label: "WMNT" },
@@ -488,6 +615,7 @@ export default function MantlePage() {
     { value: FUSIONX_TOKENS.USDT, label: "USDT" },
     { value: FUSIONX_TOKENS.METH, label: "mETH" },
     { value: FUSIONX_TOKENS.WBTC, label: "WBTC" },
+    { value: FUSIONX_TOKENS.LEND, label: "LEND" },
   ];
 
   const lendleAssetOptions = [
@@ -968,6 +1096,53 @@ export default function MantlePage() {
               </CardContent>
             </Card>
 
+            {/* Your Positions */}
+            {userPositions.length > 0 && (
+              <Card className="bg-[#1a1a1a] border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-xl text-white">Your Positions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-gray-400 text-sm border-b border-white/10">
+                          <th className="pb-3">Asset</th>
+                          <th className="pb-3">Deposited</th>
+                          <th className="pb-3">Borrowed</th>
+                          <th className="pb-3">Collateral</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userPositions.map((position: any) => (
+                          <tr key={position.symbol} className="border-b border-white/5">
+                            <td className="py-3">
+                              <span className="font-semibold text-white">{position.symbol}</span>
+                            </td>
+                            <td className="py-3">
+                              <span className="text-green-400">
+                                {parseFloat(position.deposited).toFixed(6)}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <span className="text-orange-400">
+                                {(parseFloat(position.variableDebt) + parseFloat(position.stableDebt)).toFixed(6)}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <span className={position.isCollateral ? "text-green-400" : "text-gray-500"}>
+                                {position.isCollateral ? "Yes" : "No"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Lending Operations */}
               <Card className="bg-[#1a1a1a] border border-white/10">
@@ -1024,11 +1199,22 @@ export default function MantlePage() {
                         <Button
                           onClick={() => setInterestRateMode(1)}
                           variant={interestRateMode === 1 ? "default" : "outline"}
-                          className={interestRateMode === 1 ? "bg-purple-600 text-white" : "border-white/10 text-white hover:bg-white/10"}
+                          disabled={reserveConfig && !reserveConfig.stableBorrowRateEnabled}
+                          className={
+                            reserveConfig && !reserveConfig.stableBorrowRateEnabled
+                              ? "border-white/10 text-gray-500 cursor-not-allowed opacity-50"
+                              : interestRateMode === 1
+                                ? "bg-purple-600 text-white"
+                                : "border-white/10 text-white hover:bg-white/10"
+                          }
+                          title={reserveConfig && !reserveConfig.stableBorrowRateEnabled ? "Stable rate not available for this asset" : ""}
                         >
-                          Stable
+                          Stable {reserveConfig && !reserveConfig.stableBorrowRateEnabled && "(N/A)"}
                         </Button>
                       </div>
+                      {reserveConfig && !reserveConfig.stableBorrowRateEnabled && (
+                        <p className="text-xs text-yellow-500 mt-1">⚠️ Stable rate is not available for this asset</p>
+                      )}
                     </div>
                   )}
 
@@ -1102,6 +1288,14 @@ export default function MantlePage() {
                   <CardTitle className="text-xl text-white">LEND Staking</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Wallet Balance */}
+                  <div className="p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg">
+                    <p className="text-gray-400 text-xs">Wallet Balance</p>
+                    <p className="text-xl font-bold text-purple-400">
+                      {lendBalance ? parseFloat(lendBalance.balance).toFixed(4) : "0.0000"} LEND
+                    </p>
+                  </div>
+
                   {/* Staking Stats */}
                   {stakingInfo && (
                     <div className="grid grid-cols-2 gap-4">
@@ -1126,7 +1320,17 @@ export default function MantlePage() {
 
                   {/* Stake Input */}
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Stake LEND</label>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm text-gray-400">Stake LEND</label>
+                      {lendBalance && parseFloat(lendBalance.balance) > 0 && (
+                        <button
+                          onClick={() => setStakeLendAmount(lendBalance.balance)}
+                          className="text-xs text-purple-400 hover:text-purple-300"
+                        >
+                          MAX
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="number"
                       value={stakeLendAmount}
@@ -1136,23 +1340,52 @@ export default function MantlePage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      onClick={handleStakeLEND}
-                      disabled={lendleHook.loading || !stakeLendAmount}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      Stake LEND
-                    </Button>
-                    <Button
-                      onClick={handleClaimStakingRewards}
-                      disabled={lendleHook.loading}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Gift className="w-4 h-4 mr-2" />
-                      Claim Rewards
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={handleStakeLEND}
+                    disabled={lendleHook.loading || !stakeLendAmount}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Stake LEND
+                  </Button>
+
+                  {/* Withdraw Staked LEND */}
+                  {stakingInfo && parseFloat(stakingInfo.withdrawableAmount) > 0 && (
+                    <div className="pt-4 border-t border-white/10">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm text-gray-400">Withdraw Staked LEND</label>
+                        <button
+                          onClick={() => setWithdrawLendAmount(stakingInfo.withdrawableAmount)}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          MAX ({parseFloat(stakingInfo.withdrawableAmount).toFixed(2)})
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        value={withdrawLendAmount}
+                        onChange={(e) => setWithdrawLendAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-4 py-3 bg-[#0f0f0f] border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                      />
+                      <Button
+                        onClick={handleWithdrawStakedLEND}
+                        disabled={lendleHook.loading || !withdrawLendAmount}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Withdraw LEND
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Claim Rewards */}
+                  <Button
+                    onClick={handleClaimStakingRewards}
+                    disabled={lendleHook.loading}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Gift className="w-4 h-4 mr-2" />
+                    Claim Rewards
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -1498,6 +1731,21 @@ export default function MantlePage() {
                     </div>
                   </div>
 
+                  {/* Pool Ratio Info - V2 Only */}
+                  {/* {swapVersion === "v2" && v2PairInfo && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                      <p className="text-xs text-blue-400 mb-1">Pool Ratio (Auto-calculated)</p>
+                      <p className="text-sm text-white">
+                        1 {tokenOptions.find(t => t.value === tokenIn)?.label} = {" "}
+                        {v2PairInfo.token0.toLowerCase() === tokenIn.toLowerCase()
+                          ? (parseFloat(v2PairInfo.reserve1) / parseFloat(v2PairInfo.reserve0)).toFixed(8)
+                          : (parseFloat(v2PairInfo.reserve0) / parseFloat(v2PairInfo.reserve1)).toFixed(8)
+                        } {tokenOptions.find(t => t.value === tokenOut)?.label}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">Token B amount is auto-calculated based on pool ratio</p>
+                    </div>
+                  )} */}
+
                   {/* V3 Fee Selection */}
                   {swapVersion === "v3" && (
                     <div>
@@ -1529,6 +1777,258 @@ export default function MantlePage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* V2 LP Positions */}
+            {parseFloat(v2LpBalance) > 0 && v2PairInfo && (
+              <Card className="bg-[#1a1a1a] border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-xl text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-green-400" />
+                    Your V2 LP Position
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Position Summary Table */}
+                  <div className="overflow-x-auto mb-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 px-4 text-gray-400 font-medium">Pair</th>
+                          <th className="text-right py-3 px-4 text-gray-400 font-medium">LP Balance</th>
+                          <th className="text-right py-3 px-4 text-gray-400 font-medium">Pool Share</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-white/5">
+                          <td className="py-3 px-4">
+                            <span className="text-white font-semibold">
+                              {tokenIn.toLowerCase() < tokenOut.toLowerCase()
+                                ? `${tokenOptions.find(t => t.value === tokenIn)?.label} / ${tokenOptions.find(t => t.value === tokenOut)?.label}`
+                                : `${tokenOptions.find(t => t.value === tokenOut)?.label} / ${tokenOptions.find(t => t.value === tokenIn)?.label}`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-white">{parseFloat(v2LpBalance).toFixed(8)} LP</td>
+                          <td className="py-3 px-4 text-right text-green-400 font-semibold">
+                            {((parseFloat(v2LpBalance) / parseFloat(v2PairInfo.totalSupply)) * 100).toFixed(4)}%
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Token Amounts Table */}
+                  <div className="overflow-x-auto mb-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 px-4 text-gray-400 font-medium">Token</th>
+                          <th className="text-right py-3 px-4 text-gray-400 font-medium">Pool Reserve</th>
+                          <th className="text-right py-3 px-4 text-gray-400 font-medium">Your Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-white/5 bg-[#0f0f0f]">
+                          <td className="py-3 px-4">
+                            <span className="text-white font-semibold">
+                              {tokenIn.toLowerCase() < tokenOut.toLowerCase()
+                                ? tokenOptions.find(t => t.value === tokenIn)?.label
+                                : tokenOptions.find(t => t.value === tokenOut)?.label}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-300">
+                            {parseFloat(v2PairInfo.reserve0).toFixed(6)}
+                          </td>
+                          <td className="py-3 px-4 text-right text-green-400 font-semibold">
+                            {((parseFloat(v2LpBalance) / parseFloat(v2PairInfo.totalSupply)) * parseFloat(v2PairInfo.reserve0)).toFixed(8)}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-white/5">
+                          <td className="py-3 px-4">
+                            <span className="text-white font-semibold">
+                              {tokenIn.toLowerCase() < tokenOut.toLowerCase()
+                                ? tokenOptions.find(t => t.value === tokenOut)?.label
+                                : tokenOptions.find(t => t.value === tokenIn)?.label}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-300">
+                            {parseFloat(v2PairInfo.reserve1).toFixed(6)}
+                          </td>
+                          <td className="py-3 px-4 text-right text-green-400 font-semibold">
+                            {((parseFloat(v2LpBalance) / parseFloat(v2PairInfo.totalSupply)) * parseFloat(v2PairInfo.reserve1)).toFixed(8)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Remove Liquidity Section */}
+                  <div className="border-t border-white/10 pt-4">
+                    <p className="text-gray-400 text-sm mb-2">Remove Liquidity</p>
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="number"
+                        value={removeLpAmount}
+                        onChange={(e) => setRemoveLpAmount(e.target.value)}
+                        placeholder="LP amount to remove"
+                        className="flex-1 px-4 py-2 bg-[#0f0f0f] border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                      <Button
+                        onClick={() => setRemoveLpAmount(v2LpBalance)}
+                        size="sm"
+                        variant="outline"
+                        className="border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+                      >
+                        MAX
+                      </Button>
+                    </div>
+
+                    {/* Expected Output Preview */}
+                    {removeLpAmount && parseFloat(removeLpAmount) > 0 && parseFloat(v2PairInfo.totalSupply) > 0 && (
+                      <div className="mb-3 p-3 bg-[#0f0f0f] border border-white/5 rounded-lg">
+                        <p className="text-gray-400 text-xs mb-2">You will receive (estimated):</p>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white">
+                            {tokenIn.toLowerCase() < tokenOut.toLowerCase()
+                              ? tokenOptions.find(t => t.value === tokenIn)?.label
+                              : tokenOptions.find(t => t.value === tokenOut)?.label}:
+                          </span>
+                          <span className="text-green-400 font-semibold">
+                            {((parseFloat(removeLpAmount) / parseFloat(v2PairInfo.totalSupply)) * parseFloat(v2PairInfo.reserve0)).toFixed(8)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white">
+                            {tokenIn.toLowerCase() < tokenOut.toLowerCase()
+                              ? tokenOptions.find(t => t.value === tokenOut)?.label
+                              : tokenOptions.find(t => t.value === tokenIn)?.label}:
+                          </span>
+                          <span className="text-green-400 font-semibold">
+                            {((parseFloat(removeLpAmount) / parseFloat(v2PairInfo.totalSupply)) * parseFloat(v2PairInfo.reserve1)).toFixed(8)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handleRemoveLiquidity}
+                      disabled={fusionXHook.loading || !removeLpAmount || parseFloat(removeLpAmount) <= 0}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      {fusionXHook.loading ? "Processing..." : "Remove Liquidity"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* LP History (Mints & Burns from Subgraph) */}
+            {lpHistory && (lpHistory.mints.length > 0 || lpHistory.burns.length > 0) && (
+              <Card className="bg-[#1a1a1a] border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-xl text-white flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-400" />
+                    LP History (All Pairs)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Mints (Liquidity Additions) */}
+                  {lpHistory.mints.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-green-400 font-semibold mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Liquidity Added ({lpHistory.mints.length})
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-2 px-3 text-gray-400 font-medium">Pair</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Token 0</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Token 1</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">LP Tokens</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">USD Value</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Time</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lpHistory.mints.map((mint) => (
+                              <tr key={mint.id} className="border-b border-white/5 hover:bg-white/5">
+                                <td className="py-2 px-3 text-white">
+                                  {mint.pair.token0.symbol}/{mint.pair.token1.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-white">
+                                  {parseFloat(mint.amount0).toFixed(6)} {mint.pair.token0.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-white">
+                                  {parseFloat(mint.amount1).toFixed(6)} {mint.pair.token1.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-green-400">
+                                  {parseFloat(mint.liquidity).toFixed(8)}
+                                </td>
+                                <td className="py-2 px-3 text-right text-gray-300">
+                                  ${parseFloat(mint.amountUSD).toFixed(2)}
+                                </td>
+                                <td className="py-2 px-3 text-right text-gray-400">
+                                  {new Date(parseInt(mint.transaction.timestamp) * 1000).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Burns (Liquidity Removals) */}
+                  {lpHistory.burns.length > 0 && (
+                    <div>
+                      <h3 className="text-red-400 font-semibold mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 rotate-180" />
+                        Liquidity Removed ({lpHistory.burns.length})
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-2 px-3 text-gray-400 font-medium">Pair</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Token 0</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Token 1</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">LP Tokens</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">USD Value</th>
+                              <th className="text-right py-2 px-3 text-gray-400 font-medium">Time</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lpHistory.burns.map((burn) => (
+                              <tr key={burn.id} className="border-b border-white/5 hover:bg-white/5">
+                                <td className="py-2 px-3 text-white">
+                                  {burn.pair.token0.symbol}/{burn.pair.token1.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-white">
+                                  {parseFloat(burn.amount0).toFixed(6)} {burn.pair.token0.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-white">
+                                  {parseFloat(burn.amount1).toFixed(6)} {burn.pair.token1.symbol}
+                                </td>
+                                <td className="py-2 px-3 text-right text-red-400">
+                                  {parseFloat(burn.liquidity).toFixed(8)}
+                                </td>
+                                <td className="py-2 px-3 text-right text-gray-300">
+                                  ${parseFloat(burn.amountUSD).toFixed(2)}
+                                </td>
+                                <td className="py-2 px-3 text-right text-gray-400">
+                                  {new Date(parseInt(burn.transaction.timestamp) * 1000).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* V3 Positions */}
             {userV3Positions.length > 0 && (

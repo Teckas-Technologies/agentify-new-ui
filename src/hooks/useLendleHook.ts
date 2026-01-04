@@ -322,6 +322,30 @@ const WETH_GATEWAY_ABI = [
   }
 ] as const;
 
+// Debt Token ABI (for credit delegation)
+const DEBT_TOKEN_ABI = [
+  {
+    inputs: [
+      { name: "delegatee", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "approveDelegation",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "fromUser", type: "address" },
+      { name: "toUser", type: "address" }
+    ],
+    name: "borrowAllowance",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
 // Protocol Data Provider ABI
 const PROTOCOL_DATA_PROVIDER_ABI = [
   {
@@ -749,6 +773,7 @@ export const useLendleHook = () => {
 
   /**
    * Approve token for LendingPool
+   * Uses exact amount approval for better security (not unlimited)
    */
   const approveToken = async (
     tokenAddress: Address,
@@ -767,11 +792,12 @@ export const useLendleHook = () => {
         return null; // Already approved
       }
 
+      // Use exact amount approval for better security (not unlimited/maxUint256)
       const txHash = await writeContract(wagmiConfig as any, {
         address: tokenAddress,
         abi: erc20Abi,
         functionName: 'approve',
-        args: [LENDLE_CONTRACTS.LendingPool, maxUint256],
+        args: [LENDLE_CONTRACTS.LendingPool, amount],
         chainId: MANTLE_CHAIN_ID as any,
       });
 
@@ -1047,19 +1073,42 @@ export const useLendleHook = () => {
 
       const lWMNTAddress = reserveTokens[0];
 
-      // Approve lWMNT for gateway
-      const approvalTx = await writeContract(wagmiConfig as any, {
+      // Get lWMNT balance for approval amount
+      const lWMNTBalance = await readContract(wagmiConfig as any, {
         address: lWMNTAddress,
         abi: erc20Abi,
-        functionName: 'approve',
-        args: [LENDLE_CONTRACTS.WETHGateway, maxUint256],
+        functionName: 'balanceOf',
+        args: [address as Address],
         chainId: MANTLE_CHAIN_ID as any,
-      });
+      }) as bigint;
 
-      await waitForTransactionReceipt(wagmiConfig as any, {
-        hash: approvalTx,
+      // Determine approval amount: use balance for "max" or exact amount
+      const approvalAmount = amountWei === maxUint256 ? lWMNTBalance : amountWei;
+
+      // Check current allowance for gateway
+      const currentAllowance = await readContract(wagmiConfig as any, {
+        address: lWMNTAddress,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [address as Address, LENDLE_CONTRACTS.WETHGateway],
         chainId: MANTLE_CHAIN_ID as any,
-      });
+      }) as bigint;
+
+      // Approve lWMNT for gateway (exact amount, not unlimited)
+      if (currentAllowance < approvalAmount) {
+        const approvalTx = await writeContract(wagmiConfig as any, {
+          address: lWMNTAddress,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [LENDLE_CONTRACTS.WETHGateway, approvalAmount],
+          chainId: MANTLE_CHAIN_ID as any,
+        });
+
+        await waitForTransactionReceipt(wagmiConfig as any, {
+          hash: approvalTx,
+          chainId: MANTLE_CHAIN_ID as any,
+        });
+      }
 
       // Withdraw via WETHGateway
       const txHash = await writeContract(wagmiConfig as any, {
@@ -1114,6 +1163,14 @@ export const useLendleHook = () => {
 
       await ensureMantleNetwork();
 
+      // Check if stable rate is enabled for this asset (if user selected stable)
+      if (params.interestRateMode === 1) {
+        const reserveConfig = await getReserveConfigData(params.asset);
+        if (reserveConfig && !reserveConfig.stableBorrowRateEnabled) {
+          throw new Error("Stable borrow rate is not enabled for this asset. Please use Variable rate instead.");
+        }
+      }
+
       const decimals = await getTokenDecimals(params.asset);
       const amount = parseUnits(params.amount, decimals);
 
@@ -1161,6 +1218,7 @@ export const useLendleHook = () => {
 
   /**
    * Borrow native MNT from Lendle
+   * Note: Requires credit delegation to WETHGateway
    */
   const borrowMNT = async (
     amount: string,
@@ -1176,8 +1234,56 @@ export const useLendleHook = () => {
 
       await ensureMantleNetwork();
 
+      // Check if stable rate is enabled for WMNT (if user selected stable)
+      if (interestRateMode === 1) {
+        const reserveConfig = await getReserveConfigData(LENDLE_ASSETS.WMNT);
+        if (reserveConfig && !reserveConfig.stableBorrowRateEnabled) {
+          throw new Error("Stable borrow rate is not enabled for MNT/WMNT. Please use Variable rate instead.");
+        }
+      }
+
       const amountWei = parseEther(amount);
 
+      // Get the debt token address for WMNT
+      const reserveTokens = await readContract(wagmiConfig as any, {
+        address: LENDLE_CONTRACTS.ProtocolDataProvider,
+        abi: PROTOCOL_DATA_PROVIDER_ABI,
+        functionName: 'getReserveTokensAddresses',
+        args: [LENDLE_ASSETS.WMNT],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as [Address, Address, Address];
+
+      // Get appropriate debt token based on rate mode (index 1 = stable, index 2 = variable)
+      const debtTokenAddress = interestRateMode === 1 ? reserveTokens[1] : reserveTokens[2];
+
+      // Check current borrow allowance for WETHGateway
+      const currentAllowance = await readContract(wagmiConfig as any, {
+        address: debtTokenAddress,
+        abi: DEBT_TOKEN_ABI,
+        functionName: 'borrowAllowance',
+        args: [address as Address, LENDLE_CONTRACTS.WETHGateway],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      // Approve credit delegation to WETHGateway if needed
+      if (currentAllowance < amountWei) {
+        console.log("Approving credit delegation to WETHGateway...");
+        const approveTx = await writeContract(wagmiConfig as any, {
+          address: debtTokenAddress,
+          abi: DEBT_TOKEN_ABI,
+          functionName: 'approveDelegation',
+          args: [LENDLE_CONTRACTS.WETHGateway, maxUint256],
+          chainId: MANTLE_CHAIN_ID as any,
+        });
+
+        await waitForTransactionReceipt(wagmiConfig as any, {
+          hash: approveTx,
+          chainId: MANTLE_CHAIN_ID as any,
+        });
+        console.log("Credit delegation approved");
+      }
+
+      // Now borrow via WETHGateway
       const txHash = await writeContract(wagmiConfig as any, {
         address: LENDLE_CONTRACTS.WETHGateway,
         abi: WETH_GATEWAY_ABI,
@@ -1231,16 +1337,25 @@ export const useLendleHook = () => {
       await ensureMantleNetwork();
 
       const decimals = await getTokenDecimals(params.asset);
-      const amount = params.amount.toLowerCase() === "max"
-        ? maxUint256
-        : parseUnits(params.amount, decimals);
+      let amount: bigint;
+      let approvalAmount: bigint;
 
-      // Approve if needed
-      if (params.amount.toLowerCase() !== "max") {
-        await approveToken(params.asset, amount);
+      if (params.amount.toLowerCase() === "max") {
+        // For max repay, get actual debt and add 0.1% buffer for interest accrual
+        const userReserve = await getUserReserveData(params.asset);
+        const debt = params.rateMode === 1
+          ? parseUnits(userReserve?.currentStableDebt || "0", decimals)
+          : parseUnits(userReserve?.currentVariableDebt || "0", decimals);
+        // Add 0.1% buffer for interest that accrues between approval and repay
+        approvalAmount = debt + (debt / BigInt(1000));
+        amount = maxUint256; // Use max for the actual repay call
       } else {
-        await approveToken(params.asset, maxUint256);
+        amount = parseUnits(params.amount, decimals);
+        approvalAmount = amount;
       }
+
+      // Approve if needed (exact amount or debt + buffer)
+      await approveToken(params.asset, approvalAmount);
 
       const txHash = await writeContract(wagmiConfig as any, {
         address: LENDLE_CONTRACTS.LendingPool,
@@ -1827,6 +1942,31 @@ export const useLendleHook = () => {
   };
 
   /**
+   * Get user's LEND token balance
+   */
+  const getLendBalance = async (): Promise<{ balance: string; balanceRaw: bigint } | null> => {
+    try {
+      if (!address) return null;
+
+      const balance = await readContract(wagmiConfig as any, {
+        address: LENDLE_CONTRACTS.LendleToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      return {
+        balance: formatEther(balance),
+        balanceRaw: balance
+      };
+    } catch (err) {
+      console.error("Error fetching LEND balance:", err);
+      return null;
+    }
+  };
+
+  /**
    * Stake LEND tokens
    */
   const stakeLEND = async (
@@ -1855,11 +1995,12 @@ export const useLendleHook = () => {
       });
 
       if ((currentAllowance as bigint) < amountWei) {
+        // Use exact amount approval for better security (not unlimited)
         const approveTx = await writeContract(wagmiConfig as any, {
           address: LENDLE_CONTRACTS.LendleToken,
           abi: erc20Abi,
           functionName: 'approve',
-          args: [LENDLE_CONTRACTS.MultiFeeDistribution, maxUint256],
+          args: [LENDLE_CONTRACTS.MultiFeeDistribution, amountWei],
           chainId: MANTLE_CHAIN_ID as any,
         });
 
@@ -2110,6 +2251,7 @@ export const useLendleHook = () => {
     // Rewards & Staking
     claimRewards,
     getPendingRewards,
+    getLendBalance,
     stakeLEND,
     withdrawStakedLEND,
     claimStakingRewards,
