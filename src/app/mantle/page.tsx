@@ -289,7 +289,7 @@ export default function MantlePage() {
     setV2PairInfo(v2Info);
     setV3PoolInfo(v3Info);
     setUserV3Positions(positions);
-    setV2LpBalance(lpBalance || "0");
+    setV2LpBalance(lpBalance?.balance || "0");
     setLpHistory(history);
   };
 
@@ -503,9 +503,17 @@ export default function MantlePage() {
     if (swapVersion === "v2") {
       // Check if swapping from/to native MNT
       if (tokenIn === FUSIONX_TOKENS.WMNT) {
-        result = await fusionXHook.swapExactMNTForTokens(swapAmountIn, minOut, tokenOut as Address);
+        result = await fusionXHook.swapExactMNTForTokens({
+          amountIn: swapAmountIn,
+          amountOutMin: minOut,
+          tokenOut: tokenOut as Address,
+        });
       } else if (tokenOut === FUSIONX_TOKENS.WMNT) {
-        result = await fusionXHook.swapExactTokensForMNT(tokenIn as Address, swapAmountIn, minOut);
+        result = await fusionXHook.swapExactTokensForMNT({
+          tokenIn: tokenIn as Address,
+          amountIn: swapAmountIn,
+          amountOutMin: minOut,
+        });
       } else {
         result = await fusionXHook.swapExactTokensForTokens({
           amountIn: swapAmountIn,

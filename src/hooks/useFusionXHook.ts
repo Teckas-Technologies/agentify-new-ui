@@ -908,6 +908,8 @@ export interface PairInfo {
   pairAddress: Address;
   token0: Address;
   token1: Address;
+  token0Symbol: string;
+  token1Symbol: string;
   reserve0: string;
   reserve1: string;
   reserve0Raw: bigint;
@@ -1085,6 +1087,50 @@ export const useFusionXHook = () => {
   };
 
   /**
+   * Check if user has sufficient token balance
+   */
+  const checkTokenBalance = async (
+    tokenAddress: Address,
+    requiredAmount: bigint
+  ): Promise<{ hasBalance: boolean; balance: bigint }> => {
+    try {
+      if (!address) return { hasBalance: false, balance: BigInt(0) };
+
+      const balance = await readContract(wagmiConfig as any, {
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      return { hasBalance: balance >= requiredAmount, balance };
+    } catch (err) {
+      console.error("Error checking token balance:", err);
+      return { hasBalance: false, balance: BigInt(0) };
+    }
+  };
+
+  /**
+   * Check if user has sufficient MNT balance
+   */
+  const checkMNTBalance = async (requiredAmount: bigint): Promise<{ hasBalance: boolean; balance: bigint }> => {
+    try {
+      if (!address) return { hasBalance: false, balance: BigInt(0) };
+
+      const balance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
+      return { hasBalance: balance.value >= requiredAmount, balance: balance.value };
+    } catch (err) {
+      console.error("Error checking MNT balance:", err);
+      return { hasBalance: false, balance: BigInt(0) };
+    }
+  };
+
+  /**
    * Get deadline timestamp
    */
   const getDeadline = (minutes: number = 20): bigint => {
@@ -1113,23 +1159,29 @@ export const useFusionXHook = () => {
   const getErrorMessage = (error: any): string => {
     const errorStr = error?.message || String(error);
 
-    if (errorStr.includes("insufficient") || errorStr.includes("exceeds balance")) {
-      return "Insufficient balance for this operation";
-    }
-    if (errorStr.includes("User rejected") || errorStr.includes("user rejected")) {
-      return "Transaction cancelled by user";
-    }
-    if (errorStr.includes("INSUFFICIENT_OUTPUT_AMOUNT")) {
-      return "Price moved unfavorably. Try increasing slippage tolerance.";
-    }
-    if (errorStr.includes("EXPIRED")) {
-      return "Transaction deadline expired. Please try again.";
-    }
-    if (errorStr.includes("INSUFFICIENT_LIQUIDITY")) {
-      return "Insufficient liquidity for this trade";
+    // Preserve our natural AI messages (they start with "I noticed")
+    if (errorStr.startsWith("I noticed")) {
+      return errorStr;
     }
 
-    return errorStr || "Operation failed. Please try again";
+    if (errorStr.includes("User rejected") || errorStr.includes("user rejected")) {
+      return "No problem! You cancelled the transaction. Let me know when you're ready to try again.";
+    }
+    if (errorStr.includes("INSUFFICIENT_OUTPUT_AMOUNT")) {
+      return "The price moved too much during the swap. Try increasing your slippage tolerance or try again.";
+    }
+    if (errorStr.includes("EXPIRED")) {
+      return "The transaction deadline expired. Please try again.";
+    }
+    if (errorStr.includes("INSUFFICIENT_LIQUIDITY")) {
+      return "There isn't enough liquidity in the pool for this trade. Try a smaller amount or a different pair.";
+    }
+    // Catch generic insufficient balance errors from contract
+    if (errorStr.includes("insufficient") || errorStr.includes("exceeds balance")) {
+      return "It looks like you don't have enough balance to complete this operation. Please check your wallet balance and try again.";
+    }
+
+    return errorStr || "Something went wrong. Please try again.";
   };
 
   // ====================================
@@ -1155,10 +1207,17 @@ export const useFusionXHook = () => {
 
       const tokenInDecimals = await getTokenDecimals(params.path[0]);
       const tokenOutDecimals = await getTokenDecimals(params.path[params.path.length - 1]);
+      const tokenInSymbol = await getTokenSymbol(params.path[0]);
 
       const amountIn = parseUnits(params.amountIn, tokenInDecimals);
       const amountOutMin = parseUnits(params.amountOutMin, tokenOutDecimals);
       const deadline = params.deadline ? BigInt(params.deadline) : getDeadline();
+
+      // Check token balance before proceeding
+      const { hasBalance, balance } = await checkTokenBalance(params.path[0], amountIn);
+      if (!hasBalance) {
+        throw new Error(`I noticed you don't have enough ${tokenInSymbol} for this swap. You need ${params.amountIn} ${tokenInSymbol}, but your wallet only has ${formatUnits(balance, tokenInDecimals)} ${tokenInSymbol}. Would you like to try a smaller amount?`);
+      }
 
       // Approve token
       await approveToken(params.path[0], FUSIONX_V2_CONTRACTS.Router, amountIn);
@@ -1263,10 +1322,12 @@ export const useFusionXHook = () => {
    * Swap exact MNT for tokens (V2)
    */
   const swapExactMNTForTokens = async (
-    amountIn: string,
-    amountOutMin: string,
-    tokenOut: Address,
-    to?: Address
+    params: {
+      amountIn: string;
+      amountOutMin: string;
+      tokenOut: Address;
+      to?: Address;
+    }
   ): Promise<FusionXHookResponse> => {
     try {
       setLoading(true);
@@ -1278,18 +1339,24 @@ export const useFusionXHook = () => {
 
       await ensureMantleNetwork();
 
-      const amountInWei = parseEther(amountIn);
-      const tokenOutDecimals = await getTokenDecimals(tokenOut);
-      const amountOutMinWei = parseUnits(amountOutMin, tokenOutDecimals);
+      const amountInWei = parseEther(params.amountIn);
+      const tokenOutDecimals = await getTokenDecimals(params.tokenOut);
+      const amountOutMinWei = parseUnits(params.amountOutMin, tokenOutDecimals);
       const deadline = getDeadline();
 
-      const path = [FUSIONX_TOKENS.WMNT, tokenOut];
+      // Check MNT balance before proceeding
+      const { hasBalance, balance: mntBalance } = await checkMNTBalance(amountInWei);
+      if (!hasBalance) {
+        throw new Error(`I noticed you don't have enough MNT for this swap. You need ${params.amountIn} MNT, but your wallet only has ${formatEther(mntBalance)} MNT. Would you like to try a smaller amount?`);
+      }
+
+      const path = [FUSIONX_TOKENS.WMNT, params.tokenOut];
 
       const txHash = await writeContract(wagmiConfig as any, {
         address: FUSIONX_V2_CONTRACTS.Router,
         abi: V2_ROUTER_ABI,
         functionName: 'swapExactETHForTokens',
-        args: [amountOutMinWei, path, to || address, deadline],
+        args: [amountOutMinWei, path, params.to || address, deadline],
         value: amountInWei,
         chainId: MANTLE_CHAIN_ID as any,
       });
@@ -1303,7 +1370,7 @@ export const useFusionXHook = () => {
 
       return {
         success: true,
-        message: `Successfully swapped ${amountIn} MNT`,
+        message: `Successfully swapped ${params.amountIn} MNT`,
         txHash
       };
     } catch (err: any) {
@@ -1319,10 +1386,12 @@ export const useFusionXHook = () => {
    * Swap exact tokens for MNT (V2)
    */
   const swapExactTokensForMNT = async (
-    tokenIn: Address,
-    amountIn: string,
-    amountOutMin: string,
-    to?: Address
+    params: {
+      tokenIn: Address;
+      amountIn: string;
+      amountOutMin: string;
+      to?: Address;
+    }
   ): Promise<FusionXHookResponse> => {
     try {
       setLoading(true);
@@ -1334,20 +1403,28 @@ export const useFusionXHook = () => {
 
       await ensureMantleNetwork();
 
-      const tokenInDecimals = await getTokenDecimals(tokenIn);
-      const amountInWei = parseUnits(amountIn, tokenInDecimals);
-      const amountOutMinWei = parseEther(amountOutMin);
+      const tokenInDecimals = await getTokenDecimals(params.tokenIn);
+      const tokenInSymbol = await getTokenSymbol(params.tokenIn);
+      const amountInWei = parseUnits(params.amountIn, tokenInDecimals);
+      const amountOutMinWei = parseEther(params.amountOutMin);
       const deadline = getDeadline();
 
-      const path = [tokenIn, FUSIONX_TOKENS.WMNT];
+      // Check token balance before proceeding
+      const { hasBalance, balance } = await checkTokenBalance(params.tokenIn, amountInWei);
+      if (!hasBalance) {
+        throw new Error(`I noticed you don't have enough ${tokenInSymbol} for this swap. You need ${params.amountIn} ${tokenInSymbol}, but your wallet only has ${formatUnits(balance, tokenInDecimals)} ${tokenInSymbol}. Would you like to try a smaller amount?`);
+      }
 
-      await approveToken(tokenIn, FUSIONX_V2_CONTRACTS.Router, amountInWei);
+      const path = [params.tokenIn, FUSIONX_TOKENS.WMNT];
+
+      // Use exact amount approval for better security
+      await approveToken(params.tokenIn, FUSIONX_V2_CONTRACTS.Router, amountInWei);
 
       const txHash = await writeContract(wagmiConfig as any, {
         address: FUSIONX_V2_CONTRACTS.Router,
         abi: V2_ROUTER_ABI,
         functionName: 'swapExactTokensForETH',
-        args: [amountInWei, amountOutMinWei, path, to || address, deadline],
+        args: [amountInWei, amountOutMinWei, path, params.to || address, deadline],
         chainId: MANTLE_CHAIN_ID as any,
       });
 
@@ -1360,7 +1437,7 @@ export const useFusionXHook = () => {
 
       return {
         success: true,
-        message: `Successfully swapped ${amountIn} tokens for MNT`,
+        message: `Successfully swapped ${params.amountIn} tokens for MNT`,
         txHash
       };
     } catch (err: any) {
@@ -1418,10 +1495,22 @@ export const useFusionXHook = () => {
       const symbolB = await getTokenSymbol(params.tokenB);
 
       if (balanceA < amountADesired) {
-        throw new Error(`Insufficient ${symbolA} balance. You have ${formatUnits(balanceA, decimalsA)} but need ${params.amountADesired}`);
+        throw new Error(`I noticed you don't have enough ${symbolA} to add liquidity. You need ${params.amountADesired} ${symbolA}, but your wallet only has ${formatUnits(balanceA, decimalsA)} ${symbolA}. Would you like to try a smaller amount?`);
       }
       if (balanceB < amountBDesired) {
-        throw new Error(`Insufficient ${symbolB} balance. You have ${formatUnits(balanceB, decimalsB)} but need ${params.amountBDesired}`);
+        throw new Error(`I noticed you don't have enough ${symbolB} to add liquidity. You need ${params.amountBDesired} ${symbolB}, but your wallet only has ${formatUnits(balanceB, decimalsB)} ${symbolB}. Would you like to try a smaller amount?`);
+      }
+
+      // Check native MNT balance for gas fees
+      const mntBalance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
+      // Require at least 0.01 MNT for gas fees
+      const minGasBalance = parseEther("0.01");
+      if (mntBalance.value < minGasBalance) {
+        throw new Error(`I noticed you don't have enough MNT for gas fees. You need at least 0.01 MNT for transaction fees, but your wallet only has ${formatEther(mntBalance.value)} MNT. Please add some MNT to your wallet for gas.`);
       }
 
       // Get pool info to calculate optimal amounts based on pool ratio
@@ -1541,6 +1630,36 @@ export const useFusionXHook = () => {
       const tokenDecimals = await getTokenDecimals(token);
       const amountToken = parseUnits(amountTokenDesired, tokenDecimals);
       const amountMNT = parseEther(amountMNTDesired);
+
+      // Check token balance
+      const tokenBalance = await readContract(wagmiConfig as any, {
+        address: token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      const tokenSymbol = await getTokenSymbol(token);
+      if (tokenBalance < amountToken) {
+        throw new Error(`I noticed you don't have enough ${tokenSymbol} to add liquidity. You need ${amountTokenDesired} ${tokenSymbol}, but your wallet only has ${formatUnits(tokenBalance, tokenDecimals)} ${tokenSymbol}. Would you like to try a smaller amount?`);
+      }
+
+      // Check MNT balance (need liquidity amount + gas fees)
+      const mntBalance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
+      // Require liquidity amount + 0.01 MNT for gas fees
+      const gasBuffer = parseEther("0.01");
+      const totalMNTRequired = amountMNT + gasBuffer;
+
+      if (mntBalance.value < totalMNTRequired) {
+        const availableForLiquidity = mntBalance.value > gasBuffer ? formatEther(mntBalance.value - gasBuffer) : "0";
+        throw new Error(`I noticed you don't have enough MNT for this operation. You need ${amountMNTDesired} MNT for liquidity plus gas fees, but your wallet only has ${formatEther(mntBalance.value)} MNT (about ${availableForLiquidity} MNT available after reserving for gas). Would you like to try a smaller amount?`);
+      }
+
       const minToken = amountTokenMin
         ? parseUnits(amountTokenMin, tokenDecimals)
         : (amountToken * BigInt(95)) / BigInt(100);
@@ -1607,7 +1726,7 @@ export const useFusionXHook = () => {
         : BigInt(0);
       const deadline = params.deadline ? BigInt(params.deadline) : getDeadline();
 
-      // Get pair address and approve LP token
+      // Get pair address and check LP token balance
       const pairAddress = await readContract(wagmiConfig as any, {
         address: FUSIONX_V2_CONTRACTS.Factory,
         abi: V2_FACTORY_ABI,
@@ -1615,6 +1734,31 @@ export const useFusionXHook = () => {
         args: [params.tokenA, params.tokenB],
         chainId: MANTLE_CHAIN_ID as any,
       }) as Address;
+
+      // Check LP token balance
+      const lpBalance = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      if (lpBalance < liquidity) {
+        throw new Error(`I noticed you don't have enough LP tokens to remove this liquidity. You need ${params.liquidity} LP tokens, but your wallet only has ${formatEther(lpBalance)} LP tokens. Would you like to try a smaller amount?`);
+      }
+
+      // Check native MNT balance for gas fees
+      const mntGasBalance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
+      // Require at least 0.01 MNT for gas fees
+      const minGasBalance = parseEther("0.01");
+      if (mntGasBalance.value < minGasBalance) {
+        throw new Error(`I noticed you don't have enough MNT for gas fees. You need at least 0.01 MNT for transaction fees, but your wallet only has ${formatEther(mntGasBalance.value)} MNT. Please add some MNT to your wallet for gas.`);
+      }
 
       await approveToken(pairAddress, FUSIONX_V2_CONTRACTS.Router, liquidity);
 
@@ -1683,7 +1827,7 @@ export const useFusionXHook = () => {
       const minMNT = amountMNTMin ? parseEther(amountMNTMin) : BigInt(0);
       const deadline = getDeadline();
 
-      // Get pair and approve
+      // Get pair and check LP token balance
       const pairAddress = await readContract(wagmiConfig as any, {
         address: FUSIONX_V2_CONTRACTS.Factory,
         abi: V2_FACTORY_ABI,
@@ -1691,6 +1835,31 @@ export const useFusionXHook = () => {
         args: [token, FUSIONX_TOKENS.WMNT],
         chainId: MANTLE_CHAIN_ID as any,
       }) as Address;
+
+      // Check LP token balance
+      const lpBalance = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      if (lpBalance < liquidityWei) {
+        throw new Error(`I noticed you don't have enough LP tokens to remove this liquidity. You need ${liquidity} LP tokens, but your wallet only has ${formatEther(lpBalance)} LP tokens. Would you like to try a smaller amount?`);
+      }
+
+      // Check native MNT balance for gas fees
+      const mntGasBalance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
+      // Require at least 0.01 MNT for gas fees
+      const minGasBalance = parseEther("0.01");
+      if (mntGasBalance.value < minGasBalance) {
+        throw new Error(`I noticed you don't have enough MNT for gas fees. You need at least 0.01 MNT for transaction fees, but your wallet only has ${formatEther(mntGasBalance.value)} MNT. Please add some MNT to your wallet for gas.`);
+      }
 
       await approveToken(pairAddress, FUSIONX_V2_CONTRACTS.Router, liquidityWei);
 
@@ -1991,10 +2160,10 @@ export const useFusionXHook = () => {
       const symbol1 = await getTokenSymbol(token1);
 
       if (balance0 < amount0) {
-        throw new Error(`Insufficient ${symbol0} balance. You have ${formatUnits(balance0, decimals0)} but need ${amount0Desired}`);
+        throw new Error(`I noticed you don't have enough ${symbol0} to add liquidity. You need ${amount0Desired} ${symbol0}, but your wallet only has ${formatUnits(balance0, decimals0)} ${symbol0}. Would you like to try a smaller amount?`);
       }
       if (balance1 < amount1) {
-        throw new Error(`Insufficient ${symbol1} balance. You have ${formatUnits(balance1, decimals1)} but need ${amount1Desired}`);
+        throw new Error(`I noticed you don't have enough ${symbol1} to add liquidity. You need ${amount1Desired} ${symbol1}, but your wallet only has ${formatUnits(balance1, decimals1)} ${symbol1}. Would you like to try a smaller amount?`);
       }
 
       const amount0Min = params.amount0Min
@@ -2374,11 +2543,15 @@ export const useFusionXHook = () => {
       const reserveData = reserves as [bigint, bigint, number];
       const decimals0 = await getTokenDecimals(token0 as Address);
       const decimals1 = await getTokenDecimals(token1 as Address);
+      const token0Symbol = await getTokenSymbol(token0 as Address);
+      const token1Symbol = await getTokenSymbol(token1 as Address);
 
       return {
         pairAddress,
         token0: token0 as Address,
         token1: token1 as Address,
+        token0Symbol,
+        token1Symbol,
         reserve0: formatUnits(reserveData[0], decimals0),
         reserve1: formatUnits(reserveData[1], decimals1),
         reserve0Raw: reserveData[0],
@@ -2392,13 +2565,21 @@ export const useFusionXHook = () => {
   };
 
   /**
-   * Get user's LP token balance for V2 pair
+   * Get user's LP token balance for V2 pair with detailed position info
    */
   const getV2LPBalance = async (
     tokenA: Address,
     tokenB: Address,
     userAddress?: Address
-  ): Promise<string | null> => {
+  ): Promise<{
+    balance: string;
+    sharePercent: string;
+    token0Amount: string;
+    token1Amount: string;
+    token0Symbol: string;
+    token1Symbol: string;
+    pairAddress: Address;
+  } | null> => {
     try {
       const targetAddress = userAddress || address;
       if (!targetAddress) return null;
@@ -2412,10 +2593,11 @@ export const useFusionXHook = () => {
       }) as Address;
 
       if (pairAddress === "0x0000000000000000000000000000000000000000") {
-        return "0";
+        return null;
       }
 
-      const balance = await readContract(wagmiConfig as any, {
+      // Get user's LP token balance
+      const userBalance = await readContract(wagmiConfig as any, {
         address: pairAddress,
         abi: V2_PAIR_ABI,
         functionName: 'balanceOf',
@@ -2423,7 +2605,75 @@ export const useFusionXHook = () => {
         chainId: MANTLE_CHAIN_ID as any,
       }) as bigint;
 
-      return formatEther(balance);
+      // Get token0 and token1 addresses from the pair
+      const token0 = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: V2_PAIR_ABI,
+        functionName: 'token0',
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as Address;
+
+      const token1 = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: V2_PAIR_ABI,
+        functionName: 'token1',
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as Address;
+
+      // Get token symbols
+      const token0Symbol = await getTokenSymbol(token0);
+      const token1Symbol = await getTokenSymbol(token1);
+
+      if (userBalance === BigInt(0)) {
+        return {
+          balance: "0",
+          sharePercent: "0",
+          token0Amount: "0",
+          token1Amount: "0",
+          token0Symbol,
+          token1Symbol,
+          pairAddress
+        };
+      }
+
+      // Get total supply of LP tokens
+      const totalSupply = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: V2_PAIR_ABI,
+        functionName: 'totalSupply',
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
+
+      // Get reserves
+      const reserves = await readContract(wagmiConfig as any, {
+        address: pairAddress,
+        abi: V2_PAIR_ABI,
+        functionName: 'getReserves',
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as [bigint, bigint, number];
+
+      // Calculate user's share percentage
+      const sharePercent = totalSupply > BigInt(0)
+        ? (Number(userBalance) / Number(totalSupply) * 100).toFixed(4)
+        : "0";
+
+      // Calculate user's share of each token
+      const token0Amount = totalSupply > BigInt(0)
+        ? formatEther((userBalance * reserves[0]) / totalSupply)
+        : "0";
+      const token1Amount = totalSupply > BigInt(0)
+        ? formatEther((userBalance * reserves[1]) / totalSupply)
+        : "0";
+
+      return {
+        balance: formatEther(userBalance),
+        sharePercent,
+        token0Amount,
+        token1Amount,
+        token0Symbol,
+        token1Symbol,
+        pairAddress
+      };
     } catch (err) {
       console.error("Error getting LP balance:", err);
       return null;

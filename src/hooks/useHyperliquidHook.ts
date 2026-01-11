@@ -571,7 +571,7 @@ export const useHyperliquidHook = () => {
       return "Insufficient balance for this operation";
     }
     if (errorStr.includes("User rejected") || errorStr.includes("user rejected")) {
-      return "Transaction cancelled by user";
+      return "No problem! You cancelled the transaction. Let me know when you're ready to try again.";
     }
     if (errorStr.includes("network")) {
       return "Network error. Please check your connection and try again";

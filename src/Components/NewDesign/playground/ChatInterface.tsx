@@ -36,10 +36,65 @@ import { ChainType, getChains } from "@lifi/sdk";
 import { formatUnits } from "ethers/lib/utils";
 import { marketConfigs } from "@/utils/markets";
 import { v4 as uuidv4 } from "uuid";
+import useMantleHook from "@/hooks/useMantleHook";
+import useLendleHook, { LENDLE_ASSETS } from "@/hooks/useLendleHook";
+import useFusionXHook, { FUSIONX_TOKENS } from "@/hooks/useFusionXHook";
 import ReactMarkdown from "react-markdown";
 import { useGetHistory } from "@/hooks/useGetThreadIdHistory";
 import { useGetThreadHistory } from "@/hooks/useGetThreadHistory";
 import { useWalletConnect } from "@/hooks/useWalletConnect";
+
+// Helper function to resolve token symbol/name to contract address
+const resolveTokenAddress = (tokenInput: string): string => {
+  if (!tokenInput) return tokenInput;
+
+  // If already a valid address (starts with 0x and is 42 chars), return as-is
+  if (tokenInput.startsWith("0x") && tokenInput.length === 42) {
+    return tokenInput;
+  }
+
+  const tokenLower = tokenInput.toLowerCase().trim();
+
+  // Map common token symbols/names to addresses
+  const tokenMap: Record<string, string> = {
+    // Native/Wrapped MNT
+    "native": LENDLE_ASSETS.WMNT,
+    "mnt": LENDLE_ASSETS.WMNT,
+    "mantle": LENDLE_ASSETS.WMNT,
+    "wmnt": LENDLE_ASSETS.WMNT,
+    "wrapped mnt": LENDLE_ASSETS.WMNT,
+    "wrapped mantle": LENDLE_ASSETS.WMNT,
+
+    // WETH
+    "weth": LENDLE_ASSETS.WETH,
+    "eth": LENDLE_ASSETS.WETH,
+    "ethereum": LENDLE_ASSETS.WETH,
+    "wrapped eth": LENDLE_ASSETS.WETH,
+    "wrapped ethereum": LENDLE_ASSETS.WETH,
+
+    // USDC
+    "usdc": LENDLE_ASSETS.USDC,
+    "usd coin": LENDLE_ASSETS.USDC,
+
+    // USDT
+    "usdt": LENDLE_ASSETS.USDT,
+    "tether": LENDLE_ASSETS.USDT,
+
+    // METH
+    "meth": LENDLE_ASSETS.METH,
+    "mantle eth": LENDLE_ASSETS.METH,
+
+    // WBTC
+    "wbtc": LENDLE_ASSETS.WBTC,
+    "btc": LENDLE_ASSETS.WBTC,
+    "bitcoin": LENDLE_ASSETS.WBTC,
+    "wrapped btc": LENDLE_ASSETS.WBTC,
+    "wrapped bitcoin": LENDLE_ASSETS.WBTC,
+  };
+
+  return tokenMap[tokenLower] || tokenInput;
+};
+
 const SUGGESTED_PROMPTS = [
   "Give me a list of 10 promising AI Agents between 10m and 30m market cap",
   "What are the best DeFi protocols to invest in right now?",
@@ -209,6 +264,16 @@ const ERROR_HANDLING_MAP: ErrorHandler[] = [
     generateMessage: () =>
       `The transaction was processed by the blockchain but was reverted. This could be due to insufficient funds, market conditions, or transaction requirements not being met. Please verify your balance and the transaction details before trying again.`,
   },
+  {
+    pattern: /unknown token[:\s]*(\w+)/i,
+    generateMessage: (match: RegExpMatchArray) =>
+      `The token "${match[1]}" is not currently available for trading on FusionX. This token may not have sufficient liquidity or may not be listed yet. Try using a different token like WMNT, WETH, USDC, USDT, or WBTC.`,
+  },
+  {
+    pattern: /token.*not.*available|unavailable.*token|token.*not.*supported/i,
+    generateMessage: () =>
+      `This token is not currently available for trading. It may not have sufficient liquidity or may not be listed on the exchange. Please try with a different token.`,
+  },
 ];
 
 // Fallback message for unknown errors
@@ -358,6 +423,54 @@ export function ChatInterface({
     error: changeNowError,
   } = useNewChangeNowHook();
   const [isExecutingChangeNow, setExecutingChangeNow] = useState(false);
+  const [isExecutingMantle, setExecutingMantle] = useState(false);
+  const [isExecutingLendle, setExecutingLendle] = useState(false);
+  const [isExecutingFusionX, setExecutingFusionX] = useState(false);
+  const {
+    depositMNT,
+    depositETH,
+    withdrawMNT,
+    withdrawETH,
+    wrapMNT,
+    unwrapMNT,
+    getMNTBalances,
+    getETHBalances,
+    getGasPriceInfo,
+  } = useMantleHook();
+  const {
+    deposit: lendleDeposit,
+    depositMNT: lendleDepositMNT,
+    withdraw: lendleWithdraw,
+    withdrawMNT: lendleWithdrawMNT,
+    borrow: lendleBorrow,
+    borrowMNT: lendleBorrowMNT,
+    repay: lendleRepay,
+    repayMNT: lendleRepayMNT,
+    getUserAccountData: lendleGetUserAccountData,
+    getUserReserveData: lendleGetUserReserveData,
+    getReserveData: lendleGetReserveData,
+    getReserveConfigData: lendleGetReserveConfigData,
+    stakeLEND,
+    withdrawStakedLEND,
+    claimStakingRewards: lendleClaimStakingRewards,
+    getStakingInfo: lendleGetStakingInfo,
+    getAllReserves: lendleGetAllReserves,
+    getLendBalance: lendleGetLendBalance,
+    getPendingRewards: lendleGetPendingRewards,
+    claimRewards: lendleClaimRewards,
+  } = useLendleHook();
+  const {
+    swapExactTokensForTokens: fusionXSwapExactTokensForTokens,
+    swapExactMNTForTokens: fusionXSwapExactMNTForTokens,
+    swapExactTokensForMNT: fusionXSwapExactTokensForMNT,
+    addLiquidity: fusionXAddLiquidity,
+    removeLiquidity: fusionXRemoveLiquidity,
+    getV2Quote: fusionXGetV2Quote,
+    getV2PairInfo: fusionXGetV2PairInfo,
+    getV2LPBalance: fusionXGetV2LPBalance,
+    getUserLPHistory: fusionXGetUserLPHistory,
+    getExplorerUrl: fusionXGetExplorerUrl,
+  } = useFusionXHook();
   const createTrans = async (
     user_id: string,
     agent_id: string,
@@ -434,6 +547,7 @@ export function ChatInterface({
   // Refs for detecting outside clicks
   const chatSidebarRef = useRef<HTMLDivElement>(null);
   const walletSidebarRef = useRef<HTMLDivElement>(null);
+  const skipNextHistoryFetch = useRef<boolean>(false);
   const { getThreadHistory } = useGetThreadHistory();
   const { getHistory } = useGetHistory();
   const { handleWalletConnect, disconnectAll } = useWalletConnect();
@@ -502,8 +616,13 @@ export function ChatInterface({
 
   useEffect(() => {
     const fetchThreadMessages = async () => {
-      if (!chatId || !user?.id || !address || isMessageSending) return;
-
+      if (!chatId || !user?.id || !address) return;
+      if (isMessageSending) return;
+      // Skip fetch if we just finished sending a message (to preserve local state like tool responses)
+      if (skipNextHistoryFetch.current) {
+        skipNextHistoryFetch.current = false;
+        return;
+      }
       // Check if this is a new chat (not in threads yet)
       const isNewChat = !threads.some((t) => t.thread_id === chatId);
 
@@ -586,7 +705,10 @@ export function ChatInterface({
     };
 
     fetchThreadMessages();
-  }, [chatId, threads, user?.id, address, newChats, setCurrentChat, isMessageSending]);
+    // Note: isMessageSending removed from deps to prevent refetching history after each message
+    // which was overwriting local state with backend data (losing read-only tool responses like staking info)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, threads, user?.id, address, newChats, setCurrentChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -2105,7 +2227,15 @@ export function ChatInterface({
               naturalErrorMessage = "The network you specified isn't supported. Please use a supported network like Ethereum, Polygon, Arbitrum, Base, or BNB Chain.";
             } else if (errorStr.includes("balance") || errorStr.includes("insufficient")) {
               naturalErrorMessage = "You don't have enough balance to complete this exchange. Please check your wallet balance.";
-            } else if (errorStr.includes("address") && errorStr.includes("invalid")) {
+            } else if (errorStr.includes("invalid token") || (errorStr.includes("invalid") && errorStr.includes("token symbol"))) {
+              // Extract token name from error message like "Invalid token(s): fromToken 'ETH'"
+              const tokenMatch = originalError.match(/['"](\w+)['"]/);
+              if (tokenMatch) {
+                naturalErrorMessage = `The token '${tokenMatch[1]}' isn't recognized. Please use the correct token symbol (e.g., WETH instead of ETH, WMNT instead of MNT) or provide the contract address.`;
+              } else {
+                naturalErrorMessage = "One or more tokens weren't recognized. Please check the token symbols or provide the contract addresses.";
+              }
+            } else if (errorStr.includes("address") && errorStr.includes("invalid") && !errorStr.includes("token")) {
               naturalErrorMessage = "The wallet address provided isn't valid. Please check and try again.";
             } else if (errorStr.includes("rate") && errorStr.includes("expired")) {
               naturalErrorMessage = "The exchange rate has expired. Please try again to get a fresh quote.";
@@ -2133,6 +2263,2453 @@ export function ChatInterface({
               console.error("Failed to notify backend about transaction failure:", error);
             }
 
+            return;
+          }
+
+          // =====================================
+          // Mantle Bridge & Wrap Handlers
+          // =====================================
+
+          // Mantle Bridge: Deposit MNT (L1 -> L2)
+          if (toolMessage?.type === "mantle_deposit_mnt") {
+            const { amount, recipient, minGasLimit } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for bridging MNT. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Bridging ${amount} MNT from Ethereum to Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await depositMNT({
+                amount,
+                recipient: recipient || undefined,
+                minGasLimit: minGasLimit || 200000,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://etherscan.io/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleBridgeAgent",
+                  "BRIDGE",
+                  `Bridged ${amount} MNT from Ethereum to Mantle`,
+                  "Ethereum",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Mantle Bridge Agent"
+                );
+
+                const statusMessage = `Successfully bridged ${amount} MNT from Ethereum to Mantle! The funds will arrive in ~10-20 minutes. [View on Etherscan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Bridging MNT failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle deposit MNT error:", err);
+              updateLastAiMessage(err?.message || "Bridging MNT failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle Bridge: Deposit ETH (L1 -> L2)
+          if (toolMessage?.type === "mantle_deposit_eth") {
+            const { amount, recipient, minGasLimit } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for bridging ETH. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Bridging ${amount} ETH from Ethereum to Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await depositETH({
+                amount,
+                recipient: recipient || undefined,
+                minGasLimit: minGasLimit || 200000,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://etherscan.io/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleBridgeAgent",
+                  "BRIDGE",
+                  `Bridged ${amount} ETH from Ethereum to Mantle`,
+                  "Ethereum",
+                  new Date(),
+                  "ETH",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "ETH",
+                  18,
+                  "ETH",
+                  "Mantle Bridge Agent"
+                );
+
+                const statusMessage = `Successfully bridged ${amount} ETH from Ethereum to Mantle! The funds will arrive in ~10-20 minutes. [View on Etherscan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Bridging ETH failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle deposit ETH error:", err);
+              updateLastAiMessage(err?.message || "Bridging ETH failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle Bridge: Withdraw MNT (L2 -> L1)
+          if (toolMessage?.type === "mantle_withdraw_mnt") {
+            const { amount, recipient, minGasLimit } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for bridging MNT. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Bridging ${amount} MNT from Mantle to Ethereum... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await withdrawMNT({
+                amount,
+                recipient: recipient || undefined,
+                minGasLimit: minGasLimit || 200000,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleBridgeAgent",
+                  "BRIDGE",
+                  `Initiated bridge of ${amount} MNT from Mantle to Ethereum`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Mantle Bridge Agent"
+                );
+
+                const statusMessage = `Successfully initiated bridge of ${amount} MNT from Mantle to Ethereum! After the 7-day challenge period, you'll need to prove and finalize on L1. [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Bridging MNT failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle withdraw MNT error:", err);
+              updateLastAiMessage(err?.message || "Bridging MNT failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle Bridge: Withdraw ETH (L2 -> L1)
+          if (toolMessage?.type === "mantle_withdraw_eth") {
+            const { amount, recipient, minGasLimit } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for bridging WETH. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Bridging ${amount} WETH from Mantle to Ethereum... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await withdrawETH({
+                amount,
+                recipient: recipient || undefined,
+                minGasLimit: minGasLimit || 200000,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleBridgeAgent",
+                  "BRIDGE",
+                  `Initiated bridge of ${amount} WETH from Mantle to Ethereum`,
+                  "Mantle",
+                  new Date(),
+                  "ETH",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "ETH",
+                  "Mantle Bridge Agent"
+                );
+
+                const statusMessage = `Successfully initiated bridge of ${amount} WETH from Mantle to Ethereum! After the 7-day challenge period, you'll need to prove and finalize on L1. [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Bridging WETH failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle withdraw ETH error:", err);
+              updateLastAiMessage(err?.message || "Bridging WETH failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle: Wrap MNT to WMNT
+          if (toolMessage?.type === "mantle_wrap_mnt") {
+            const { amount } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for wrapping MNT. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Wrapping ${amount} MNT to WMNT on Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await wrapMNT(amount);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleWrapAgent",
+                  "SWAP",
+                  `Wrapped ${amount} MNT to WMNT`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "WMNT",
+                  "Mantle Wrap Agent"
+                );
+
+                const statusMessage = `Successfully wrapped ${amount} MNT to WMNT! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Wrapping MNT failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle wrap MNT error:", err);
+              updateLastAiMessage(err?.message || "Wrapping MNT failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle: Unwrap WMNT to MNT
+          if (toolMessage?.type === "mantle_unwrap_mnt") {
+            const { amount } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for unwrapping WMNT. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Unwrapping ${amount} WMNT to MNT on Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingMantle(true);
+
+            try {
+              const result = await unwrapMNT(amount);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "mantleWrapAgent",
+                  "SWAP",
+                  `Unwrapped ${amount} WMNT to MNT`,
+                  "Mantle",
+                  new Date(),
+                  "WMNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Mantle Wrap Agent"
+                );
+
+                const statusMessage = `Successfully unwrapped ${amount} WMNT to MNT! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Unwrapping WMNT failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Mantle unwrap MNT error:", err);
+              updateLastAiMessage(err?.message || "Unwrapping WMNT failed. Please try again.");
+            } finally {
+              setExecutingMantle(false);
+            }
+            return;
+          }
+
+          // Mantle: Get MNT Balances
+          if (toolMessage?.type === "mantle_get_mnt_balances") {
+            const { network } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your MNT balances...");
+
+            try {
+              const balances = await getMNTBalances(network || undefined);
+
+              if (balances) {
+                const statusMessage = `**Your MNT Balances:**\n\n- **Ethereum L1:** ${parseFloat(balances.l1Balance).toFixed(6)} MNT\n- **Mantle L2:** ${parseFloat(balances.l2Balance).toFixed(6)} MNT`;
+                updateLastAiMessage(statusMessage);
+              } else {
+                updateLastAiMessage("Unable to fetch MNT balances. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Get MNT balances error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch MNT balances.");
+            }
+            return;
+          }
+
+          // Mantle: Get ETH Balances
+          if (toolMessage?.type === "mantle_get_eth_balances") {
+            const { network } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your ETH balances...");
+
+            try {
+              const balances = await getETHBalances(network || undefined);
+
+              if (balances) {
+                const statusMessage = `**Your ETH Balances:**\n\n- **Ethereum L1:** ${parseFloat(balances.l1Balance).toFixed(6)} ETH\n- **Mantle L2 (WETH):** ${parseFloat(balances.l2Balance).toFixed(6)} WETH`;
+                updateLastAiMessage(statusMessage);
+              } else {
+                updateLastAiMessage("Unable to fetch ETH balances. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Get ETH balances error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch ETH balances.");
+            }
+            return;
+          }
+
+          // Mantle: Get Gas Price Info
+          if (toolMessage?.type === "mantle_get_gas_price_info") {
+            addMessageToCurrentChat("assistant", "🔍 Fetching Mantle network gas price info...");
+
+            try {
+              const gasInfo = await getGasPriceInfo();
+
+              if (gasInfo) {
+                const statusMessage = `**Mantle Network Gas Info:**\n\n- **L2 Gas Price:** ${gasInfo.l2GasPrice}\n- **L1 Base Fee:** ${gasInfo.l1BaseFee}\n- **Overhead:** ${gasInfo.overhead}\n- **Scalar:** ${gasInfo.scalar}\n- **Token Ratio:** ${gasInfo.tokenRatio}`;
+                updateLastAiMessage(statusMessage);
+              } else {
+                updateLastAiMessage("Unable to fetch gas price info. Please try again later.");
+              }
+            } catch (err: any) {
+              console.error("Get gas price info error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch gas price info.");
+            }
+            return;
+          }
+
+          // =====================================
+          // Lendle Protocol Handlers
+          // =====================================
+
+          // Lendle: Deposit Token
+          if (toolMessage?.type === "lendle_deposit") {
+            const { asset, amount, onBehalfOf, referralCode } = toolMessage.params;
+
+            if (!asset || !amount) {
+              addMessageToCurrentChat("assistant", "Missing asset or amount for Lendle deposit. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Depositing ${amount} tokens into Lendle on Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleDeposit({
+                asset,
+                amount,
+                onBehalfOf: onBehalfOf || undefined,
+                referralCode: referralCode || 0,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "LEND",
+                  `Deposited ${amount} tokens into Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "lToken",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully deposited ${amount} tokens into Lendle! You are now earning interest. [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle deposit failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle deposit error:", err);
+              const errorMsg = err?.message || "Lendle deposit failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Deposit MNT
+          if (toolMessage?.type === "lendle_deposit_mnt") {
+            const { amount, onBehalfOf } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for Lendle MNT deposit. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Depositing ${amount} MNT into Lendle on Mantle... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleDepositMNT(amount, onBehalfOf || undefined);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "LEND",
+                  `Deposited ${amount} MNT into Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "lMNT",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully deposited ${amount} MNT into Lendle! You are now earning interest. [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle MNT deposit failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle deposit MNT error:", err);
+              const errorMsg = err?.message || "Lendle MNT deposit failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Withdraw Token
+          if (toolMessage?.type === "lendle_withdraw") {
+            const { asset, amount, to } = toolMessage.params;
+
+            if (!asset || !amount) {
+              addMessageToCurrentChat("assistant", "Missing asset or amount for Lendle withdrawal. Please try again.");
+              return;
+            }
+
+            const displayAmount = amount.toLowerCase() === "max" ? "all" : amount;
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Withdrawing ${displayAmount} tokens from Lendle... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleWithdraw({
+                asset,
+                amount,
+                to: to || undefined,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "WITHDRAW",
+                  `Withdrew ${displayAmount} tokens from Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  amount.toLowerCase() === "max" ? 0 : parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully withdrew ${displayAmount} tokens from Lendle! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle withdrawal failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle withdraw error:", err);
+              const errorMsg = err?.message || "Lendle withdrawal failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Withdraw MNT
+          if (toolMessage?.type === "lendle_withdraw_mnt") {
+            const { amount, to } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for Lendle MNT withdrawal. Please try again.");
+              return;
+            }
+
+            const displayAmount = amount.toLowerCase() === "max" ? "all" : amount;
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Withdrawing ${displayAmount} MNT from Lendle... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleWithdrawMNT(amount, to || undefined);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "WITHDRAW",
+                  `Withdrew ${displayAmount} MNT from Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  amount.toLowerCase() === "max" ? 0 : parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully withdrew ${displayAmount} MNT from Lendle! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle MNT withdrawal failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle withdraw MNT error:", err);
+              const errorMsg = err?.message || "Lendle MNT withdrawal failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Borrow Token
+          if (toolMessage?.type === "lendle_borrow") {
+            const { asset, amount, interestRateMode, onBehalfOf, referralCode } = toolMessage.params;
+
+            if (!asset || !amount) {
+              addMessageToCurrentChat("assistant", "Missing asset or amount for Lendle borrow. Please try again.");
+              return;
+            }
+
+            const rateType = interestRateMode === 1 ? "Stable" : "Variable";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Borrowing ${amount} tokens from Lendle at ${rateType} rate... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleBorrow({
+                asset,
+                amount,
+                interestRateMode: interestRateMode || 2,
+                onBehalfOf: onBehalfOf || undefined,
+                referralCode: referralCode || 0,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "BORROW",
+                  `Borrowed ${amount} tokens from Lendle at ${rateType} rate`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully borrowed ${amount} tokens from Lendle at ${rateType} rate! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle borrow failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle borrow error:", err);
+              const errorMsg = err?.message || "Lendle borrow failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Borrow MNT
+          if (toolMessage?.type === "lendle_borrow_mnt") {
+            const { amount, interestRateMode } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for Lendle MNT borrow. Please try again.");
+              return;
+            }
+
+            const rateType = interestRateMode === 1 ? "Stable" : "Variable";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Borrowing ${amount} MNT from Lendle at ${rateType} rate... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleBorrowMNT(amount, interestRateMode || 2);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "BORROW",
+                  `Borrowed ${amount} MNT from Lendle at ${rateType} rate`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully borrowed ${amount} MNT from Lendle at ${rateType} rate! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle MNT borrow failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle borrow MNT error:", err);
+              const errorMsg = err?.message || "Lendle MNT borrow failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Repay Token
+          if (toolMessage?.type === "lendle_repay") {
+            const { asset, amount, rateMode, onBehalfOf } = toolMessage.params;
+
+            if (!asset || !amount) {
+              addMessageToCurrentChat("assistant", "Missing asset or amount for Lendle repay. Please try again.");
+              return;
+            }
+
+            const displayAmount = amount.toLowerCase() === "max" ? "all" : amount;
+            const rateType = rateMode === 1 ? "Stable" : "Variable";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Repaying ${displayAmount} tokens on Lendle (${rateType} rate)... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleRepay({
+                asset,
+                amount,
+                rateMode: rateMode || 2,
+                onBehalfOf: onBehalfOf || undefined,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "REPAY",
+                  `Repaid ${displayAmount} tokens on Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  amount.toLowerCase() === "max" ? 0 : parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully repaid ${displayAmount} tokens on Lendle! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle repay failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle repay error:", err);
+              const errorMsgLower = err?.message?.toLowerCase() || "";
+              let errorMsg: string;
+              if (
+                err?.code === "ACTION_REJECTED" ||
+                errorMsgLower.includes("user rejected") ||
+                errorMsgLower.includes("user denied") ||
+                errorMsgLower.includes("cancelled") ||
+                errorMsgLower.includes("canceled")
+              ) {
+                errorMsg = "No problem! You cancelled the repay transaction. Let me know when you're ready to try again.";
+              } else {
+                errorMsg = err?.message || "Lendle repay failed. Please try again.";
+              }
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Repay MNT
+          if (toolMessage?.type === "lendle_repay_mnt") {
+            const { amount, rateMode, onBehalfOf } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for Lendle MNT repay. Please try again.");
+              return;
+            }
+
+            const displayAmount = amount.toLowerCase() === "max" ? "all" : amount;
+            const rateType = rateMode === 1 ? "Stable" : "Variable";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Repaying ${displayAmount} MNT on Lendle (${rateType} rate)... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleRepayMNT(amount, rateMode || 2, onBehalfOf || undefined);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "REPAY",
+                  `Repaid ${displayAmount} MNT on Lendle`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  amount.toLowerCase() === "max" ? 0 : parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully repaid ${displayAmount} MNT on Lendle! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                const errorMsg = result.message || "Lendle MNT repay failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("Lendle repay MNT error:", err);
+              const errorMsgLower = err?.message?.toLowerCase() || "";
+              let errorMsg: string;
+              if (
+                err?.code === "ACTION_REJECTED" ||
+                errorMsgLower.includes("user rejected") ||
+                errorMsgLower.includes("user denied") ||
+                errorMsgLower.includes("cancelled") ||
+                errorMsgLower.includes("canceled")
+              ) {
+                errorMsg = "No problem! You cancelled the MNT repay transaction. Let me know when you're ready to try again.";
+              } else {
+                errorMsg = err?.message || "Lendle MNT repay failed. Please try again.";
+              }
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Get User Account Data
+          if (toolMessage?.type === "lendle_get_user_account_data") {
+            const { userAddress } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your Lendle account data...");
+
+            try {
+              const accountData = await lendleGetUserAccountData(userAddress || undefined);
+
+              if (accountData) {
+                const statusMessage = `**Your Lendle Account Data:**\n\n` +
+                  `- **Total Collateral:** $${parseFloat(accountData.totalCollateralETH).toFixed(6)}\n` +
+                  `- **Total Debt:** $${parseFloat(accountData.totalDebtETH).toFixed(6)}\n` +
+                  `- **Available to Borrow:** $${parseFloat(accountData.availableBorrowsETH).toFixed(6)}\n` +
+                  `- **Liquidation Threshold:** ${accountData.currentLiquidationThreshold}%\n` +
+                  `- **Loan-to-Value:** ${accountData.ltv}%\n` +
+                  `- **Health Factor:** ${accountData.healthFactor}`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch Lendle account data. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get user account data error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch Lendle account data.");
+            }
+            return;
+          }
+
+          // Lendle: Get User Reserve Data
+          if (toolMessage?.type === "lendle_get_user_reserve_data") {
+            let { asset, userAddress } = toolMessage.params;
+
+            if (!asset) {
+              addMessageToCurrentChat("assistant", "Missing asset for Lendle reserve data. Please try again.");
+              return;
+            }
+
+            // Handle native MNT - use WMNT address instead
+            const assetLower = asset.toLowerCase();
+            if (assetLower === "native" || assetLower === "mnt" || assetLower === "mantle") {
+              asset = LENDLE_ASSETS.WMNT;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your Lendle reserve data...");
+
+            try {
+              const reserveData = await lendleGetUserReserveData(asset, userAddress || undefined);
+
+              if (reserveData) {
+                const statusMessage = `**Your Lendle Position:**\n\n` +
+                  `- **Deposited (lToken Balance):** ${parseFloat(reserveData.currentATokenBalance).toFixed(6)}\n` +
+                  `- **Stable Debt:** ${parseFloat(reserveData.currentStableDebt).toFixed(6)}\n` +
+                  `- **Variable Debt:** ${parseFloat(reserveData.currentVariableDebt).toFixed(6)}\n` +
+                  `- **Current APY:** ${reserveData.liquidityRate}%\n` +
+                  `- **Used as Collateral:** ${reserveData.usageAsCollateralEnabled ? "Yes" : "No"}`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch Lendle reserve data. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get user reserve data error:", err);
+              // Handle invalid address error with friendly message
+              if (err?.message?.includes("InvalidAddressError") || err?.message?.includes("invalid") || err?.name === "InvalidAddressError") {
+                updateLastAiMessage("I couldn't find your position data for that asset. Please make sure you're using a valid token symbol like USDC, USDT, WETH, or WMNT. For native MNT positions, check under WMNT (Wrapped MNT).");
+              } else {
+                updateLastAiMessage("I encountered an issue while fetching your reserve data. This might be due to network issues or the token not being supported on Lendle. Please try again.");
+              }
+            }
+            return;
+          }
+
+          // Lendle: Get Reserve Data
+          if (toolMessage?.type === "lendle_get_reserve_data") {
+            let { asset } = toolMessage.params;
+
+            if (!asset) {
+              addMessageToCurrentChat("assistant", "Missing asset for Lendle reserve data. Please try again.");
+              return;
+            }
+
+            // Handle native MNT - use WMNT address instead
+            const assetLower = asset.toLowerCase();
+            if (assetLower === "native" || assetLower === "mnt" || assetLower === "mantle") {
+              asset = LENDLE_ASSETS.WMNT;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching Lendle reserve data...");
+
+            try {
+              const reserveData = await lendleGetReserveData(asset);
+
+              if (reserveData) {
+                const statusMessage = `**Lendle Reserve Data:**\n\n` +
+                  `- **Available Liquidity:** ${parseFloat(reserveData.availableLiquidity).toFixed(6)}\n` +
+                  `- **Total Stable Debt:** ${parseFloat(reserveData.totalStableDebt).toFixed(6)}\n` +
+                  `- **Total Variable Debt:** ${parseFloat(reserveData.totalVariableDebt).toFixed(6)}\n` +
+                  `- **Supply APY:** ${reserveData.liquidityRate}%\n` +
+                  `- **Variable Borrow APY:** ${reserveData.variableBorrowRate}%\n` +
+                  `- **Stable Borrow APY:** ${reserveData.stableBorrowRate}%\n` +
+                  `- **Utilization Rate:** ${reserveData.utilizationRate}%`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch Lendle reserve data. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get reserve data error:", err);
+              // Handle invalid address error with friendly message
+              if (err?.message?.includes("InvalidAddressError") || err?.message?.includes("invalid") || err?.name === "InvalidAddressError") {
+                updateLastAiMessage("I couldn't find reserve data for that asset. Please make sure you're using a valid token symbol like USDC, USDT, WETH, or WMNT. For native MNT, the data is shown under WMNT (Wrapped MNT).");
+              } else {
+                updateLastAiMessage("I encountered an issue while fetching the reserve data. This might be due to network issues or the token not being supported on Lendle. Please try again or check if the token is available on Lendle.");
+              }
+            }
+            return;
+          }
+
+          // Lendle: Get Reserve Config Data
+          if (toolMessage?.type === "lendle_get_reserve_config_data") {
+            let { asset } = toolMessage.params;
+
+            if (!asset) {
+              addMessageToCurrentChat("assistant", "Missing asset for Lendle reserve config. Please try again.");
+              return;
+            }
+
+            // Handle native MNT - use WMNT address instead
+            const assetLower = asset.toLowerCase();
+            if (assetLower === "native" || assetLower === "mnt" || assetLower === "mantle") {
+              asset = LENDLE_ASSETS.WMNT;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching Lendle reserve configuration...");
+
+            try {
+              const configData = await lendleGetReserveConfigData(asset);
+
+              if (configData) {
+                const statusMessage = `**Lendle Reserve Configuration:**\n\n` +
+                  `- **Decimals:** ${configData.decimals}\n` +
+                  `- **Loan-to-Value:** ${configData.ltv}%\n` +
+                  `- **Liquidation Threshold:** ${configData.liquidationThreshold}%\n` +
+                  `- **Liquidation Bonus:** ${configData.liquidationBonus}%\n` +
+                  `- **Reserve Factor:** ${configData.reserveFactor}%\n` +
+                  `- **Can be Collateral:** ${configData.usageAsCollateralEnabled ? "Yes" : "No"}\n` +
+                  `- **Borrowing Enabled:** ${configData.borrowingEnabled ? "Yes" : "No"}\n` +
+                  `- **Stable Rate Enabled:** ${configData.stableBorrowRateEnabled ? "Yes" : "No"}\n` +
+                  `- **Active:** ${configData.isActive ? "Yes" : "No"}\n` +
+                  `- **Frozen:** ${configData.isFrozen ? "Yes" : "No"}`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch Lendle reserve configuration. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get reserve config error:", err);
+              // Handle invalid address error with friendly message
+              if (err?.message?.includes("InvalidAddressError") || err?.message?.includes("invalid") || err?.name === "InvalidAddressError") {
+                updateLastAiMessage("I couldn't find configuration data for that asset. Please make sure you're using a valid token symbol like USDC, USDT, WETH, or WMNT. For native MNT, the data is shown under WMNT (Wrapped MNT).");
+              } else {
+                updateLastAiMessage("I encountered an issue while fetching the reserve configuration. This might be due to network issues or the token not being supported on Lendle. Please try again or check if the token is available on Lendle.");
+              }
+            }
+            return;
+          }
+
+          // Lendle: Stake LEND
+          if (toolMessage?.type === "lendle_stake_lend") {
+            const { amount, lock } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for LEND staking. Please try again.");
+              return;
+            }
+
+            const lockText = lock ? " (locked)" : "";
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Staking ${amount} LEND tokens${lockText}... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await stakeLEND(amount, lock || false);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "LEND",
+                  `Staked ${amount} LEND tokens${lockText}`,
+                  "Mantle",
+                  new Date(),
+                  "LEND",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "sLEND",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully staked ${amount} LEND tokens${lockText}! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "LEND staking failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle stake LEND error:", err);
+              updateLastAiMessage(err?.message || "LEND staking failed. Please try again.");
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Withdraw Staked LEND
+          if (toolMessage?.type === "lendle_withdraw_staked_lend") {
+            const { amount } = toolMessage.params;
+
+            if (!amount) {
+              addMessageToCurrentChat("assistant", "Missing amount for LEND withdrawal. Please try again.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Withdrawing ${amount} staked LEND tokens... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await withdrawStakedLEND(amount);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "WITHDRAW",
+                  `Withdrew ${amount} staked LEND tokens`,
+                  "Mantle",
+                  new Date(),
+                  "LEND",
+                  parseFloat(amount),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "LEND",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully withdrew ${amount} staked LEND tokens! [View on Mantlescan frames](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "LEND withdrawal failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle withdraw staked LEND error:", err);
+              updateLastAiMessage(err?.message || "LEND withdrawal failed. Please try again.");
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Claim Staking Rewards
+          if (toolMessage?.type === "lendle_claim_staking_rewards") {
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Claiming LEND staking rewards... Please confirm the transaction.`
+            );
+
+            setExecutingLendle(true);
+
+            try {
+              const result = await lendleClaimStakingRewards();
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "LEND",
+                  `Claimed LEND staking rewards`,
+                  "Mantle",
+                  new Date(),
+                  "LEND",
+                  0,
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "LEND",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully claimed LEND staking rewards! [View on Mantlescan](${explorerUrl})`;
+
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Claiming rewards failed. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle claim staking rewards error:", err);
+              updateLastAiMessage(err?.message || "Claiming rewards failed. Please try again.");
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Get Staking Info
+          if (toolMessage?.type === "lendle_get_staking_info") {
+            const { userAddress } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your LEND staking info...");
+
+            try {
+              const stakingInfo = await lendleGetStakingInfo(userAddress || undefined);
+
+              if (stakingInfo) {
+                const statusMessage = `**Your LEND Staking Info:**\n\n` +
+                  `- **Total Staked:** ${parseFloat(stakingInfo.totalStaked).toFixed(6)} LEND\n` +
+                  `- **Locked Balance:** ${parseFloat(stakingInfo.lockedBalance).toFixed(6)} LEND\n` +
+                  `- **Unlockable Balance:** ${parseFloat(stakingInfo.unlockableBalance).toFixed(6)} LEND\n` +
+                  `- **Withdrawable Amount:** ${parseFloat(stakingInfo.withdrawableAmount).toFixed(6)} LEND\n` +
+                  `- **Penalty if Early Withdraw:** ${parseFloat(stakingInfo.penaltyAmount).toFixed(6)} LEND\n` +
+                  `- **Earned Rewards:** ${parseFloat(stakingInfo.earnedRewards).toFixed(6)} LEND`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch LEND staking info. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get staking info error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch LEND staking info.");
+            }
+            return;
+          }
+
+          // Lendle: Get LEND Balance
+          if (toolMessage?.type === "lendle_get_lend_balance") {
+            addMessageToCurrentChat("assistant", "🔍 Checking your LEND token balance...");
+
+            try {
+              const lendBalance = await lendleGetLendBalance();
+
+              if (lendBalance) {
+                const statusMessage = `**Your LEND Token Balance:**\n\n` +
+                  `- **Balance:** ${parseFloat(lendBalance.balance).toFixed(6)} LEND`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to fetch LEND balance. Please make sure your wallet is connected.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get LEND balance error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch LEND balance.");
+            }
+            return;
+          }
+
+          // Lendle: Get Pending Rewards (Lending/Borrowing incentives)
+          if (toolMessage?.type === "lendle_get_pending_rewards") {
+            const { lTokenAddresses } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Checking your pending rewards...");
+
+            try {
+              // If no lToken addresses provided, get all reserves and use their lToken addresses
+              let tokenAddresses = lTokenAddresses;
+              if (!tokenAddresses || tokenAddresses.length === 0) {
+                const reserves = await lendleGetAllReserves();
+                tokenAddresses = reserves.map((r: any) => r.lTokenAddress);
+              }
+
+              const rewards = await lendleGetPendingRewards(tokenAddresses);
+
+              if (rewards && rewards.length > 0) {
+                const totalRewards = rewards.reduce((sum: number, r: string) => sum + parseFloat(r), 0);
+                const statusMessage = `**Your Pending Lending Rewards:**\n\n` +
+                  `- **Total Pending:** ${totalRewards.toFixed(6)} LEND\n\n` +
+                  `You can claim these rewards anytime.`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("You don't have any pending lending rewards at the moment.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get pending rewards error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch pending rewards.");
+            }
+            return;
+          }
+
+          // Lendle: Claim Rewards (Lending/Borrowing incentives)
+          if (toolMessage?.type === "lendle_claim_rewards") {
+            const { lTokenAddresses } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔄 Claiming your lending rewards... Please confirm the transaction.");
+
+            setExecutingLendle(true);
+
+            try {
+              // If no lToken addresses provided, get all reserves and use their lToken addresses
+              let tokenAddresses = lTokenAddresses;
+              if (!tokenAddresses || tokenAddresses.length === 0) {
+                const reserves = await lendleGetAllReserves();
+                tokenAddresses = reserves.map((r: any) => r.lTokenAddress);
+              }
+
+              const result = await lendleClaimRewards(tokenAddresses);
+
+              if (result.success && result.txHash) {
+                const explorerUrl = `https://mantlescan.xyz/tx/${result.txHash}`;
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "lendleAgent",
+                  "WITHDRAW",
+                  "Claimed lending rewards on Lendle",
+                  "Mantle",
+                  new Date(),
+                  "LEND",
+                  0,
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "LEND",
+                  "Lendle Agent"
+                );
+
+                const statusMessage = `Successfully claimed your lending rewards! [View on Mantlescan](${explorerUrl})`;
+                updateLastAiMessage(statusMessage);
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage(result.message || "Failed to claim rewards. Please try again.");
+              }
+            } catch (err: any) {
+              console.error("Lendle claim rewards error:", err);
+              const errorMsg = err?.message?.toLowerCase() || "";
+              if (
+                err?.code === "ACTION_REJECTED" ||
+                errorMsg.includes("user rejected") ||
+                errorMsg.includes("user denied") ||
+                errorMsg.includes("cancelled") ||
+                errorMsg.includes("canceled")
+              ) {
+                updateLastAiMessage("No problem! You cancelled the claim transaction. Let me know when you're ready to try again.");
+              } else {
+                updateLastAiMessage(err?.message || "Failed to claim rewards. Please try again.");
+              }
+            } finally {
+              setExecutingLendle(false);
+            }
+            return;
+          }
+
+          // Lendle: Get All Reserves
+          if (toolMessage?.type === "lendle_get_all_reserves") {
+            addMessageToCurrentChat("assistant", "🔍 Fetching all reserves data on Lendle...");
+
+            try {
+              const reserves = await lendleGetAllReserves();
+
+              if (reserves && reserves.length > 0) {
+                const reservesWithData: Array<{symbol: string; available: string; supplyAPY: string; borrowAPY: string}> = [];
+
+                for (const reserve of reserves) {
+                  const reserveData = await lendleGetReserveData(reserve.address);
+                  if (reserveData && parseFloat(reserveData.availableLiquidity) > 0) {
+                    reservesWithData.push({
+                      symbol: reserve.symbol,
+                      available: parseFloat(reserveData.availableLiquidity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                      supplyAPY: reserveData.liquidityRate,
+                      borrowAPY: reserveData.variableBorrowRate,
+                    });
+                  }
+                }
+
+                if (reservesWithData.length > 0) {
+                  let statusMessage = `**Lendle Reserves Overview:**\n\n`;
+                  statusMessage += `| Asset | Available | Supply APY | Borrow APY |\n`;
+                  statusMessage += `|:------|----------:|-----------:|-----------:|\n`;
+
+                  for (const r of reservesWithData) {
+                    statusMessage += `| ${r.symbol} | ${r.available} | ${r.supplyAPY}% | ${r.borrowAPY}% |\n`;
+                  }
+
+                  updateLastAiMessage(statusMessage);
+
+                  // Save to backend for persistence
+                  await orchestratedAgentChat({
+                    agentName: "orchestratedAgent",
+                    userId: user?.id ?? "",
+                    message: statusMessage,
+                    threadId: chatId,
+                    walletAddress: address ?? "",
+                    isTransaction: true,
+                  });
+                } else {
+                  updateLastAiMessage("No reserves with available liquidity found.");
+                }
+              } else {
+                updateLastAiMessage("Unable to fetch reserves. Please try again later.");
+              }
+            } catch (err: any) {
+              console.error("Lendle get all reserves error:", err);
+              updateLastAiMessage(err?.message || "Failed to fetch Lendle reserves.");
+            }
+            return;
+          }
+
+          // =====================================
+          // FusionX DEX Handlers
+          // =====================================
+
+          // FusionX: Swap Exact Tokens For Tokens
+          if (toolMessage?.type === "fusionx_swap_exact_tokens_for_tokens") {
+            const { amountIn, amountOutMin, path, to, deadline } = toolMessage.params;
+
+            if (!amountIn || !path || path.length < 2) {
+              addMessageToCurrentChat("assistant", "Missing parameters for FusionX swap. Please provide amount and token path.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Swapping ${amountIn} tokens on FusionX... Please confirm the transaction.`
+            );
+
+            setExecutingFusionX(true);
+
+            try {
+              const result = await fusionXSwapExactTokensForTokens({
+                amountIn,
+                amountOutMin: amountOutMin || "0",
+                path,
+                to: to || undefined,
+                deadline: deadline || undefined,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = fusionXGetExplorerUrl(result.txHash);
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "fusionXAgent",
+                  "SWAP",
+                  `Swapped ${amountIn} tokens on FusionX`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  parseFloat(amountIn),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "FusionX Agent"
+                );
+
+                const statusMessage = `Successfully swapped ${amountIn} tokens on FusionX! [View on Mantlescan](${explorerUrl})`;
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+
+                updateLastAiMessage(statusMessage);
+              } else {
+                const errorMsg = result.message || "FusionX swap failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("FusionX swap error:", err);
+              const errorMsg = err?.message || "FusionX swap failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingFusionX(false);
+            }
+            return;
+          }
+
+          // FusionX: Swap Exact MNT For Tokens
+          if (toolMessage?.type === "fusionx_swap_exact_mnt_for_tokens") {
+            const { amountIn, amountOutMin, tokenOut } = toolMessage.params;
+
+            if (!amountIn || !tokenOut) {
+              addMessageToCurrentChat("assistant", "Missing parameters for FusionX MNT swap. Please provide amount and output token.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Swapping ${amountIn} MNT for tokens on FusionX... Please confirm the transaction.`
+            );
+
+            setExecutingFusionX(true);
+
+            try {
+              const result = await fusionXSwapExactMNTForTokens({
+                amountIn,
+                amountOutMin: amountOutMin || "0",
+                tokenOut,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = fusionXGetExplorerUrl(result.txHash);
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "fusionXAgent",
+                  "SWAP",
+                  `Swapped ${amountIn} MNT for tokens on FusionX`,
+                  "Mantle",
+                  new Date(),
+                  "MNT",
+                  parseFloat(amountIn),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "FusionX Agent"
+                );
+
+                const statusMessage = `Successfully swapped ${amountIn} MNT for tokens on FusionX! [View on Mantlescan](${explorerUrl})`;
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+
+                updateLastAiMessage(statusMessage);
+              } else {
+                const errorMsg = result.message || "FusionX MNT swap failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("FusionX MNT swap error:", err);
+              const errorMsg = err?.message || "FusionX MNT swap failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingFusionX(false);
+            }
+            return;
+          }
+
+          // FusionX: Swap Exact Tokens For MNT
+          if (toolMessage?.type === "fusionx_swap_exact_tokens_for_mnt") {
+            const { tokenIn, amountIn, amountOutMin } = toolMessage.params;
+
+            if (!amountIn || !tokenIn) {
+              addMessageToCurrentChat("assistant", "Missing parameters for FusionX swap to MNT. Please provide amount and input token.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Swapping ${amountIn} tokens for MNT on FusionX... Please confirm the transaction.`
+            );
+
+            setExecutingFusionX(true);
+
+            try {
+              const result = await fusionXSwapExactTokensForMNT({
+                tokenIn,
+                amountIn,
+                amountOutMin: amountOutMin || "0",
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = fusionXGetExplorerUrl(result.txHash);
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "fusionXAgent",
+                  "SWAP",
+                  `Swapped ${amountIn} tokens for MNT on FusionX`,
+                  "Mantle",
+                  new Date(),
+                  "TOKEN",
+                  parseFloat(amountIn),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "MNT",
+                  "FusionX Agent"
+                );
+
+                const statusMessage = `Successfully swapped ${amountIn} tokens for MNT on FusionX! [View on Mantlescan](${explorerUrl})`;
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+
+                updateLastAiMessage(statusMessage);
+              } else {
+                const errorMsg = result.message || "FusionX swap to MNT failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("FusionX swap to MNT error:", err);
+              const errorMsg = err?.message || "FusionX swap to MNT failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingFusionX(false);
+            }
+            return;
+          }
+
+          // FusionX: Add Liquidity
+          if (toolMessage?.type === "fusionx_add_liquidity") {
+            const { tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin, to, deadline } = toolMessage.params;
+
+            if (!tokenA || !tokenB || !amountADesired || !amountBDesired) {
+              addMessageToCurrentChat("assistant", "Missing parameters for adding liquidity. Please provide both tokens and amounts.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Adding liquidity to FusionX pool... Please confirm the transaction.`
+            );
+
+            setExecutingFusionX(true);
+
+            try {
+              const result = await fusionXAddLiquidity({
+                tokenA,
+                tokenB,
+                amountADesired,
+                amountBDesired,
+                amountAMin: amountAMin || "0",
+                amountBMin: amountBMin || "0",
+                to: to || undefined,
+                deadline: deadline || undefined,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = fusionXGetExplorerUrl(result.txHash);
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "fusionXAgent",
+                  "LEND",
+                  `Added liquidity to FusionX pool`,
+                  "Mantle",
+                  new Date(),
+                  "LP",
+                  parseFloat(amountADesired),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "LP Token",
+                  "FusionX Agent"
+                );
+
+                const statusMessage = `Successfully added liquidity to FusionX pool! [View on Mantlescan](${explorerUrl})`;
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+
+                updateLastAiMessage(statusMessage);
+              } else {
+                const errorMsg = result.message || "Adding liquidity failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("FusionX add liquidity error:", err);
+              const errorMsg = err?.message || "Adding liquidity failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingFusionX(false);
+            }
+            return;
+          }
+
+          // FusionX: Remove Liquidity
+          if (toolMessage?.type === "fusionx_remove_liquidity") {
+            const { tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline } = toolMessage.params;
+
+            if (!tokenA || !tokenB || !liquidity) {
+              addMessageToCurrentChat("assistant", "Missing parameters for removing liquidity. Please provide tokens and liquidity amount.");
+              return;
+            }
+
+            addMessageToCurrentChat(
+              "assistant",
+              `🔄 Removing ${liquidity} LP tokens from FusionX pool... Please confirm the transaction.`
+            );
+
+            setExecutingFusionX(true);
+
+            try {
+              const result = await fusionXRemoveLiquidity({
+                tokenA,
+                tokenB,
+                liquidity,
+                amountAMin: amountAMin || "0",
+                amountBMin: amountBMin || "0",
+                to: to || undefined,
+                deadline: deadline || undefined,
+              });
+
+              if (result.success && result.txHash) {
+                const explorerUrl = fusionXGetExplorerUrl(result.txHash);
+
+                await createTransv2(
+                  user?.id ?? '',
+                  "fusionXAgent",
+                  "WITHDRAW",
+                  `Removed ${liquidity} LP tokens from FusionX pool`,
+                  "Mantle",
+                  new Date(),
+                  "LP",
+                  parseFloat(liquidity),
+                  result.txHash,
+                  explorerUrl,
+                  "SUCCESS",
+                  "https://rpc.mantle.xyz",
+                  "MNT",
+                  18,
+                  "TOKEN",
+                  "FusionX Agent"
+                );
+
+                const statusMessage = `Successfully removed ${liquidity} LP tokens from FusionX pool! [View on Mantlescan](${explorerUrl})`;
+
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+
+                updateLastAiMessage(statusMessage);
+              } else {
+                const errorMsg = result.message || "Removing liquidity failed. Please try again.";
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: errorMsg,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+                updateLastAiMessage(errorMsg);
+              }
+            } catch (err: any) {
+              console.error("FusionX remove liquidity error:", err);
+              const errorMsg = err?.message || "Removing liquidity failed. Please try again.";
+              await orchestratedAgentChat({
+                agentName: "orchestratedAgent",
+                userId: user?.id ?? "",
+                message: errorMsg,
+                threadId: chatId,
+                walletAddress: address ?? "",
+                isTransaction: true,
+              });
+              updateLastAiMessage(errorMsg);
+            } finally {
+              setExecutingFusionX(false);
+            }
+            return;
+          }
+
+          // FusionX: Get V2 Quote
+          if (toolMessage?.type === "fusionx_get_v2_quote") {
+            const { amountIn, path } = toolMessage.params;
+
+            if (!amountIn || !path || path.length < 2) {
+              addMessageToCurrentChat("assistant", "Missing parameters for swap quote. Please provide amount and token path.");
+              return;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Getting swap quote from FusionX...");
+
+            try {
+              const quote = await fusionXGetV2Quote(amountIn, path);
+
+              if (quote) {
+                const statusMessage = `**FusionX Swap Quote:**\n\n` +
+                  `- **Input Amount:** ${amountIn}\n` +
+                  `- **Expected Output:** ${quote.amountOut}\n` +
+                  `- **Price Impact:** ${quote.priceImpact}\n` +
+                  `- **Route:** ${path.length} hops`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("Unable to get swap quote. The trading pair may not have sufficient liquidity.");
+              }
+            } catch (err: any) {
+              console.error("FusionX get quote error:", err);
+              updateLastAiMessage("Failed to get swap quote. Please try again.");
+            }
+            return;
+          }
+
+          // FusionX: Get V2 Pair Info
+          if (toolMessage?.type === "fusionx_get_v2_pair_info") {
+            const { tokenA, tokenB } = toolMessage.params;
+
+            if (!tokenA || !tokenB) {
+              addMessageToCurrentChat("assistant", "Missing token addresses for pair info. Please provide both tokens.");
+              return;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching FusionX pool information...");
+
+            try {
+              const pairInfo = await fusionXGetV2PairInfo(tokenA, tokenB);
+
+              if (pairInfo) {
+                const statusMessage = `**FusionX Pool Information:**\n\n` +
+                  `- **Pair Address:** \`${pairInfo.pairAddress}\`\n` +
+                  `- **${pairInfo.token0Symbol} Reserve:** ${pairInfo.reserve0}\n` +
+                  `- **${pairInfo.token1Symbol} Reserve:** ${pairInfo.reserve1}\n` +
+                  `- **Total LP Supply:** ${pairInfo.totalSupply}`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("This trading pair doesn't exist on FusionX yet. You can create it by adding liquidity.");
+              }
+            } catch (err: any) {
+              console.error("FusionX get pair info error:", err);
+              updateLastAiMessage("Failed to fetch pool information. Please try again.");
+            }
+            return;
+          }
+
+          // FusionX: Get V2 LP Balance
+          if (toolMessage?.type === "fusionx_get_v2_lp_balance") {
+            const { tokenA, tokenB, userAddress } = toolMessage.params;
+
+            if (!tokenA || !tokenB) {
+              addMessageToCurrentChat("assistant", "Missing token addresses for LP balance check.");
+              return;
+            }
+
+            addMessageToCurrentChat("assistant", "🔍 Checking your LP token balance...");
+
+            try {
+              const lpBalance = await fusionXGetV2LPBalance(tokenA, tokenB, userAddress || undefined);
+
+              if (lpBalance) {
+                const statusMessage = `**Your FusionX LP Position:**\n\n` +
+                  `- **LP Token Balance:** ${lpBalance.balance}\n` +
+                  `- **Your Share:** ${lpBalance.sharePercent}%\n` +
+                  `- **${lpBalance.token0Symbol} Value:** ${lpBalance.token0Amount}\n` +
+                  `- **${lpBalance.token1Symbol} Value:** ${lpBalance.token1Amount}`;
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("You don't have any LP tokens for this pair, or the pair doesn't exist.");
+              }
+            } catch (err: any) {
+              console.error("FusionX get LP balance error:", err);
+              updateLastAiMessage("Failed to fetch LP balance. Please try again.");
+            }
+            return;
+          }
+
+          // FusionX: Get User LP History
+          if (toolMessage?.type === "fusionx_get_user_lp_history") {
+            const { userAddress } = toolMessage.params;
+
+            addMessageToCurrentChat("assistant", "🔍 Fetching your FusionX LP history...");
+
+            try {
+              const lpHistory = await fusionXGetUserLPHistory(userAddress || undefined);
+
+              if (lpHistory && (lpHistory.mints.length > 0 || lpHistory.burns.length > 0)) {
+                let statusMessage = `**Your FusionX LP History:**\n\n`;
+
+                if (lpHistory.mints.length > 0) {
+                  statusMessage += `**Recent Liquidity Additions (${lpHistory.mints.length}):**\n`;
+                  lpHistory.mints.slice(0, 5).forEach((mint: any, i: number) => {
+                    statusMessage += `${i + 1}. ${mint.pair?.token0?.symbol}/${mint.pair?.token1?.symbol} - ${parseFloat(mint.amountUSD || 0).toFixed(2)} USD\n`;
+                  });
+                }
+
+                if (lpHistory.burns.length > 0) {
+                  statusMessage += `\n**Recent Liquidity Removals (${lpHistory.burns.length}):**\n`;
+                  lpHistory.burns.slice(0, 5).forEach((burn: any, i: number) => {
+                    statusMessage += `${i + 1}. ${burn.pair?.token0?.symbol}/${burn.pair?.token1?.symbol} - ${parseFloat(burn.amountUSD || 0).toFixed(2)} USD\n`;
+                  });
+                }
+
+                updateLastAiMessage(statusMessage);
+
+                // Save to backend for persistence
+                await orchestratedAgentChat({
+                  agentName: "orchestratedAgent",
+                  userId: user?.id ?? "",
+                  message: statusMessage,
+                  threadId: chatId,
+                  walletAddress: address ?? "",
+                  isTransaction: true,
+                });
+              } else {
+                updateLastAiMessage("No LP history found. You haven't added or removed liquidity on FusionX yet.");
+              }
+            } catch (err: any) {
+              console.error("FusionX get LP history error:", err);
+              updateLastAiMessage("Failed to fetch LP history. Please try again.");
+            }
             return;
           }
 
@@ -2182,10 +4759,15 @@ export function ChatInterface({
       }
     } finally {
       setIsLoading(false);
+      // Set flag to skip the next history fetch to preserve local state (e.g., read-only tool responses)
+      skipNextHistoryFetch.current = true;
       setIsMessageSending(false);
       setExecutingLifi(false);
       setExecutingAave(false);
       setExecutingChangeNow(false);
+      setExecutingMantle(false);
+      setExecutingLendle(false);
+      setExecutingFusionX(false);
     }
   };
   const handleSuggestedPrompt = (prompt: string) => {

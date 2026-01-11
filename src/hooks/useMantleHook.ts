@@ -813,7 +813,7 @@ export const useMantleHook = () => {
       return "Insufficient balance for this operation";
     }
     if (errorStr.includes("User rejected") || errorStr.includes("user rejected") || errorStr.includes("User denied")) {
-      return "Transaction cancelled by user";
+      return "No problem! You cancelled the transaction. Let me know when you're ready to try again.";
     }
     if (errorStr.includes("network") || errorStr.includes("disconnected")) {
       return "Network error. Please check your connection and try again";

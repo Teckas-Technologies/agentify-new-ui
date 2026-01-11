@@ -772,6 +772,23 @@ export const useLendleHook = () => {
   };
 
   /**
+   * Get token symbol
+   */
+  const getTokenSymbol = async (tokenAddress: Address): Promise<string> => {
+    try {
+      const symbol = await readContract(wagmiConfig as any, {
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'symbol',
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+      return symbol as string;
+    } catch {
+      return "UNKNOWN";
+    }
+  };
+
+  /**
    * Approve token for LendingPool
    * Uses exact amount approval for better security (not unlimited)
    */
@@ -818,26 +835,32 @@ export const useLendleHook = () => {
   const getErrorMessage = (error: any): string => {
     const errorStr = error?.message || String(error);
 
-    if (errorStr.includes("insufficient") || errorStr.includes("exceeds balance")) {
-      return "Insufficient balance for this operation";
-    }
-    if (errorStr.includes("User rejected") || errorStr.includes("user rejected")) {
-      return "Transaction cancelled by user";
-    }
-    if (errorStr.includes("health factor")) {
-      return "This action would reduce your health factor below 1. Add more collateral or repay some debt.";
-    }
-    if (errorStr.includes("collateral")) {
-      return "Insufficient collateral for this operation";
-    }
-    if (errorStr.includes("borrow cap")) {
-      return "Borrow cap reached for this asset";
-    }
-    if (errorStr.includes("supply cap")) {
-      return "Supply cap reached for this asset";
+    // Preserve our natural AI messages (they start with "I noticed")
+    if (errorStr.startsWith("I noticed")) {
+      return errorStr;
     }
 
-    return errorStr || "Operation failed. Please try again";
+    if (errorStr.includes("User rejected") || errorStr.includes("user rejected")) {
+      return "No problem! You cancelled the transaction. Let me know when you're ready to try again.";
+    }
+    if (errorStr.includes("health factor")) {
+      return "This action would put your position at risk. Your health factor would drop below 1, which could lead to liquidation. Consider adding more collateral or repaying some debt first.";
+    }
+    if (errorStr.includes("collateral")) {
+      return "You don't have enough collateral for this operation. Consider depositing more assets first.";
+    }
+    if (errorStr.includes("borrow cap")) {
+      return "The borrow cap for this asset has been reached. Try borrowing a smaller amount or choose a different asset.";
+    }
+    if (errorStr.includes("supply cap")) {
+      return "The supply cap for this asset has been reached. Try depositing a smaller amount or choose a different asset.";
+    }
+    // Catch generic insufficient balance errors from contract
+    if (errorStr.includes("insufficient") || errorStr.includes("exceeds balance")) {
+      return "It looks like you don't have enough balance to complete this operation. Please check your wallet balance and try again.";
+    }
+
+    return errorStr || "Something went wrong. Please try again.";
   };
 
   // Convert ray (27 decimals) to percentage APY
@@ -865,6 +888,7 @@ export const useLendleHook = () => {
       await ensureMantleNetwork();
 
       const decimals = await getTokenDecimals(params.asset);
+      const tokenSymbol = await getTokenSymbol(params.asset);
       const amount = parseUnits(params.amount, decimals);
 
       // Check balance
@@ -874,10 +898,10 @@ export const useLendleHook = () => {
         functionName: 'balanceOf',
         args: [address],
         chainId: MANTLE_CHAIN_ID as any,
-      });
+      }) as bigint;
 
-      if ((balance as bigint) < amount) {
-        throw new Error("Insufficient token balance");
+      if (balance < amount) {
+        throw new Error(`I noticed you don't have enough ${tokenSymbol} for this deposit. You need ${params.amount} ${tokenSymbol}, but your wallet only has ${formatUnits(balance, decimals)} ${tokenSymbol}. Would you like to try a smaller amount?`);
       }
 
       // Approve if needed
@@ -944,7 +968,7 @@ export const useLendleHook = () => {
       });
 
       if (balance.value < amountWei) {
-        throw new Error(`Insufficient MNT balance. You have ${formatEther(balance.value)} MNT`);
+        throw new Error(`I noticed you don't have enough MNT for this deposit. You need ${amount} MNT, but your wallet only has ${formatEther(balance.value)} MNT. Would you like to try a smaller amount?`);
       }
 
       // Deposit via WETHGateway
@@ -1007,6 +1031,31 @@ export const useLendleHook = () => {
       const amount = params.amount.toLowerCase() === "max"
         ? maxUint256
         : parseUnits(params.amount, decimals);
+
+      // Check aToken balance for non-max withdrawals
+      if (params.amount.toLowerCase() !== "max") {
+        const reserveTokens = await readContract(wagmiConfig as any, {
+          address: LENDLE_CONTRACTS.ProtocolDataProvider,
+          abi: PROTOCOL_DATA_PROVIDER_ABI,
+          functionName: 'getReserveTokensAddresses',
+          args: [params.asset],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as [Address, Address, Address];
+
+        const aTokenAddress = reserveTokens[0];
+        const aTokenBalance = await readContract(wagmiConfig as any, {
+          address: aTokenAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [address],
+          chainId: MANTLE_CHAIN_ID as any,
+        }) as bigint;
+
+        if (aTokenBalance < amount) {
+          const tokenSymbol = await getTokenSymbol(params.asset);
+          throw new Error(`I noticed you don't have enough deposited to withdraw this amount. You want to withdraw ${params.amount} ${tokenSymbol}, but you only have ${formatUnits(aTokenBalance, decimals)} ${tokenSymbol} deposited. Would you like to try a smaller amount?`);
+        }
+      }
 
       const txHash = await writeContract(wagmiConfig as any, {
         address: LENDLE_CONTRACTS.LendingPool,
@@ -1081,6 +1130,11 @@ export const useLendleHook = () => {
         args: [address as Address],
         chainId: MANTLE_CHAIN_ID as any,
       }) as bigint;
+
+      // Check balance for non-max withdrawals
+      if (amount.toLowerCase() !== "max" && lWMNTBalance < amountWei) {
+        throw new Error(`I noticed you don't have enough deposited to withdraw this amount. You want to withdraw ${amount} MNT, but you only have ${formatEther(lWMNTBalance)} MNT deposited. Would you like to try a smaller amount?`);
+      }
 
       // Determine approval amount: use balance for "max" or exact amount
       const approvalAmount = amountWei === maxUint256 ? lWMNTBalance : amountWei;
@@ -1337,8 +1391,18 @@ export const useLendleHook = () => {
       await ensureMantleNetwork();
 
       const decimals = await getTokenDecimals(params.asset);
+      const tokenSymbol = await getTokenSymbol(params.asset);
       let amount: bigint;
       let approvalAmount: bigint;
+
+      // Check token balance
+      const tokenBalance = await readContract(wagmiConfig as any, {
+        address: params.asset,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+        chainId: MANTLE_CHAIN_ID as any,
+      }) as bigint;
 
       if (params.amount.toLowerCase() === "max") {
         // For max repay, get actual debt and add 0.1% buffer for interest accrual
@@ -1348,10 +1412,21 @@ export const useLendleHook = () => {
           : parseUnits(userReserve?.currentVariableDebt || "0", decimals);
         // Add 0.1% buffer for interest that accrues between approval and repay
         approvalAmount = debt + (debt / BigInt(1000));
+
+        // Check if user has enough balance to repay the debt
+        if (tokenBalance < debt) {
+          throw new Error(`I noticed you don't have enough ${tokenSymbol} to repay your full debt. Your debt is ${formatUnits(debt, decimals)} ${tokenSymbol}, but your wallet only has ${formatUnits(tokenBalance, decimals)} ${tokenSymbol}. Would you like to make a partial repayment?`);
+        }
+
         amount = maxUint256; // Use max for the actual repay call
       } else {
         amount = parseUnits(params.amount, decimals);
         approvalAmount = amount;
+
+        // Check if user has enough balance for the specified amount
+        if (tokenBalance < amount) {
+          throw new Error(`I noticed you don't have enough ${tokenSymbol} for this repayment. You need ${params.amount} ${tokenSymbol}, but your wallet only has ${formatUnits(tokenBalance, decimals)} ${tokenSymbol}. Would you like to try a smaller amount?`);
+        }
       }
 
       // Approve if needed (exact amount or debt + buffer)
@@ -1409,9 +1484,20 @@ export const useLendleHook = () => {
 
       await ensureMantleNetwork();
 
+      // Check MNT balance
+      const mntBalance = await getBalance(wagmiConfig as any, {
+        address: address,
+        chainId: MANTLE_CHAIN_ID as any,
+      });
+
       const amountWei = amount.toLowerCase() === "max"
         ? maxUint256
         : parseEther(amount);
+
+      // For non-max repay, check if user has enough MNT
+      if (amount.toLowerCase() !== "max" && mntBalance.value < amountWei) {
+        throw new Error(`I noticed you don't have enough MNT for this repayment. You need ${amount} MNT, but your wallet only has ${formatEther(mntBalance.value)} MNT. Would you like to try a smaller amount?`);
+      }
 
       const txHash = await writeContract(wagmiConfig as any, {
         address: LENDLE_CONTRACTS.WETHGateway,
